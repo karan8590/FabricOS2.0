@@ -126,10 +126,13 @@ export default function OrdersPage() {
             const res = await fetch('/api/orders');
             if (res.ok) {
                 const data = await res.json();
-                setAllOrders(data.orders);
+                setAllOrders(data.orders || []);
+            } else {
+                const errData = await res.json().catch(() => ({}));
+                console.error('Orders fetch failed:', res.status, errData);
             }
         } catch (error) {
-            // Error logged silently
+            console.error('Orders fetch error:', error);
         } finally {
             setLoading(false);
         }

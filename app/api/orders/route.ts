@@ -44,26 +44,7 @@ export async function GET(request: Request) {
         customers.name as customer_name,
         customers.phone as customer_phone,
         designs.name as design_name,
-        designs.price_per_meter,
-        (
-            SELECT json_group_array(
-                json_object(
-                    'id', jc.id,
-                    'type', jc.type,
-                    'vendor_name', v.name,
-                    'metres', jc.metres,
-                    'rate_per_metre', jc.rate_per_metre,
-                    'total_cost', jc.total_cost,
-                    'status', jc.status,
-                    'dispatch_status', vd.status,
-                    'expected_return_date', vd.expected_return_date
-                )
-            )
-            FROM order_job_costs jc
-            LEFT JOIN vendors v ON jc.vendor_id = v.id
-            LEFT JOIN vendor_dispatches vd ON vd.order_id = jc.order_id AND vd.vendor_id = jc.vendor_id AND vd.process_type = jc.type
-            WHERE jc.order_id = orders.id
-        ) as job_costs_data
+        designs.price_per_meter
       FROM orders
       JOIN customers ON orders.customer_id = customers.id
       JOIN designs ON orders.design_id = designs.id
@@ -107,7 +88,7 @@ export async function GET(request: Request) {
         }
         if (dateEnd) {
             query += ' AND COALESCE(orders.order_date, orders.created_at) <= ?';
-            params.push(Math.floor(new Date(dateEnd).getTime() / 1000) + 86399); // end of day
+            params.push(Math.floor(new Date(dateEnd).getTime() / 1000) + 86399);
         }
 
         // Filter by amount
@@ -122,7 +103,7 @@ export async function GET(request: Request) {
 
         // Search text
         if (searchQuery) {
-            query += ' AND (customers.name LIKE ? OR designs.name LIKE ? OR orders.id LIKE ? OR orders.order_number LIKE ?)';
+            query += ' AND (customers.name LIKE ? OR designs.name LIKE ? OR CAST(orders.id AS TEXT) LIKE ? OR orders.order_number LIKE ?)';
             const likeParam = `%${searchQuery}%`;
             params.push(likeParam, likeParam, likeParam, likeParam);
         }
@@ -132,16 +113,20 @@ export async function GET(request: Request) {
 
         const orders = (await db.prepare(query).all(...params)) as any[];
 
-        const mappedOrders = orders.map(order => {
+        // Fetch job costs separately to avoid crashing the main query
+        const mappedOrders = await Promise.all(orders.map(async (order) => {
             let jobCosts = [];
             try {
-                if (order.job_costs_data) {
-                    const parsed = JSON.parse(order.job_costs_data);
-                    jobCosts = Array.isArray(parsed) ? parsed.filter((j: any) => j && j.id) : [];
-                }
+                const jcRows = (await db.prepare(`
+                    SELECT jc.*, v.name as vendor_name
+                    FROM order_job_costs jc
+                    LEFT JOIN vendors v ON jc.vendor_id = v.id
+                    WHERE jc.order_id = ?
+                `).all(order.id)) as any[];
+                jobCosts = jcRows || [];
             } catch (_) {}
             return { ...order, job_costs: jobCosts };
-        });
+        }));
 
         return NextResponse.json({ 
             orders: mappedOrders,
