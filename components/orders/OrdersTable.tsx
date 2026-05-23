@@ -679,6 +679,7 @@ function OrderActionButton({
 }) {
     const status = order.status?.toLowerCase() || ORDER_STATUSES.CREATED;
     const [isProcessing, setIsProcessing] = useState(false);
+    const [showApproveModal, setShowApproveModal] = useState(false);
 
     if (status === ORDER_STATUSES.DELIVERED || status === 'completed' || status === 'invoiced') {
         return (
@@ -702,34 +703,39 @@ function OrderActionButton({
     const config = ACTION_CONFIG[status];
     if (!config) return null;
 
-    const handleAction = async () => {
-        if (status === ORDER_STATUSES.CREATED || status === 'pending' || status === 'waiting_approval') {
-            console.log("Approving order:", order.id);
-            setIsProcessing(true);
-            try {
-                const res = await fetch(`/api/orders/${order.id}/workflow`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: 'approve' })
-                });
-                console.log("Approve response:", res);
+    const confirmApprove = async () => {
+        console.log("Approving order:", order.id);
+        setIsProcessing(true);
+        try {
+            const res = await fetch(`/api/orders/${order.id}/workflow`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: 'approve' })
+            });
+            console.log("Approve response:", res);
 
-                if (res.ok) {
-                    const data = await res.json();
-                    console.log("Approve data:", data);
-                    alert('✅ Order approved successfully');
-                    if (onUpdate) onUpdate();
-                } else {
-                    const data = await res.json();
-                    console.error('Approve failed:', data);
-                    alert(`❌ Failed to approve order: ${data.error || 'Unknown error'}`);
-                }
-            } catch (error: any) {
-                console.error("Approve failed:", error);
-                alert(`❌ Failed to approve order: ${error.message || error}`);
-            } finally {
-                setIsProcessing(false);
+            if (res.ok) {
+                const data = await res.json();
+                console.log("Approve data:", data);
+                setShowApproveModal(false);
+                if (onUpdate) onUpdate();
+            } else {
+                const data = await res.json();
+                console.error('Approve failed:', data);
+                alert(`❌ Failed to approve order: ${data.error || 'Unknown error'}`);
             }
+        } catch (error: any) {
+            console.error("Approve failed:", error);
+            alert(`❌ Failed to approve order: ${error.message || error}`);
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
+    const handleAction = () => {
+        if (status === ORDER_STATUSES.CREATED || status === 'pending' || status === 'waiting_approval') {
+            console.log("Approve clicked, Opening modal");
+            setShowApproveModal(true);
         } else {
             // Determine action keyword for modal
             let actionKey = '';
@@ -745,6 +751,7 @@ function OrderActionButton({
     };
 
     return (
+        <>
         <button 
             onClick={handleAction}
             disabled={isProcessing}
@@ -752,30 +759,91 @@ function OrderActionButton({
                 border: `1.5px solid ${config.border}`,
                 color: config.color,
                 background: config.bg,
-                borderRadius: '999px',
-                padding: '5px 14px',
+                padding: '6px 14px',
+                borderRadius: '8px',
                 fontSize: '13px',
-                fontWeight: 500,
-                display: 'inline-flex',
+                fontWeight: 600,
+                cursor: 'pointer',
+                display: 'flex',
                 alignItems: 'center',
                 gap: '6px',
-                cursor: isProcessing ? 'not-allowed' : 'pointer',
-                whiteSpace: 'nowrap',
-                transition: 'all 150ms ease',
-                height: '30px',
+                transition: 'all 0.2s',
+                width: '100%',
+                justifyContent: 'center',
                 opacity: isProcessing ? 0.7 : 1
             }}
-            onMouseOver={(e) => {
-                if (!isProcessing) {
-                    e.currentTarget.style.filter = 'brightness(0.95)';
-                }
-            }}
-            onMouseOut={(e) => {
-                e.currentTarget.style.filter = 'none';
-            }}
         >
-            <i className={config.icon} style={{ fontSize: '14px' }}></i>
+            <i className={isProcessing ? "ti ti-loader ti-spin" : config.icon}></i> 
             {isProcessing ? 'Processing...' : config.label}
         </button>
+
+        {showApproveModal && createPortal(
+            <div className="global-modal-overlay" onClick={() => setShowApproveModal(false)}>
+                <div style={{
+                    background: '#fff',
+                    padding: '24px',
+                    borderRadius: '16px',
+                    width: '100%',
+                    maxWidth: '400px',
+                    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+                    border: '1px solid #E5E7EB',
+                }} onClick={e => e.stopPropagation()}>
+                    <div style={{
+                        width: '48px',
+                        height: '48px',
+                        borderRadius: '50%',
+                        background: '#EFF6FF',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        marginBottom: '16px'
+                    }}>
+                        <i className="ti ti-check" style={{ fontSize: '24px', color: '#2563EB' }}></i>
+                    </div>
+                    <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#111827', margin: '0 0 8px 0' }}>Approve Order?</h3>
+                    <p style={{ fontSize: '14px', color: '#4B5563', margin: '0 0 24px 0', lineHeight: 1.5 }}>
+                        Are you sure you want to approve Order <strong>#{order.order_number || order.id}</strong> for production? This will move it to the next workflow stage.
+                    </p>
+                    <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+                        <button 
+                            onClick={() => setShowApproveModal(false)}
+                            disabled={isProcessing}
+                            style={{
+                                padding: '8px 16px',
+                                background: '#F3F4F6',
+                                color: '#374151',
+                                border: 'none',
+                                borderRadius: '8px',
+                                fontWeight: 500,
+                                cursor: 'pointer'
+                            }}
+                        >
+                            Cancel
+                        </button>
+                        <button 
+                            onClick={confirmApprove}
+                            disabled={isProcessing}
+                            style={{
+                                padding: '8px 16px',
+                                background: '#2563EB',
+                                color: '#fff',
+                                border: 'none',
+                                borderRadius: '8px',
+                                fontWeight: 500,
+                                cursor: 'pointer',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: '6px'
+                            }}
+                        >
+                            {isProcessing ? <i className="ti ti-loader ti-spin"></i> : <i className="ti ti-check"></i>}
+                            {isProcessing ? 'Approving...' : 'Confirm Approval'}
+                        </button>
+                    </div>
+                </div>
+            </div>,
+            document.body
+        )}
+        </>
     );
 }

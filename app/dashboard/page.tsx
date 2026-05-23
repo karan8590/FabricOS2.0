@@ -32,11 +32,18 @@ import {
 import styles from './Dashboard.module.css';
 
 // Rupee formatter matching ERP custom style
-const formatRupee = (value: number) => {
-    if (value >= 100000) {
-        return `₹${(value / 100000).toFixed(2)}L`;
+const formatRupee = (value: any) => {
+    const numValue = Number(value) || 0;
+    if (numValue >= 10000000) {
+        return `₹${(numValue / 10000000).toFixed(2).replace(/\.00$/, '')}Cr`;
     }
-    return `₹${value.toLocaleString('en-IN')}`;
+    if (numValue >= 100000) {
+        return `₹${(numValue / 100000).toFixed(2).replace(/\.00$/, '')}L`;
+    }
+    if (numValue >= 1000) {
+        return `₹${(numValue / 1000).toFixed(1).replace(/\.0$/, '')}K`;
+    }
+    return `₹${numValue.toLocaleString('en-IN')}`;
 };
 
 export default function DashboardPage() {

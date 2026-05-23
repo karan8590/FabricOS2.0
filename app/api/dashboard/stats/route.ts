@@ -245,20 +245,20 @@ export async function GET(req: Request) {
 
         return NextResponse.json({
             ordersReceived: {
-                value: currentOrders.count,
-                change: calculateChange(currentOrders.count, lastOrders.count)
+                value: Number(currentOrders.count) || 0,
+                change: calculateChange(Number(currentOrders.count) || 0, Number(lastOrders.count) || 0)
             },
             ordersDelivered: {
-                value: currentDelivered.count,
-                change: calculateChange(currentDelivered.count, lastDelivered.count)
+                value: Number(currentDelivered.count) || 0,
+                change: calculateChange(Number(currentDelivered.count) || 0, Number(lastDelivered.count) || 0)
             },
             revenueCollected: {
-                value: currentRevenue.revenue,
-                change: calculateChange(currentRevenue.revenue, lastRevenue.revenue)
+                value: Number(currentRevenue.revenue) || 0,
+                change: calculateChange(Number(currentRevenue.revenue) || 0, Number(lastRevenue.revenue) || 0)
             },
             outstandingAmount: {
-                value: currentOutstanding.total,
-                change: calculateChange(currentOutstanding.total, lastOutstandingValue.total)
+                value: Number(currentOutstanding.total) || 0,
+                change: calculateChange(Number(currentOutstanding.total) || 0, Number(lastOutstandingValue.total) || 0)
             },
             gstLiability: netGstLiability,
             analyticsData: analyticsData,
