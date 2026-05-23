@@ -46,8 +46,8 @@ export async function GET(request: Request) {
         designs.name as design_name,
         designs.price_per_meter,
         (
-            SELECT COALESCE(json_agg(
-                json_build_object(
+            SELECT json_group_array(
+                json_object(
                     'id', jc.id,
                     'type', jc.type,
                     'vendor_name', v.name,
@@ -58,7 +58,7 @@ export async function GET(request: Request) {
                     'dispatch_status', vd.status,
                     'expected_return_date', vd.expected_return_date
                 )
-            ) FILTER (WHERE jc.id IS NOT NULL), '[]')
+            )
             FROM order_job_costs jc
             LEFT JOIN vendors v ON jc.vendor_id = v.id
             LEFT JOIN vendor_dispatches vd ON vd.order_id = jc.order_id AND vd.vendor_id = jc.vendor_id AND vd.process_type = jc.type
@@ -132,10 +132,16 @@ export async function GET(request: Request) {
 
         const orders = (await db.prepare(query).all(...params)) as any[];
 
-        const mappedOrders = orders.map(order => ({
-            ...order,
-            job_costs: order.job_costs_data ? JSON.parse(order.job_costs_data) : []
-        }));
+        const mappedOrders = orders.map(order => {
+            let jobCosts = [];
+            try {
+                if (order.job_costs_data) {
+                    const parsed = JSON.parse(order.job_costs_data);
+                    jobCosts = Array.isArray(parsed) ? parsed.filter((j: any) => j && j.id) : [];
+                }
+            } catch (_) {}
+            return { ...order, job_costs: jobCosts };
+        });
 
         return NextResponse.json({ 
             orders: mappedOrders,
