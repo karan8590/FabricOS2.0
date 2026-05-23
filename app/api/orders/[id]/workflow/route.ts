@@ -38,7 +38,7 @@ export async function POST(
         let activityDescription = '';
         const todayDate = new Date().toISOString().split('T')[0];
 
-        db.exec('BEGIN TRANSACTION');
+        await db.exec('BEGIN TRANSACTION');
 
         try {
             if (action === 'approve') {
@@ -153,11 +153,10 @@ export async function POST(
                             businessId, order.customer_id, 'production_workflow', activityTitle, activityDescription,
                             JSON.stringify({ order_id: orderId, action, status: newStatus }), Math.floor(Date.now() / 1000)
                         ));
-
-            db.exec('COMMIT');
+            await db.exec('COMMIT');
 
         } catch (txnError) {
-            db.exec('ROLLBACK');
+            await db.exec('ROLLBACK');
             throw txnError;
         }
 

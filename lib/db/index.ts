@@ -125,6 +125,11 @@ function getDatabase() {
 
         // Direct query access for advanced use cases
         query: (sql: string, params?: any[]) => pool.query(sql, params),
+
+        // Support for db.exec used in transactions (BEGIN/COMMIT/ROLLBACK)
+        exec: async (sql: string) => {
+            return await pool.query(sql);
+        },
     };
 }
 
