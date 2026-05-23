@@ -67,7 +67,7 @@ export async function GET(request: Request) {
       FROM orders
       JOIN customers ON orders.customer_id = customers.id
       JOIN designs ON orders.design_id = designs.id
-      WHERE orders.business_id = $1
+      WHERE orders.business_id = ?
     `;
         const params: any[] = [businessId];
 
