@@ -1,4 +1,96 @@
-import React, { useState } from 'react';
+const fs = require('fs');
+
+const cssFile = '/Users/karandhameliya/Desktop/ag/FabricOS/app/telegram-center/TelegramCenter.module.css';
+let cssContent = fs.readFileSync(cssFile, 'utf8');
+
+// Update CSS for layout and spacing
+cssContent = cssContent.replace('.wizardContainer {\n    display: flex;\n    flex-direction: column;\n    gap: 0;\n    position: relative;\n    max-width: 800px;\n    margin: 0 auto;\n}', 
+`.wizardContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    position: relative;
+    max-width: 780px;
+    margin: 0 auto;
+}`);
+
+// Fix StepWrapper to use flex-start and gap 16px
+cssContent = cssContent.replace('.stepWrapper {\n    display: flex;\n    gap: 20px;\n    position: relative;\n}', 
+`.stepWrapper {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    position: relative;
+}`);
+
+// Step Connector Wrapper fixed width
+cssContent = cssContent.replace('.stepConnectorWrapper {\n    display: flex;\n    flex-direction: column;\n    align-items: center;\n    width: 24px;\n    flex-shrink: 0;\n}', 
+`.stepConnectorWrapper {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    width: 40px;
+    flex-shrink: 0;
+    position: relative;
+}`);
+
+// Step Circle sizes (32px instead of 24px)
+cssContent = cssContent.replace('.stepCircle {\n    width: 24px;\n    height: 24px;', 
+`.stepCircle {
+    width: 32px;
+    height: 32px;`);
+
+// Connector line absolute positioned
+cssContent = cssContent.replace('.stepLine {\n    flex: 1;\n    width: 2px;\n    background: var(--border-primary);\n    margin: 4px 0;\n    transition: background 0.3s ease;\n}', 
+`.stepLine {
+    position: absolute;
+    top: 36px;
+    bottom: -16px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 2px;
+    background: var(--border-default);
+    transition: background 0.3s ease;
+}`);
+
+cssContent = cssContent.replace('.stepLineActive {\n    background: #10B981;\n}', 
+`.stepLineActive {
+    background: #16A34A;
+}`);
+
+// Card spacing fixes
+cssContent = cssContent.replace('.stepCard {\n    flex: 1;\n    border-radius: 12px;\n    padding: 20px;\n    margin-bottom: 24px;\n    transition: all 0.3s ease;\n}', 
+`.stepCard {
+    flex: 1;
+    border-radius: 12px;
+    padding: 16px 20px;
+    margin-bottom: 12px;
+    transition: all 0.3s ease;
+    width: 100%;
+}`);
+
+// Font adjustments
+cssContent = cssContent.replace('.stepHeader h3 {\n    margin: 0;\n    font-size: 16px;\n    font-weight: 600;\n}', 
+`.stepHeader h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 500;
+}`);
+
+cssContent = cssContent.replace('.stepContent {\n    margin-top: 16px;\n    font-size: 14px;\n    color: var(--text-secondary);\n}', 
+`.stepContent {
+    margin-top: 16px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}`);
+
+// Write CSS
+fs.writeFileSync(cssFile, cssContent);
+
+// NOW REWRITE SetupWizard.tsx
+const wizardFile = '/Users/karandhameliya/Desktop/ag/FabricOS/components/telegram/SetupWizard.tsx';
+
+const newWizardContent = `import React, { useState } from 'react';
 import { Loader2 } from 'lucide-react';
 import styles from '@/app/telegram-center/TelegramCenter.module.css';
 import confetti from 'canvas-confetti';
@@ -109,21 +201,21 @@ export function SetupWizard(props: SetupWizardProps) {
                         {isCompleted ? <i className="ti ti-check" style={{ fontSize: '16px' }} /> : stepNumber}
                     </div>
                     {stepNumber < 7 && (
-                        <div className={`${styles.stepLine} ${isCompleted ? styles.stepLineActive : ''}`} />
+                        <div className={\`\${styles.stepLine} \${isCompleted ? styles.stepLineActive : ''}\`} />
                     )}
                 </div>
 
-                <div className={`${styles.stepCard} ${
+                <div className={\`\${styles.stepCard} \${
                     isCompleted ? styles.stepCardCompleted : 
                     isActive ? styles.stepCardActive : styles.stepCardPending
-                }`}>
+                }\`}>
                     <div className={styles.stepHeader}>
                         <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                             Step {stepNumber} — {title}
                         </h3>
-                        {isCompleted && <span className={`${styles.stepBadge} ${styles.badgeCompleted}`}><i className="ti ti-circle-check" style={{ fontSize: '12px' }}/> Completed</span>}
-                        {isActive && <span className={`${styles.stepBadge} ${styles.badgeCurrent}`}><i className="ti ti-point-filled" style={{ fontSize: '12px' }}/> Current</span>}
-                        {isPending && <span className={`${styles.stepBadge} ${styles.badgePending}`}><i className="ti ti-clock" style={{ fontSize: '12px' }}/> Pending</span>}
+                        {isCompleted && <span className={\`\${styles.stepBadge} \${styles.badgeCompleted}\`}><i className="ti ti-circle-check" style={{ fontSize: '12px' }}/> Completed</span>}
+                        {isActive && <span className={\`\${styles.stepBadge} \${styles.badgeCurrent}\`}><i className="ti ti-point-filled" style={{ fontSize: '12px' }}/> Current</span>}
+                        {isPending && <span className={\`\${styles.stepBadge} \${styles.badgePending}\`}><i className="ti ti-clock" style={{ fontSize: '12px' }}/> Pending</span>}
                     </div>
                     
                     {isCompleted && (
@@ -353,3 +445,7 @@ export function SetupWizard(props: SetupWizardProps) {
         </div>
     );
 }
+`;
+
+fs.writeFileSync(wizardFile, newWizardContent);
+console.log('SetupWizard updated successfully');

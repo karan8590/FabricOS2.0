@@ -48,7 +48,7 @@ export function TelegramDashboard({
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                                 <Shield color="#166534" />
                                 <div>
-                                    <h3 style={{ margin: 0, color: '#166534' }}>✅ Telegram bot active — @FabricOSBot</h3>
+                                    <h3 style={{ margin: 0, color: '#166534', display: 'flex', alignItems: 'center', gap: '8px' }}><i className="ti ti-circle-check" /> Telegram bot active — @FabricOSBot</h3>
                                     <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#166534' }}>Connected and receiving real-time events.</p>
                                 </div>
                             </div>
