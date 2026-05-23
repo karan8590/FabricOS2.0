@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
-import { Activity, Shield, Users, MessageSquare, Terminal, RefreshCw, Settings, Search, Plus } from 'lucide-react';
+import { Activity, Shield, Users, MessageSquare, Terminal, RefreshCw, Settings, Search, Plus, FlaskConical } from 'lucide-react';
 import styles from '@/app/telegram-center/TelegramCenter.module.css';
+import { TestMessagesPanel } from './TestMessagesPanel';
 
 interface DashboardProps {
     botValid: boolean;
@@ -37,6 +38,7 @@ export function TelegramDashboard({
                 <TabButton id="recipients" label="Recipients" icon={Users} />
                 <TabButton id="notifications" label="Notifications Config" icon={MessageSquare} />
                 <TabButton id="commands" label="Bot Commands" icon={Terminal} />
+                <TabButton id="test-messages" label="Test Messages" icon={FlaskConical} />
                 <TabButton id="reconfigure" label="Reconfigure" icon={Settings} />
             </div>
 
@@ -210,6 +212,10 @@ export function TelegramDashboard({
                             </tbody>
                         </table>
                     </div>
+                )}
+
+                {activeTab === 'test-messages' && (
+                    <TestMessagesPanel recipients={recipients} />
                 )}
 
                 {activeTab === 'reconfigure' && (

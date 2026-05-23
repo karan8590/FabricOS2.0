@@ -540,3 +540,13 @@ CREATE INDEX IF NOT EXISTS idx_customers_business ON customers(business_id);
 CREATE INDEX IF NOT EXISTS idx_designs_business ON designs(business_id);
 CREATE INDEX IF NOT EXISTS idx_vendor_payments_business ON vendor_payments(business_id);
 CREATE INDEX IF NOT EXISTS idx_activity_created_at ON activity(created_at);
+
+CREATE TABLE IF NOT EXISTS telegram_test_logs (
+    id SERIAL PRIMARY KEY,
+    business_id INTEGER,
+    recipient_id INTEGER,
+    message_type TEXT,
+    status TEXT,
+    error TEXT,
+    sent_at INTEGER
+);
