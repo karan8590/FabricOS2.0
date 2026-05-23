@@ -100,11 +100,16 @@ function getDatabase() {
 
                     // Auto-append RETURNING id for INSERT statements to mimic
                     // better-sqlite3's lastInsertRowid behaviour
-                    if (
-                        finalSql.trim().toUpperCase().startsWith('INSERT') &&
-                        !finalSql.toUpperCase().includes('RETURNING ID')
-                    ) {
-                        finalSql = finalSql.trim().replace(/;$/, '') + ' RETURNING id;';
+                    const isInsert = finalSql.trim().toUpperCase().startsWith('INSERT');
+                    const hasReturning = finalSql.toUpperCase().includes('RETURNING');
+                    const isSettingsTable = /INTO\s+settings\b/i.test(finalSql);
+
+                    if (isInsert && !hasReturning) {
+                        if (isSettingsTable) {
+                            finalSql = finalSql.trim().replace(/;$/, '') + ' RETURNING key;';
+                        } else {
+                            finalSql = finalSql.trim().replace(/;$/, '') + ' RETURNING id;';
+                        }
                     }
 
                     const res = await pool.query(finalSql, params);
