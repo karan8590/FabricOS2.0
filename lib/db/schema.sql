@@ -543,7 +543,7 @@ CREATE INDEX IF NOT EXISTS idx_activity_created_at ON activity(created_at);
 
 CREATE TABLE IF NOT EXISTS telegram_test_logs (
     id SERIAL PRIMARY KEY,
-    business_id INTEGER,
+    business_id TEXT,
     recipient_id INTEGER,
     message_type TEXT,
     status TEXT,
