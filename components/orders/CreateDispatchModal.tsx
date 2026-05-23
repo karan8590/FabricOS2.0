@@ -12,6 +12,7 @@ interface CreateDispatchModalProps {
 
 export default function CreateDispatchModal({ isOpen, onClose, onSuccess, selectedOrders }: CreateDispatchModalProps) {
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [errors, setErrors] = useState<Record<string, string>>({});
     const [formData, setFormData] = useState({
         vehicleNumber: '',
         driverName: '',
@@ -25,6 +26,20 @@ export default function CreateDispatchModal({ isOpen, onClose, onSuccess, select
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        
+        const newErrors: Record<string, string> = {};
+        if (!formData.vehicleNumber?.trim()) newErrors.vehicleNumber = 'Vehicle number is required';
+        if (!formData.dispatchDate) newErrors.dispatchDate = 'Dispatch date is required';
+        if (!formData.driverName?.trim()) newErrors.driverName = 'Driver name is required';
+        if (formData.driverPhone?.trim() && !/^\d{10}$/.test(formData.driverPhone.trim())) newErrors.driverPhone = 'Mobile number must be 10 digits';
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            const firstErrorField = document.querySelector('[data-error="true"]') as HTMLElement;
+            if (firstErrorField) firstErrorField.focus();
+            return;
+        }
+
         setIsSubmitting(true);
         try {
             const res = await fetch('/api/dispatch', {
@@ -42,6 +57,7 @@ export default function CreateDispatchModal({ isOpen, onClose, onSuccess, select
                     vehicleNumber: '', driverName: '', driverPhone: '', route: '',
                     dispatchDate: new Date().toISOString().split('T')[0], notes: ''
                 });
+                setErrors({});
             } else {
                 const data = await res.json();
                 alert(data.error || 'Failed to create dispatch');
@@ -91,12 +107,14 @@ export default function CreateDispatchModal({ isOpen, onClose, onSuccess, select
                                     <Truck size={16} />
                                     <input 
                                         type="text" 
-                                        required 
                                         placeholder="GJ05AB1234"
                                         value={formData.vehicleNumber}
-                                        onChange={e => setFormData({...formData, vehicleNumber: e.target.value})}
+                                        onChange={e => { setFormData({...formData, vehicleNumber: e.target.value}); setErrors({...errors, vehicleNumber: ''}); }}
+                                        className={errors.vehicleNumber ? '!border-red-400 focus:!ring-red-500 !bg-red-50/30' : ''}
+                                        data-error={!!errors.vehicleNumber}
                                     />
                                 </div>
+                                {errors.vehicleNumber && <p className="text-red-500 text-xs mt-1 transition-all duration-200">{errors.vehicleNumber}</p>}
                             </div>
 
                             <div className={styles.field}>
@@ -105,11 +123,13 @@ export default function CreateDispatchModal({ isOpen, onClose, onSuccess, select
                                     <Calendar size={16} />
                                     <input 
                                         type="date" 
-                                        required 
                                         value={formData.dispatchDate}
-                                        onChange={e => setFormData({...formData, dispatchDate: e.target.value})}
+                                        onChange={e => { setFormData({...formData, dispatchDate: e.target.value}); setErrors({...errors, dispatchDate: ''}); }}
+                                        className={errors.dispatchDate ? '!border-red-400 focus:!ring-red-500 !bg-red-50/30' : ''}
+                                        data-error={!!errors.dispatchDate}
                                     />
                                 </div>
+                                {errors.dispatchDate && <p className="text-red-500 text-xs mt-1 transition-all duration-200">{errors.dispatchDate}</p>}
                             </div>
 
                             <div className={styles.field}>
@@ -118,12 +138,14 @@ export default function CreateDispatchModal({ isOpen, onClose, onSuccess, select
                                     <span style={{ marginLeft: '12px' }}>👤</span>
                                     <input 
                                         type="text" 
-                                        required 
                                         placeholder="Ramesh Patel"
                                         value={formData.driverName}
-                                        onChange={e => setFormData({...formData, driverName: e.target.value})}
+                                        onChange={e => { setFormData({...formData, driverName: e.target.value}); setErrors({...errors, driverName: ''}); }}
+                                        className={errors.driverName ? '!border-red-400 focus:!ring-red-500 !bg-red-50/30' : ''}
+                                        data-error={!!errors.driverName}
                                     />
                                 </div>
+                                {errors.driverName && <p className="text-red-500 text-xs mt-1 transition-all duration-200">{errors.driverName}</p>}
                             </div>
 
                             <div className={styles.field}>
@@ -132,11 +154,14 @@ export default function CreateDispatchModal({ isOpen, onClose, onSuccess, select
                                     <Phone size={16} />
                                     <input 
                                         type="tel" 
-                                        placeholder="+91..."
+                                        placeholder="e.g. 9876543210"
                                         value={formData.driverPhone}
-                                        onChange={e => setFormData({...formData, driverPhone: e.target.value})}
+                                        onChange={e => { setFormData({...formData, driverPhone: e.target.value}); setErrors({...errors, driverPhone: ''}); }}
+                                        className={errors.driverPhone ? '!border-red-400 focus:!ring-red-500 !bg-red-50/30' : ''}
+                                        data-error={!!errors.driverPhone}
                                     />
                                 </div>
+                                {errors.driverPhone && <p className="text-red-500 text-xs mt-1 transition-all duration-200">{errors.driverPhone}</p>}
                             </div>
 
                             <div className={styles.field} style={{ gridColumn: '1 / -1' }}>

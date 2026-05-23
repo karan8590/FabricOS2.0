@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
-import { Truck, MapPin, Package, Calendar, FileText, CheckCircle2, Clock, Building2, ArrowRight } from 'lucide-react';
+import { Truck, MapPin, Package, Calendar, FileText, CheckCircle2, Clock, Building2, ArrowRight, Loader2 } from 'lucide-react';
+import { formatCurrencySafe } from '@/lib/utils';
 import styles from './Dispatch.module.css';
 
 interface DispatchBatch {
@@ -211,9 +212,14 @@ export default function DispatchCenter() {
                 </div>
 
                 {loading ? (
-                    <div className={styles.loadingState}>
-                        <div className={styles.spinner} />
-                        Loading data…
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '24px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                            <Loader2 className="animate-spin" size={20} style={{ color: 'var(--accent)' }} />
+                            <span style={{ color: 'var(--text-secondary)' }}>Loading dispatch board...</span>
+                        </div>
+                        {[1, 2, 3, 4, 5].map((i) => (
+                            <div key={i} style={{ height: '56px', background: 'var(--bg-secondary)', borderRadius: '8px', animation: 'pulse 2s infinite' }}></div>
+                        ))}
                     </div>
                 ) : activeTab === 'customer' ? (
                     <table className={styles.table}>
@@ -357,7 +363,7 @@ export default function DispatchCenter() {
                                         </td>
                                         <td className={styles.td}>
                                             <div className={styles.vehicleInfo}>{v.total_meters}m</div>
-                                            <div className={styles.driverInfo}>₹{v.total_cost.toLocaleString('en-IN')}</div>
+                                            <div className={styles.driverInfo}>{formatCurrencySafe(v.total_cost)}</div>
                                         </td>
                                         <td className={styles.td}>
                                             <span className={`${styles.statusPill} ${v.status === 'returned' ? styles.pillDelivered : styles.pillVendorSent}`}>

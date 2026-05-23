@@ -28,6 +28,7 @@ export default function CreateCustomerModal({ isOpen, onClose, onSuccess, custom
     const [state, setState] = useState('');
     const [stateCode, setStateCode] = useState('');
     const [notes, setNotes] = useState('');
+    const [errors, setErrors] = useState<Record<string, string>>({});
 
     useEffect(() => {
         setMounted(true);
@@ -73,6 +74,7 @@ export default function CreateCustomerModal({ isOpen, onClose, onSuccess, custom
         setStateCode('');
         setNotes('');
         setError('');
+        setErrors({});
     };
 
     const handleStateChange = (stateName: string) => {
@@ -87,25 +89,26 @@ export default function CreateCustomerModal({ isOpen, onClose, onSuccess, custom
     };
 
     const handleSubmit = async () => {
-        if (!name.trim() || !phone.trim()) {
-            setError('Customer name and phone number are required');
-            return;
-        }
+        const newErrors: Record<string, string> = {};
+        if (!name.trim()) newErrors.name = 'Customer name is required';
+        if (!phone.trim()) newErrors.phone = 'Phone number is required';
+        if (email.trim() && !/\S+@\S+\.\S+/.test(email)) newErrors.email = 'Valid email is required';
 
         if (customerType === 'B2B') {
+            if (!state) newErrors.state = 'State is required for B2B customers';
             if (!gstin.trim()) {
-                setError('GSTIN is required for B2B customers');
-                return;
+                newErrors.gstin = 'GSTIN is required for B2B customers';
+            } else {
+                const validation = validateGSTIN(gstin, stateCode);
+                if (!validation.valid) newErrors.gstin = validation.error || 'Invalid GSTIN';
             }
-            if (!state) {
-                setError('State is required for B2B customers');
-                return;
-            }
-            const validation = validateGSTIN(gstin, stateCode);
-            if (!validation.valid) {
-                setError(validation.error || 'Invalid GSTIN');
-                return;
-            }
+        }
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            const firstErrorField = document.querySelector('[data-error="true"]') as HTMLElement;
+            if (firstErrorField) firstErrorField.focus();
+            return;
         }
 
         setLoading(true);
@@ -191,26 +194,30 @@ export default function CreateCustomerModal({ isOpen, onClose, onSuccess, custom
                                 <div className={styles.inputWrapper}>
                                     <User className={styles.inputIcon} size={16} />
                                     <input
-                                        className={styles.input}
+                                        className={`${styles.input} ${errors.name ? '!border-red-400 focus:!ring-red-500 !bg-red-50/30' : ''}`}
                                         placeholder="e.g. Aditya Textile Hub"
                                         value={name}
-                                        onChange={e => setName(e.target.value)}
+                                        onChange={e => { setName(e.target.value); setErrors(p => ({...p, name: ''})); }}
                                         autoFocus={!customer}
+                                        data-error={!!errors.name}
                                     />
                                 </div>
+                                {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
                             </div>
                             <div className={styles.field}>
                                 <label className={styles.label}>Phone Number <span className={styles.required}>*</span></label>
                                 <div className={styles.inputWrapper}>
                                     <Phone className={styles.inputIcon} size={16} />
                                     <input
-                                        className={styles.input}
+                                        className={`${styles.input} ${errors.phone ? '!border-red-400 focus:!ring-red-500 !bg-red-50/30' : ''}`}
                                         placeholder="+91XXXXXXXXXX"
                                         value={phone}
-                                        onChange={e => setPhone(e.target.value)}
+                                        onChange={e => { setPhone(e.target.value); setErrors(p => ({...p, phone: ''})); }}
                                         type="tel"
+                                        data-error={!!errors.phone}
                                     />
                                 </div>
+                                {errors.phone && <p className="text-red-500 text-xs mt-1">{errors.phone}</p>}
                             </div>
                         </div>
                     </div>
@@ -240,13 +247,15 @@ export default function CreateCustomerModal({ isOpen, onClose, onSuccess, custom
                                 <div className={styles.inputWrapper}>
                                     <Mail className={styles.inputIcon} size={16} />
                                     <input
-                                        className={styles.input}
+                                        className={`${styles.input} ${errors.email ? '!border-red-400 focus:!ring-red-500 !bg-red-50/30' : ''}`}
                                         placeholder="customer@email.com"
                                         value={email}
-                                        onChange={e => setEmail(e.target.value)}
+                                        onChange={e => { setEmail(e.target.value); setErrors(p => ({...p, email: ''})); }}
                                         type="email"
+                                        data-error={!!errors.email}
                                     />
                                 </div>
+                                {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
                             </div>
 
                             {customerType === 'B2B' && (
@@ -254,16 +263,18 @@ export default function CreateCustomerModal({ isOpen, onClose, onSuccess, custom
                                     <div className={styles.field}>
                                         <label className={styles.label}>Billing State</label>
                                         <select
-                                            className={styles.input}
+                                            className={`${styles.input} ${errors.state ? '!border-red-400 focus:!ring-red-500 !bg-red-50/30' : ''}`}
                                             style={{ paddingLeft: '12px' }}
                                             value={state}
-                                            onChange={e => handleStateChange(e.target.value)}
+                                            onChange={e => { handleStateChange(e.target.value); setErrors(p => ({...p, state: ''})); }}
+                                            data-error={!!errors.state}
                                         >
                                             <option value="">Select State</option>
                                             {GST_STATES.map(s => (
                                                 <option key={s.code} value={s.name}>{s.name} ({s.code})</option>
                                             ))}
                                         </select>
+                                        {errors.state && <p className="text-red-500 text-xs mt-1">{errors.state}</p>}
                                     </div>
 
                                     <div className={styles.field}>
@@ -271,14 +282,16 @@ export default function CreateCustomerModal({ isOpen, onClose, onSuccess, custom
                                         <div className={styles.inputWrapper}>
                                             <Hash className={styles.inputIcon} size={16} />
                                             <input
-                                                className={styles.input}
+                                                className={`${styles.input} ${errors.gstin ? '!border-red-400 focus:!ring-red-500 !bg-red-50/30' : ''}`}
                                                 placeholder={`${stateCode || '24'}XXXXX1234X1ZX`}
                                                 value={gstin}
-                                                onChange={e => setGstin(e.target.value.toUpperCase())}
+                                                onChange={e => { setGstin(e.target.value.toUpperCase()); setErrors(p => ({...p, gstin: ''})); }}
                                                 maxLength={15}
                                                 style={{ fontFamily: 'monospace' }}
+                                                data-error={!!errors.gstin}
                                             />
                                         </div>
+                                        {errors.gstin && <p className="text-red-500 text-xs mt-1">{errors.gstin}</p>}
                                     </div>
                                 </>
                             )}
@@ -323,7 +336,7 @@ export default function CreateCustomerModal({ isOpen, onClose, onSuccess, custom
                     <button
                         className={styles.createBtn}
                         onClick={handleSubmit}
-                        disabled={loading || !name.trim() || !phone.trim()}
+                        disabled={loading}
                     >
                         {loading ? 'Saving...' : customer ? 'Save Changes' : 'Add Customer'}
                     </button>

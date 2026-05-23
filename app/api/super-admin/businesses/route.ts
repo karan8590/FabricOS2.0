@@ -62,7 +62,7 @@ export async function POST(request: Request) {
             // 1. Create Business
             (await db.prepare(`
                 INSERT INTO businesses (id, name, type, status, created_at)
-                VALUES (?, ?, 'Textile Manufacturer', 'active', strftime('%s', 'now'))
+                VALUES (?, ?, 'Textile Manufacturer', 'active', (EXTRACT(EPOCH FROM NOW()))::integer)
             `).run(businessId, name));
 
             // 2. Create Admin User

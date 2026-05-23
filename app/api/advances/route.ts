@@ -318,7 +318,7 @@ export async function POST(request: Request) {
                 `).run(repaid, balance, statusVal, advanceId, businessId));
             });
 
-            runTx();
+            await runTx();
             return NextResponse.json({ message: 'Repayment instalment added successfully' });
         }
 

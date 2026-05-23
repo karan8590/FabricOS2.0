@@ -105,7 +105,20 @@ export async function POST(request: Request) {
                         stateCode || null
                     ));
 
-        return NextResponse.json({ success: true, vendorId: result.lastInsertRowid });
+        const newVendorId = Number(result.lastInsertRowid);
+        const vendor = {
+            id: newVendorId,
+            name,
+            contact,
+            material_supplied: materialSupplied,
+            balance: balance || 0,
+            vendor_type: vendorType || 'Fabric Supplier',
+            gst_no: gstNo ? gstNo.trim().toUpperCase() : null,
+            state: state || null,
+            state_code: stateCode || null,
+        };
+
+        return NextResponse.json({ success: true, vendorId: newVendorId, vendor });
     } catch (error) {
         console.error('Vendor creation error:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

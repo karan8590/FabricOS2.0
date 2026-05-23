@@ -70,7 +70,7 @@ export async function POST(
                 (await db.prepare('UPDATE customers SET outstanding_amount = outstanding_amount + ? WHERE id = ?').run(diff, invoice.customer_id));
             }
         });
-        updateTransaction();
+        await updateTransaction();
 
         return NextResponse.json({
             success: true,

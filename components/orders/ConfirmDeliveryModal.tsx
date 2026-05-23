@@ -17,6 +17,7 @@ export default function ConfirmDeliveryModal({ isOpen, onClose, onSuccess, order
     const [notes, setNotes] = useState<string>('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
+    const [errors, setErrors] = useState<Record<string, string>>({});
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
@@ -29,6 +30,7 @@ export default function ConfirmDeliveryModal({ isOpen, onClose, onSuccess, order
             setDeliveredTo('');
             setNotes('');
             setError('');
+            setErrors({});
         }
     }, [isOpen, order]);
 
@@ -36,8 +38,14 @@ export default function ConfirmDeliveryModal({ isOpen, onClose, onSuccess, order
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!dateDelivered) {
-            setError('Please fill all required fields');
+        
+        const newErrors: Record<string, string> = {};
+        if (!dateDelivered) newErrors.dateDelivered = 'Date delivered is required';
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            const firstErrorField = document.querySelector('[data-error="true"]') as HTMLElement;
+            if (firstErrorField) firstErrorField.focus();
             return;
         }
 
@@ -98,10 +106,11 @@ export default function ConfirmDeliveryModal({ isOpen, onClose, onSuccess, order
                             <input
                                 type="date"
                                 value={dateDelivered}
-                                onChange={(e) => setDateDelivered(e.target.value)}
-                                className={styles.input}
-                                required
+                                onChange={(e) => { setDateDelivered(e.target.value); setErrors({...errors, dateDelivered: ''}); }}
+                                className={`${styles.input} ${errors.dateDelivered ? 'border-red-400 focus:ring-red-500 bg-red-50/30' : ''}`}
+                                data-error={!!errors.dateDelivered}
                             />
+                            {errors.dateDelivered && <p className="text-red-500 text-xs mt-1 transition-all duration-200">{errors.dateDelivered}</p>}
                         </div>
                         <div className={styles.formGroup}>
                             <label className={styles.label}>Delivered To (Name)</label>

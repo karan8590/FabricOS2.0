@@ -17,6 +17,7 @@ export default function PaymentModal({ isOpen, onClose, onSave, invoice }: Payme
     const [date, setDate] = useState('');
     const [notes, setNotes] = useState('');
     const [loading, setLoading] = useState(false);
+    const [errors, setErrors] = useState<Record<string, string>>({});
 
     useEffect(() => {
         if (isOpen && invoice) {
@@ -24,8 +25,10 @@ export default function PaymentModal({ isOpen, onClose, onSave, invoice }: Payme
             const paid = invoice.amount_paid || 0;
             const remaining = Math.max(0, invoice.amount - paid);
             setAmount(remaining.toString());
+            setAmount(remaining.toString());
             setDate(new Date().toISOString().split('T')[0]);
             setNotes('');
+            setErrors({});
         }
     }, [isOpen, invoice]);
 
@@ -33,6 +36,26 @@ export default function PaymentModal({ isOpen, onClose, onSave, invoice }: Payme
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+
+        const paid = invoice.amount_paid || 0;
+        const remaining = Math.max(0, invoice.amount - paid);
+
+        const newErrors: Record<string, string> = {};
+        if (!amount || parseFloat(amount) <= 0) {
+            newErrors.amount = 'Amount must be greater than 0';
+        } else if (parseFloat(amount) > remaining) {
+            newErrors.amount = 'Amount cannot exceed remaining balance';
+        }
+
+        if (!date) newErrors.date = 'Date is required';
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            const firstErrorField = document.querySelector('[data-error="true"]') as HTMLElement;
+            if (firstErrorField) firstErrorField.focus();
+            return;
+        }
+
         setLoading(true);
         try {
             await onSave({
@@ -94,25 +117,27 @@ export default function PaymentModal({ isOpen, onClose, onSave, invoice }: Payme
                             <label className={styles.label}>Payment Amount (₹)</label>
                             <input
                                 type="number"
-                                className={styles.input}
+                                className={`${styles.input} ${errors.amount ? '!border-red-400 focus:!ring-red-500 !bg-red-50/30' : ''}`}
                                 value={amount}
-                                onChange={e => setAmount(e.target.value)}
+                                onChange={e => { setAmount(e.target.value); setErrors(prev => ({...prev, amount: ''})); }}
                                 min="1"
                                 max={remaining}
                                 step="any"
-                                required
+                                data-error={!!errors.amount}
                             />
+                            {errors.amount && <p className="text-red-500 text-xs mt-1 transition-all duration-200">{errors.amount}</p>}
                         </div>
 
                         <div className={styles.field}>
                             <label className={styles.label}>Payment Date</label>
                             <input
                                 type="date"
-                                className={styles.input}
+                                className={`${styles.input} ${errors.date ? '!border-red-400 focus:!ring-red-500 !bg-red-50/30' : ''}`}
                                 value={date}
-                                onChange={e => setDate(e.target.value)}
-                                required
+                                onChange={e => { setDate(e.target.value); setErrors(prev => ({...prev, date: ''})); }}
+                                data-error={!!errors.date}
                             />
+                            {errors.date && <p className="text-red-500 text-xs mt-1 transition-all duration-200">{errors.date}</p>}
                         </div>
 
                         <div className={styles.field}>

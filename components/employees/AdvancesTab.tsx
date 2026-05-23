@@ -76,6 +76,7 @@ export default function AdvancesTab({ employees }: AdvancesTabProps) {
         date: new Date().toISOString().split('T')[0],
         note: ''
     });
+    const [modalErrors, setModalErrors] = useState<Record<string, string>>({});
 
     // Inline Repayment state per card
     const [activeFormAdvanceId, setActiveFormAdvanceId] = useState<number | null>(null);
@@ -84,6 +85,7 @@ export default function AdvancesTab({ employees }: AdvancesTabProps) {
         date: new Date().toISOString().split('T')[0],
         note: ''
     });
+    const [inlineErrors, setInlineErrors] = useState<Record<string, string>>({});
     
     // History expandable state
     const [expandedHistoryId, setExpandedHistoryId] = useState<number | null>(null);
@@ -112,8 +114,16 @@ export default function AdvancesTab({ employees }: AdvancesTabProps) {
 
     const handleCreateAdvance = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!modalData.employeeId || !modalData.totalAmount || !modalData.date) {
-            alert('Please fill out all required fields.');
+        
+        const newErrors: Record<string, string> = {};
+        if (!modalData.employeeId) newErrors.employeeId = 'Employee selection is required';
+        if (!modalData.totalAmount || parseFloat(modalData.totalAmount) <= 0) newErrors.totalAmount = 'Advance amount must be greater than 0';
+        if (!modalData.date) newErrors.date = 'Date given is required';
+
+        if (Object.keys(newErrors).length > 0) {
+            setModalErrors(newErrors);
+            const firstErrorField = document.querySelector('[data-error="true"]') as HTMLElement;
+            if (firstErrorField) firstErrorField.focus();
             return;
         }
 
@@ -151,6 +161,7 @@ export default function AdvancesTab({ employees }: AdvancesTabProps) {
                     date: new Date().toISOString().split('T')[0],
                     note: ''
                 });
+                setModalErrors({});
                 fetchAdvances();
             } else {
                 const err = await res.json();
@@ -162,8 +173,12 @@ export default function AdvancesTab({ employees }: AdvancesTabProps) {
     };
 
     const handleAddInstalment = async (advanceId: number) => {
-        if (!inlineData.amount || !inlineData.date) {
-            alert('Please enter an amount and a date.');
+        const newErrors: Record<string, string> = {};
+        if (!inlineData.amount || parseFloat(inlineData.amount) <= 0) newErrors.amount = 'Valid amount is required';
+        if (!inlineData.date) newErrors.date = 'Date is required';
+
+        if (Object.keys(newErrors).length > 0) {
+            setInlineErrors(newErrors);
             return;
         }
 
@@ -195,6 +210,7 @@ export default function AdvancesTab({ employees }: AdvancesTabProps) {
                     date: new Date().toISOString().split('T')[0],
                     note: ''
                 });
+                setInlineErrors({});
                 fetchAdvances();
             } else {
                 const err = await res.json();
@@ -229,7 +245,7 @@ export default function AdvancesTab({ employees }: AdvancesTabProps) {
                     </button>
                 </div>
 
-                <button className={styles.btnNewAdvance} onClick={() => setIsModalOpen(true)}>
+                <button className={styles.btnNewAdvance} onClick={() => { setIsModalOpen(true); setModalErrors({}); }}>
                     <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: '4px' }}>
                         <line x1="12" y1="5" x2="12" y2="19" />
                         <line x1="5" y1="12" x2="19" y2="12" />
@@ -318,6 +334,7 @@ export default function AdvancesTab({ employees }: AdvancesTabProps) {
                                             onClick={() => {
                                                 setActiveFormAdvanceId(adv.id);
                                                 setInlineData({ amount: '', date: new Date().toISOString().split('T')[0], note: '' });
+                                                setInlineErrors({});
                                             }}
                                         >
                                             <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
@@ -351,22 +368,26 @@ export default function AdvancesTab({ employees }: AdvancesTabProps) {
                                     <div className={styles.inlineForm}>
                                         <div className={styles.inlineFormTitle}>Record Instalment Recovery</div>
                                         <div className={styles.inlineFormRow}>
-                                            <input
-                                                type="number"
-                                                className={styles.inlineInput}
-                                                style={{ width: '40%' }}
-                                                placeholder="Amount ₹"
-                                                value={inlineData.amount}
-                                                min="1"
-                                                onChange={(e) => setInlineData(prev => ({ ...prev, amount: e.target.value }))}
-                                            />
-                                            <input
-                                                type="date"
-                                                className={styles.inlineInput}
-                                                style={{ width: '60%' }}
-                                                value={inlineData.date}
-                                                onChange={(e) => setInlineData(prev => ({ ...prev, date: e.target.value }))}
-                                            />
+                                            <div style={{ width: '40%' }}>
+                                                <input
+                                                    type="number"
+                                                    className={`${styles.inlineInput} ${inlineErrors.amount ? '!border-red-400 focus:!ring-red-500 !bg-red-50/30' : ''}`}
+                                                    style={{ width: '100%' }}
+                                                    placeholder="Amount ₹"
+                                                    value={inlineData.amount}
+                                                    min="1"
+                                                    onChange={(e) => { setInlineData(prev => ({ ...prev, amount: e.target.value })); setInlineErrors(prev => ({...prev, amount: ''})); }}
+                                                />
+                                            </div>
+                                            <div style={{ width: '60%' }}>
+                                                <input
+                                                    type="date"
+                                                    className={`${styles.inlineInput} ${inlineErrors.date ? '!border-red-400 focus:!ring-red-500 !bg-red-50/30' : ''}`}
+                                                    style={{ width: '100%' }}
+                                                    value={inlineData.date}
+                                                    onChange={(e) => { setInlineData(prev => ({ ...prev, date: e.target.value })); setInlineErrors(prev => ({...prev, date: ''})); }}
+                                                />
+                                            </div>
                                         </div>
                                         <input
                                             type="text"
@@ -471,40 +492,43 @@ export default function AdvancesTab({ employees }: AdvancesTabProps) {
                                 <div className={styles.formGroup}>
                                     <label>Employee</label>
                                     <select
-                                        className={styles.modalSelect}
-                                        required
+                                        className={`${styles.modalSelect} ${modalErrors.employeeId ? '!border-red-400 focus:!ring-red-500 !bg-red-50/30' : ''}`}
                                         value={modalData.employeeId}
-                                        onChange={(e) => setModalData(prev => ({ ...prev, employeeId: e.target.value }))}
+                                        onChange={(e) => { setModalData(prev => ({ ...prev, employeeId: e.target.value })); setModalErrors(prev => ({...prev, employeeId: ''})); }}
+                                        data-error={!!modalErrors.employeeId}
                                     >
                                         <option value="">Select Employee...</option>
                                         {activeEmployees.map(emp => (
                                             <option key={emp.id} value={emp.id}>{emp.name} ({getRoleLabel(emp.role)})</option>
                                         ))}
                                     </select>
+                                    {modalErrors.employeeId && <p className="text-red-500 text-xs mt-1 transition-all duration-200">{modalErrors.employeeId}</p>}
                                 </div>
 
                                 <div className={styles.formGroup}>
                                     <label>Advance Amount (₹)</label>
                                     <input
                                         type="number"
-                                        className={styles.modalInput}
-                                        required
+                                        className={`${styles.modalInput} ${modalErrors.totalAmount ? '!border-red-400 focus:!ring-red-500 !bg-red-50/30' : ''}`}
                                         min="1"
                                         placeholder="e.g. 50000"
                                         value={modalData.totalAmount}
-                                        onChange={(e) => setModalData(prev => ({ ...prev, totalAmount: e.target.value }))}
+                                        onChange={(e) => { setModalData(prev => ({ ...prev, totalAmount: e.target.value })); setModalErrors(prev => ({...prev, totalAmount: ''})); }}
+                                        data-error={!!modalErrors.totalAmount}
                                     />
+                                    {modalErrors.totalAmount && <p className="text-red-500 text-xs mt-1 transition-all duration-200">{modalErrors.totalAmount}</p>}
                                 </div>
 
                                 <div className={styles.formGroup}>
                                     <label>Date Given</label>
                                     <input
                                         type="date"
-                                        className={styles.modalInput}
-                                        required
+                                        className={`${styles.modalInput} ${modalErrors.date ? '!border-red-400 focus:!ring-red-500 !bg-red-50/30' : ''}`}
                                         value={modalData.date}
-                                        onChange={(e) => setModalData(prev => ({ ...prev, date: e.target.value }))}
+                                        onChange={(e) => { setModalData(prev => ({ ...prev, date: e.target.value })); setModalErrors(prev => ({...prev, date: ''})); }}
+                                        data-error={!!modalErrors.date}
                                     />
+                                    {modalErrors.date && <p className="text-red-500 text-xs mt-1 transition-all duration-200">{modalErrors.date}</p>}
                                 </div>
 
                                 <div className={styles.formGroup}>

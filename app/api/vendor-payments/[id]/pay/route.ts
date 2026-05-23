@@ -94,7 +94,7 @@ export async function POST(
             let itcValues: any[] = [];
             
             if (newStatus === 'paid' && payment.has_gst === 1) {
-                itcQueryAddendum = ', itc_claimed = 1, itc_amount = ?, itc_claimed_date = strftime("%s", "now")';
+                itcQueryAddendum = ', itc_claimed = 1, itc_amount = ?, itc_claimed_date = (EXTRACT(EPOCH FROM NOW()))::integer';
                 itcValues.push(payment.gst_amount);
                 
                 // Update linked job cost if exists
@@ -136,7 +136,7 @@ export async function POST(
                 INSERT INTO expenses (
                     category, amount, date, description, paymentMode, reference, notes, 
                     addedBy, created_by_user_id, isAuto, linkedId, type, customerName, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, 'out', ?, strftime('%s', 'now'))
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, 'out', ?, (EXTRACT(EPOCH FROM NOW()))::integer)
             `).run(
                             category,
                             amount,
@@ -154,7 +154,7 @@ export async function POST(
             return { newAmountPaid, newBalance, newStatus };
         });
 
-        const result = payTx();
+        const result = await payTx();
 
         // Send Telegram Notification
         try {
@@ -183,13 +183,13 @@ export async function POST(
             entity: 'vendor_payment',
             entityId: paymentId.toString(),
             entityLabel: `${payment.vendor_name} instalment`,
-            changes: { amount, payment_mode, reference, newStatus: (await result).newStatus }
+            changes: { amount, payment_mode, reference, newStatus: result.newStatus }
         });
 
         return NextResponse.json({
             success: true,
             message: `Payment of ₹${amount.toLocaleString('en-IN')} recorded for ${payment.vendor_name}`,
-            ...await result
+            ...result
         });
     } catch (error) {
         console.error('Record vendor payment instalment error:', error);

@@ -113,20 +113,35 @@ export async function GET(request: Request) {
 
         const orders = (await db.prepare(query).all(...params)) as any[];
 
-        // Fetch job costs separately to avoid crashing the main query
-        const mappedOrders = await Promise.all(orders.map(async (order) => {
-            let jobCosts = [];
+        // Fetch job costs in a single bulk query to avoid N+1 bottleneck
+        let mappedOrders = orders;
+        if (orders.length > 0) {
+            const orderIds = orders.map(o => o.id);
+            const placeholders = orderIds.map(() => '?').join(',');
             try {
-                const jcRows = (await db.prepare(`
+                const bulkJobCosts = (await db.prepare(`
                     SELECT jc.*, v.name as vendor_name
                     FROM order_job_costs jc
                     LEFT JOIN vendors v ON jc.vendor_id = v.id
-                    WHERE jc.order_id = ?
-                `).all(order.id)) as any[];
-                jobCosts = jcRows || [];
-            } catch (_) {}
-            return { ...order, job_costs: jobCosts };
-        }));
+                    WHERE jc.order_id IN (${placeholders})
+                `).all(...orderIds)) as any[];
+
+                // Group by order_id locally (O(N))
+                const jobCostsByOrder = bulkJobCosts.reduce((acc, jc) => {
+                    if (!acc[jc.order_id]) acc[jc.order_id] = [];
+                    acc[jc.order_id].push(jc);
+                    return acc;
+                }, {} as Record<number, any[]>);
+
+                mappedOrders = orders.map(order => ({
+                    ...order,
+                    job_costs: jobCostsByOrder[order.id] || []
+                }));
+            } catch (error) {
+                console.error('Bulk job costs fetch failed:', error);
+                mappedOrders = orders.map(order => ({ ...order, job_costs: [] }));
+            }
+        }
 
         return NextResponse.json({ 
             orders: mappedOrders,

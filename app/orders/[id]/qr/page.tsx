@@ -8,15 +8,21 @@ export default function OrderQRPage() {
     const params = useParams();
     const id = params.id as string;
     const [order, setOrder] = useState<any>(null);
+    const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
         if (id) {
             fetch(`/api/orders/${id}`)
                 .then(res => res.json())
                 .then(data => {
-                    if (data.order) {
-                        setOrder(data.order);
+                    if (data.id) {
+                        setOrder(data);
+                    } else {
+                        setError(data.error || 'Failed to load order data');
                     }
+                })
+                .catch(err => {
+                    setError('Network error');
                 });
         }
     }, [id]);
@@ -30,6 +36,7 @@ export default function OrderQRPage() {
         }
     }, [order]);
 
+    if (error) return <div style={{ padding: '20px', color: 'red' }}>Error: {error}</div>;
     if (!order) return <div style={{ padding: '20px' }}>Loading order data...</div>;
 
     // The URL embedded in the QR

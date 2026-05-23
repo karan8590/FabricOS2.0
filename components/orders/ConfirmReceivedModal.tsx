@@ -22,6 +22,7 @@ export default function ConfirmReceivedModal({ isOpen, onClose, onSuccess, order
     const [notes, setNotes] = useState<string>('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
+    const [errors, setErrors] = useState<Record<string, string>>({});
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
@@ -38,6 +39,7 @@ export default function ConfirmReceivedModal({ isOpen, onClose, onSuccess, order
             setReworkNeeded(false);
             setNotes('');
             setError('');
+            setErrors({});
         }
     }, [isOpen, order]);
 
@@ -48,13 +50,21 @@ export default function ConfirmReceivedModal({ isOpen, onClose, onSuccess, order
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!metersReceived || !dateReceived || !qualityResult) {
-            setError('Please fill all required fields');
-            return;
+        
+        const newErrors: Record<string, string> = {};
+        if (!metersReceived || parseFloat(metersReceived) <= 0) newErrors.metersReceived = 'Meters received is required and must be greater than 0';
+        if (!dateReceived) newErrors.dateReceived = 'Date received is required';
+        if (!qualityResult) newErrors.qualityResult = 'Quality check result is required';
+
+        if (qualityResult === 'fail') {
+            if (!failReason) newErrors.failReason = 'Defect type is required';
+            if (!rejectionMeters || parseFloat(rejectionMeters) <= 0) newErrors.rejectionMeters = 'Rejection meters is required';
         }
 
-        if (qualityResult === 'fail' && (!failReason || !rejectionMeters)) {
-            setError('Please specify the fail reason and rejection meters.');
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            const firstErrorField = document.querySelector('[data-error="true"]') as HTMLElement;
+            if (firstErrorField) firstErrorField.focus();
             return;
         }
 
@@ -125,20 +135,22 @@ export default function ConfirmReceivedModal({ isOpen, onClose, onSuccess, order
                                 min="0"
                                 step="0.1"
                                 value={metersReceived}
-                                onChange={(e) => setMetersReceived(e.target.value)}
-                                className={styles.input}
-                                required
+                                onChange={(e) => { setMetersReceived(e.target.value); setErrors({...errors, metersReceived: ''}); }}
+                                className={`${styles.input} ${errors.metersReceived ? 'border-red-400 focus:ring-red-500 bg-red-50/30' : ''}`}
+                                data-error={!!errors.metersReceived}
                             />
+                            {errors.metersReceived && <p className="text-red-500 text-xs mt-1 transition-all duration-200">{errors.metersReceived}</p>}
                         </div>
                         <div className={styles.formGroup}>
                             <label className={styles.label}>Date Received *</label>
                             <input
                                 type="date"
                                 value={dateReceived}
-                                onChange={(e) => setDateReceived(e.target.value)}
-                                className={styles.input}
-                                required
+                                onChange={(e) => { setDateReceived(e.target.value); setErrors({...errors, dateReceived: ''}); }}
+                                className={`${styles.input} ${errors.dateReceived ? 'border-red-400 focus:ring-red-500 bg-red-50/30' : ''}`}
+                                data-error={!!errors.dateReceived}
                             />
+                            {errors.dateReceived && <p className="text-red-500 text-xs mt-1 transition-all duration-200">{errors.dateReceived}</p>}
                         </div>
                     </div>
 
@@ -146,18 +158,19 @@ export default function ConfirmReceivedModal({ isOpen, onClose, onSuccess, order
                         <label className={styles.label}>Quality Check Result *</label>
                         <div style={{ display: 'flex', gap: '16px', marginTop: '8px' }}>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                                <input type="radio" name="quality" value="Good" checked={qualityResult === 'Good'} onChange={(e) => setQualityResult(e.target.value)} />
+                                <input type="radio" name="quality" value="Good" checked={qualityResult === 'Good'} onChange={(e) => { setQualityResult(e.target.value); setErrors({...errors, qualityResult: ''}); }} />
                                 Good / Pass
                             </label>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                                <input type="radio" name="quality" value="Minor defects" checked={qualityResult === 'Minor defects'} onChange={(e) => setQualityResult(e.target.value)} />
+                                <input type="radio" name="quality" value="Minor defects" checked={qualityResult === 'Minor defects'} onChange={(e) => { setQualityResult(e.target.value); setErrors({...errors, qualityResult: ''}); }} />
                                 Minor defects / Pass
                             </label>
                             <label style={{ display: 'flex', alignItems: 'center', gap: '4px', cursor: 'pointer' }}>
-                                <input type="radio" name="quality" value="fail" checked={qualityResult === 'fail'} onChange={(e) => setQualityResult(e.target.value)} />
+                                <input type="radio" name="quality" value="fail" checked={qualityResult === 'fail'} onChange={(e) => { setQualityResult(e.target.value); setErrors({...errors, qualityResult: ''}); }} />
                                 Major defects / Fail
                             </label>
                         </div>
+                        {errors.qualityResult && <p className="text-red-500 text-xs mt-1 transition-all duration-200">{errors.qualityResult}</p>}
                     </div>
 
                     {qualityResult === 'fail' && (
@@ -165,17 +178,32 @@ export default function ConfirmReceivedModal({ isOpen, onClose, onSuccess, order
                             <div className={styles.grid}>
                                 <div className={styles.formGroup} style={{ marginBottom: 0 }}>
                                     <label className={styles.label}>Defect Type *</label>
-                                    <select className={styles.select} value={failReason} onChange={e => setFailReason(e.target.value)} required>
+                                    <select 
+                                        className={`${styles.select} ${errors.failReason ? 'border-red-400 focus:ring-red-500 bg-red-50/30' : ''}`} 
+                                        value={failReason} 
+                                        onChange={e => { setFailReason(e.target.value); setErrors({...errors, failReason: ''}); }} 
+                                        data-error={!!errors.failReason}
+                                    >
                                         <option value="">Select...</option>
                                         <option value="Print misalignment">Print misalignment</option>
                                         <option value="Shade variation">Shade variation</option>
                                         <option value="Fabric defect">Fabric defect</option>
                                         <option value="Other">Other</option>
                                     </select>
+                                    {errors.failReason && <p className="text-red-500 text-xs mt-1 transition-all duration-200">{errors.failReason}</p>}
                                 </div>
                                 <div className={styles.formGroup} style={{ marginBottom: 0 }}>
                                     <label className={styles.label}>Rejection Metres *</label>
-                                    <input type="number" min="0" step="0.1" className={styles.input} value={rejectionMeters} onChange={e => setRejectionMeters(e.target.value)} required />
+                                    <input 
+                                        type="number" 
+                                        min="0" 
+                                        step="0.1" 
+                                        className={`${styles.input} ${errors.rejectionMeters ? 'border-red-400 focus:ring-red-500 bg-red-50/30' : ''}`} 
+                                        value={rejectionMeters} 
+                                        onChange={e => { setRejectionMeters(e.target.value); setErrors({...errors, rejectionMeters: ''}); }} 
+                                        data-error={!!errors.rejectionMeters}
+                                    />
+                                    {errors.rejectionMeters && <p className="text-red-500 text-xs mt-1 transition-all duration-200">{errors.rejectionMeters}</p>}
                                 </div>
                             </div>
                             {isDyeing && (

@@ -18,7 +18,7 @@ export async function POST(
         if (!businessId) return NextResponse.json({ error: 'Unauthorized business access' }, { status: 401 });
 
         const body = await request.json();
-        const { action, vendorId, rate, metres, expectedReturnDate, notes, metresReceived, qualityResult, transporterName, lrNumber, dispatchDate, metresDispatched, expectedDelivery, dateDelivered, deliveredTo } = body;
+        const { action, vendorId, rate, metres, expectedReturnDate, paymentDueDate, notes, metresReceived, qualityResult, transporterName, lrNumber, dispatchDate, metresDispatched, expectedDelivery, dateDelivered, deliveredTo } = body;
         const orderId = parseInt(params.id);
 
         const db = getDatabase();
@@ -36,7 +36,11 @@ export async function POST(
         let newStatus = order.status;
         let activityTitle = '';
         let activityDescription = '';
-        const todayDate = new Date().toISOString().split('T')[0];
+        const now = new Date();
+        const localYear = now.getFullYear();
+        const localMonth = String(now.getMonth() + 1).padStart(2, '0');
+        const localDay = String(now.getDate()).padStart(2, '0');
+        const todayDate = `${localYear}-${localMonth}-${localDay}`;
 
         try {
             console.log("Approve API hit");
@@ -92,10 +96,10 @@ export async function POST(
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, 'unpaid', ?, ?)
                 `).run(
                                     businessId, vendorId, vendor.name, vendor.contact, orderId, order.order_number,
-                                    workType, parseFloat(totalCost), parseFloat(totalCost), expectedReturnDate || todayDate, notes || null, insertJobCost.lastInsertRowid
+                                    workType, parseFloat(totalCost), parseFloat(totalCost), paymentDueDate || expectedReturnDate || todayDate, notes || null, insertJobCost.lastInsertRowid
                                 ));
 
-                const expReturnDateTs = expectedReturnDate ? new Date(expectedReturnDate).getTime() : null;
+                const expReturnDateTs = expectedReturnDate ? Math.floor(new Date(expectedReturnDate).getTime() / 1000) : null;
                 (await db.prepare(`
                     INSERT INTO vendor_dispatches (
                         business_id, dispatch_number, order_id, vendor_id, process_type, 
@@ -103,7 +107,7 @@ export async function POST(
                     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'sent')
                 `).run(
                                     businessId, newDispatchNumber, orderId, vendorId, workType, 
-                                    Date.now(), expReturnDateTs, parseFloat(rate), parseFloat(metres), parseFloat(totalCost)
+                                    Math.floor(Date.now() / 1000), expReturnDateTs, parseFloat(rate), parseFloat(metres), parseFloat(totalCost)
                                 ));
 
                 (await db.prepare('UPDATE vendors SET balance = balance + ? WHERE id = ?').run(parseFloat(totalCost), vendorId));
@@ -119,7 +123,7 @@ export async function POST(
                 activityTitle = 'Embroidery Received - Printing Started';
                 activityDescription = `Received ${metresReceived}m back. Quality: ${qualityResult}. ${notes || ''}`;
                 
-                (await db.prepare(`UPDATE vendor_dispatches SET status = 'returned', returned_at = ? WHERE order_id = ? AND process_type = 'embroidery' AND status = 'sent'`).run(Date.now(), orderId));
+                (await db.prepare(`UPDATE vendor_dispatches SET status = 'returned', returned_at = ? WHERE order_id = ? AND process_type = 'embroidery' AND status = 'sent'`).run(Math.floor(Date.now() / 1000), orderId));
             } 
             else if (action === 'mark_ready') {
                 if (body.reworkNeeded) {
@@ -130,7 +134,7 @@ export async function POST(
                     activityTitle = 'Dyeing Received - Ready for Dispatch';
                     activityDescription = `Received ${metresReceived}m back. Quality: ${qualityResult}. ${notes || ''}`;
                 }
-                (await db.prepare(`UPDATE vendor_dispatches SET status = 'returned', returned_at = ? WHERE order_id = ? AND process_type = 'dyeing' AND status = 'sent'`).run(Date.now(), orderId));
+                (await db.prepare(`UPDATE vendor_dispatches SET status = 'returned', returned_at = ? WHERE order_id = ? AND process_type = 'dyeing' AND status = 'sent'`).run(Math.floor(Date.now() / 1000), orderId));
             } 
             else if (action === 'dispatch') {
                 newStatus = ORDER_STATUSES.DISPATCHED;

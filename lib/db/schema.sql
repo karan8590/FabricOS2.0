@@ -550,3 +550,34 @@ CREATE TABLE IF NOT EXISTS telegram_test_logs (
     error TEXT,
     sent_at INTEGER
 );
+
+-- Vendor Dispatches Table (tracks fabric sent to embroidery/dyeing vendors)
+CREATE TABLE IF NOT EXISTS vendor_dispatches (
+  business_id TEXT DEFAULT 'business_001',
+  id SERIAL PRIMARY KEY,
+  dispatch_number TEXT NOT NULL UNIQUE,
+  order_id INTEGER NOT NULL,
+  vendor_id INTEGER NOT NULL,
+  process_type TEXT NOT NULL CHECK(process_type IN ('embroidery', 'dyeing')),
+  sent_date INTEGER NOT NULL,
+  expected_return_date INTEGER,
+  returned_at INTEGER,
+  rate_per_meter NUMERIC NOT NULL DEFAULT 0,
+  total_meters NUMERIC NOT NULL DEFAULT 0,
+  total_cost NUMERIC NOT NULL DEFAULT 0,
+  status TEXT NOT NULL CHECK(status IN ('sent', 'returned', 'cancelled')) DEFAULT 'sent',
+  notes TEXT,
+  created_at INTEGER NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()))::integer,
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+  FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE RESTRICT
+);
+
+CREATE INDEX IF NOT EXISTS idx_vendor_dispatches_order ON vendor_dispatches(order_id);
+CREATE INDEX IF NOT EXISTS idx_vendor_dispatches_vendor ON vendor_dispatches(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_vendor_dispatches_business ON vendor_dispatches(business_id);
+
+-- Extra Performance Indexes
+CREATE INDEX IF NOT EXISTS idx_vendor_payments_status ON vendor_payments(status);
+CREATE INDEX IF NOT EXISTS idx_vendor_payments_due_date ON vendor_payments(due_date);
+CREATE INDEX IF NOT EXISTS idx_vendor_payment_instalments_date ON vendor_payment_instalments(date);
+CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);

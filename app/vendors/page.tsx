@@ -7,8 +7,10 @@ import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
 import AdvancedFilter, { FilterDefinition, FilterRow } from '@/components/ui/AdvancedFilter';
+import StatWidget from '@/components/ui/StatWidget';
 import styles from './Vendors.module.css';
 import { GST_STATES, validateGSTIN } from '@/lib/gst';
+import { formatCurrencySafe } from '@/lib/utils';
 
 interface Vendor {
     id: number;
@@ -50,10 +52,21 @@ export default function VendorsPage() {
         state: '',
         stateCode: '',
     });
+    const [formErrors, setFormErrors] = useState<Record<string, string>>({});
 
     useEffect(() => {
         fetchVendors();
     }, []);
+
+    const stats = useMemo(() => {
+        const total = vendors.length;
+        const active = vendors.filter(v => v.balance > 0).length;
+        const embroidery = vendors.filter(v => v.vendor_type?.toLowerCase() === 'embroidery').length;
+        const dyeing = vendors.filter(v => v.vendor_type?.toLowerCase() === 'dyeing').length;
+        return { total, active, embroidery, dyeing };
+    }, [vendors]);
+
+    const formatCurrency = formatCurrencySafe;
 
     const fetchVendors = async (filters: FilterRow[] = [], search: string = searchTerm) => {
         setLoading(true);
@@ -127,12 +140,14 @@ export default function VendorsPage() {
             state: '',
             stateCode: ''
         });
+        setFormErrors({});
         setShowModal(true);
     };
 
     const handleEditVendor = (vendor: Vendor) => {
         setEditingVendor(vendor);
         setModalError('');
+        setFormErrors({});
         setFormData({
             name: vendor.name,
             contact: vendor.contact,
@@ -165,12 +180,21 @@ export default function VendorsPage() {
         e.preventDefault();
         setModalError('');
 
+        const newErrors: Record<string, string> = {};
+        if (!formData.name?.trim()) newErrors.name = 'Vendor name is required';
+        if (!formData.contact?.trim()) newErrors.contact = 'Contact is required';
+        if (!formData.materialSupplied?.trim()) newErrors.materialSupplied = 'Material supplied is required';
+
         if (formData.gstNo) {
             const val = validateGSTIN(formData.gstNo, formData.stateCode);
-            if (!val.valid) {
-                setModalError(val.error || 'Invalid GSTIN');
-                return;
-            }
+            if (!val.valid) newErrors.gstNo = val.error || 'Invalid GSTIN';
+        }
+
+        if (Object.keys(newErrors).length > 0) {
+            setFormErrors(newErrors);
+            const firstErrorField = document.querySelector('[data-error="true"]') as HTMLElement;
+            if (firstErrorField) firstErrorField.focus();
+            return;
         }
 
         try {
@@ -194,6 +218,7 @@ export default function VendorsPage() {
 
             if (res.ok) {
                 setShowModal(false);
+                setFormErrors({});
                 fetchVendors(activeFilters);
             } else {
                 const data = await res.json();
@@ -237,16 +262,41 @@ export default function VendorsPage() {
                 </Button>
             </div>
 
-            <div className={styles.summary}>
-                <Card>
-                    <div className={styles.summaryContent}>
-                        <div className={styles.summaryIcon}>🏭</div>
-                        <div>
-                            <div className={styles.summaryValue}>{vendors.length}</div>
-                            <div className={styles.summaryLabel}>Total Vendors</div>
-                        </div>
-                    </div>
-                </Card>
+            <div className={styles.statsRow} style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '20px', marginBottom: '24px' }}>
+                <StatWidget
+                    label="Total Vendors"
+                    value={stats.total}
+                    secondaryText="Registered"
+                    icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>}
+                    accentColor="#0071E3"
+                    accentBg="rgba(0,113,227,0.04)"
+                />
+                <StatWidget
+                    label="Active Payables"
+                    value={stats.active}
+                    secondaryText="Vendors with balance"
+                    icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><line x1="12" y1="1" x2="12" y2="23" /><path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" /></svg>}
+                    accentColor="#FF9500"
+                    accentBg="rgba(255,149,0,0.04)"
+                    badge={`${Math.round((stats.active / (stats.total || 1)) * 100)}%`}
+                    badgeType="urgent"
+                />
+                <StatWidget
+                    label="Embroidery"
+                    value={stats.embroidery}
+                    secondaryText="Job Workers"
+                    icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20"/><path d="M2 12h20"/></svg>}
+                    accentColor="#AF52DE"
+                    accentBg="rgba(175,82,222,0.04)"
+                />
+                <StatWidget
+                    label="Dyeing"
+                    value={stats.dyeing}
+                    secondaryText="Job Workers"
+                    icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>}
+                    accentColor="#34C759"
+                    accentBg="rgba(52,199,89,0.04)"
+                />
             </div>
 
             <div className={styles.filterControls}>
@@ -379,7 +429,7 @@ export default function VendorsPage() {
                                 <div className={styles.infoRow}>
                                     <span className={styles.infoLabel}>Balance:</span>
                                     <span className={`${styles.infoValue} ${styles.balance}`}>
-                                        ₹{vendor.balance.toLocaleString()}
+                                        {formatCurrency(vendor.balance)}
                                     </span>
                                 </div>
                             </div>
@@ -405,14 +455,16 @@ export default function VendorsPage() {
                             <Input
                                 label="Vendor Name"
                                 value={formData.name}
-                                onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                required
+                                onChange={(e) => { setFormData({ ...formData, name: e.target.value }); setFormErrors(p => ({...p, name: ''})); }}
+                                error={formErrors.name}
+                                data-error={!!formErrors.name}
                             />
                             <Input
                                 label="Contact (Phone/Email)"
                                 value={formData.contact}
-                                onChange={(e) => setFormData({ ...formData, contact: e.target.value })}
-                                required
+                                onChange={(e) => { setFormData({ ...formData, contact: e.target.value }); setFormErrors(p => ({...p, contact: ''})); }}
+                                error={formErrors.contact}
+                                data-error={!!formErrors.contact}
                             />
                         </div>
 
@@ -434,8 +486,9 @@ export default function VendorsPage() {
                             <Input
                                 label="Material Supplied"
                                 value={formData.materialSupplied}
-                                onChange={(e) => setFormData({ ...formData, materialSupplied: e.target.value })}
-                                required
+                                onChange={(e) => { setFormData({ ...formData, materialSupplied: e.target.value }); setFormErrors(p => ({...p, materialSupplied: ''})); }}
+                                error={formErrors.materialSupplied}
+                                data-error={!!formErrors.materialSupplied}
                             />
                         </div>
 
@@ -458,9 +511,11 @@ export default function VendorsPage() {
                                 label="GSTIN (Optional)"
                                 placeholder={`${formData.stateCode || '24'}XXXXX1234X1ZX`}
                                 value={formData.gstNo}
-                                onChange={(e) => setFormData({ ...formData, gstNo: e.target.value.toUpperCase() })}
+                                onChange={(e) => { setFormData({ ...formData, gstNo: e.target.value.toUpperCase() }); setFormErrors(p => ({...p, gstNo: ''})); }}
                                 maxLength={15}
                                 style={{ fontFamily: 'monospace' }}
+                                error={formErrors.gstNo}
+                                data-error={!!formErrors.gstNo}
                             />
                         </div>
 

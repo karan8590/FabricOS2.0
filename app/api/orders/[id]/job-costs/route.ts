@@ -199,7 +199,7 @@ export async function POST(
                     category, amount, date, description, paymentMode, reference, notes, 
                     addedBy, created_by_user_id, isAuto, linkedId, type, customerName, isPending, created_at,
                     has_gst, supplier_gstin, taxable_amount, gst_rate, gst_amount, gst_type, itc_claimed
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, 'out', ?, ?, strftime('%s', 'now'), ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, 'out', ?, ?, (EXTRACT(EPOCH FROM NOW()))::integer, ?, ?, ?, ?, ?, ?, ?)
             `).run(
                             category,
                             total_cost,
@@ -262,7 +262,7 @@ export async function POST(
             return jobCostId;
         });
 
-        const jobCostId = insertTx();
+        const jobCostId = await insertTx();
 
         return NextResponse.json({ success: true, jobCostId });
     } catch (error) {
@@ -440,7 +440,7 @@ export async function PATCH(
                         category, amount, date, description, paymentMode, reference, notes, 
                         addedBy, created_by_user_id, isAuto, linkedId, type, customerName, isPending, created_at,
                         has_gst, supplier_gstin, taxable_amount, gst_rate, gst_amount, gst_type, itc_claimed
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, 'out', ?, ?, strftime('%s', 'now'), ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, 'out', ?, ?, (EXTRACT(EPOCH FROM NOW()))::integer, ?, ?, ?, ?, ?, ?, ?)
                 `).run(
                                     category,
                                     total_cost,
@@ -553,7 +553,7 @@ export async function PATCH(
             recalculateRunningTotals(db, orderId);
         });
 
-        updateTx();
+        await updateTx();
 
         // Send Telegram Notification for Production Update
         try {
@@ -623,7 +623,7 @@ export async function DELETE(
             recalculateRunningTotals(db, orderId);
         });
 
-        deleteTx();
+        await deleteTx();
 
         return NextResponse.json({ success: true });
     } catch (error) {

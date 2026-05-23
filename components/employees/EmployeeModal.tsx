@@ -26,6 +26,7 @@ export default function EmployeeModal({ isOpen, onClose, onSave, employee, curre
     });
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const [errors, setErrors] = useState<Record<string, string>>({});
 
     useEffect(() => {
         if (isOpen) {
@@ -53,6 +54,7 @@ export default function EmployeeModal({ isOpen, onClose, onSave, employee, curre
                 });
             }
             setError('');
+            setErrors({});
         }
     }, [isOpen, employee]);
 
@@ -62,6 +64,7 @@ export default function EmployeeModal({ isOpen, onClose, onSave, employee, curre
             ...prev,
             [name]: type === 'checkbox' ? (e.target as HTMLInputElement).checked : value
         }));
+        setErrors(prev => ({...prev, [name]: ''}));
     };
 
     const handleRoleSelect = (role: string) => {
@@ -79,21 +82,25 @@ export default function EmployeeModal({ isOpen, onClose, onSave, employee, curre
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        setError('');
-        setLoading(true);
+        
+        const newErrors: Record<string, string> = {};
+        if (!formData.name?.trim()) newErrors.name = 'Name is required';
+        if (!formData.phone?.trim()) newErrors.phone = 'Phone number is required';
+        if (formData.email?.trim() && !/\S+@\S+\.\S+/.test(formData.email)) newErrors.email = 'Valid email is required';
 
-        if (!formData.name || !formData.phone) {
-            setError('Name and Phone are required.');
-            setLoading(false);
-            return;
-        }
-
-        // If canLogin is true, password is required for new users
         if (!isEdit && formData.canLogin && !formData.password) {
-            setError('Password is required when login access is enabled.');
-            setLoading(false);
+            newErrors.password = 'Password is required when login access is enabled';
+        }
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            const firstErrorField = document.querySelector('[data-error="true"]') as HTMLElement;
+            if (firstErrorField) firstErrorField.focus();
             return;
         }
+
+        setLoading(true);
+        setError('');
 
         try {
             await onSave(formData);
@@ -146,22 +153,22 @@ export default function EmployeeModal({ isOpen, onClose, onSave, employee, curre
                 <div className={styles.sectionTitle}>Basic Info</div>
                 <div className={styles.fieldGroup}>
                     <label>Full Name</label>
-                    <Input name="name" value={formData.name} onChange={handleChange} placeholder="e.g. John Doe" />
+                    <Input name="name" value={formData.name} onChange={handleChange} placeholder="e.g. John Doe" error={errors.name} data-error={!!errors.name} />
                 </div>
                 <div className={styles.row}>
                     <div className={styles.fieldGroup}>
                         <label>Phone</label>
-                        <Input name="phone" value={formData.phone} onChange={handleChange} placeholder="+91..." />
+                        <Input name="phone" value={formData.phone} onChange={handleChange} placeholder="+91..." error={errors.phone} data-error={!!errors.phone} />
                     </div>
                     <div className={styles.fieldGroup}>
                         <label>Email (Optional)</label>
-                        <Input name="email" type="email" value={formData.email} onChange={handleChange} placeholder="john@example.com" />
+                        <Input name="email" type="email" value={formData.email} onChange={handleChange} placeholder="john@example.com" error={errors.email} data-error={!!errors.email} />
                     </div>
                 </div>
 
                 <div className={styles.fieldGroup}>
                     <label>Monthly Salary (₹)</label>
-                    <Input name="monthlySalary" type="number" value={formData.monthlySalary} onChange={handleChange} placeholder="e.g. 25000" min="0" />
+                    <Input name="monthlySalary" type="number" value={formData.monthlySalary} onChange={handleChange} placeholder="e.g. 25000" min="0" error={errors.monthlySalary} data-error={!!errors.monthlySalary} />
                 </div>
 
                 <div className={styles.divider} />
@@ -236,6 +243,8 @@ export default function EmployeeModal({ isOpen, onClose, onSave, employee, curre
                                 value={formData.password}
                                 onChange={handleChange}
                                 placeholder={isEdit ? 'Leave empty to keep unchanged' : 'Required'}
+                                error={errors.password}
+                                data-error={!!errors.password}
                             />
                             {formData.password && (
                                 <p className={styles.passwordHint}>Make sure to copy this password.</p>

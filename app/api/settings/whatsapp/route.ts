@@ -114,7 +114,7 @@ export async function POST(request: Request) {
             }
         });
 
-        saveTx();
+        await saveTx();
 
         return NextResponse.json({ success: true, message: 'Settings saved successfully' });
     } catch (error) {

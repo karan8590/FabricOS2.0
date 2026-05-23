@@ -29,7 +29,11 @@ export async function GET(request: Request) {
         const search = searchParams.get('search') || '';
         const filter = searchParams.get('filter') || 'All'; // All | Overdue | Due this week | Unpaid | Partial | Paid
 
-        const todayStr = new Date().toISOString().split('T')[0];
+        const now = new Date();
+        const localYear = now.getFullYear();
+        const localMonth = String(now.getMonth() + 1).padStart(2, '0');
+        const localDay = String(now.getDate()).padStart(2, '0');
+        const todayStr = `${localYear}-${localMonth}-${localDay}`;
 
         // 1. Status Auto-Update: Batch check all unpaid/partial payments
         (await db.prepare(`
@@ -38,42 +42,49 @@ export async function GET(request: Request) {
             WHERE due_date < ? AND status = 'unpaid'
         `).run(todayStr));
 
-        // 2. Fetch KPI Stats
-        // Card 1 — Total outstanding
-        const outstandingRow = (await db.prepare(`
-            SELECT COALESCE(SUM(balance), 0) AS val 
-            FROM vendor_payments 
-            WHERE status != 'paid' AND business_id = ?
-        `).get(businessId)) as any;
-        const totalOutstanding = outstandingRow?.val || 0;
+        const later = new Date();
+        later.setDate(later.getDate() + 7);
+        const sevenDaysLater = `${later.getFullYear()}-${String(later.getMonth() + 1).padStart(2, '0')}-${String(later.getDate()).padStart(2, '0')}`;
+        
+        const startOfMonth = `${localYear}-${localMonth}-01`;
+        
+        const endMonth = new Date(localYear, now.getMonth() + 1, 0);
+        const endOfMonth = `${endMonth.getFullYear()}-${String(endMonth.getMonth() + 1).padStart(2, '0')}-${String(endMonth.getDate()).padStart(2, '0')}`;
 
-        // Card 2 — Overdue
-        const overdueRow = (await db.prepare(`
-            SELECT COALESCE(SUM(balance), 0) AS val 
-            FROM vendor_payments 
-            WHERE status = 'overdue' AND business_id = ?
-        `).get(businessId)) as any;
-        const totalOverdue = overdueRow?.val || 0;
+        // 2. Fetch KPI Stats in Parallel
+        const [
+            outstandingRow,
+            overdueRow,
+            dueThisWeekRow,
+            paidThisMonthRow
+        ] = await Promise.all([
+            db.prepare(`
+                SELECT COALESCE(SUM(balance), 0) AS val 
+                FROM vendor_payments 
+                WHERE status != 'paid' AND business_id = ?
+            `).get(businessId) as Promise<any>,
+            db.prepare(`
+                SELECT COALESCE(SUM(balance), 0) AS val 
+                FROM vendor_payments 
+                WHERE status = 'overdue' AND business_id = ?
+            `).get(businessId) as Promise<any>,
+            db.prepare(`
+                SELECT COALESCE(SUM(balance), 0) AS val 
+                FROM vendor_payments 
+                WHERE due_date >= ? AND due_date <= ? AND status != 'paid' AND business_id = ?
+            `).get(todayStr, sevenDaysLater, businessId) as Promise<any>,
+            db.prepare(`
+                SELECT COALESCE(SUM(amount), 0) AS val 
+                FROM vendor_payment_instalments vpi
+                JOIN vendor_payments vp ON vpi.vendor_payment_id = vp.id
+                WHERE vpi.date >= ? AND vpi.date <= ? AND vp.business_id = ?
+            `).get(startOfMonth, endOfMonth, businessId) as Promise<any>
+        ]);
 
-        // Card 3 — Due this week (Next 7 days)
-        const sevenDaysLater = new Date(Date.now() + 86400000 * 7).toISOString().split('T')[0];
-        const dueThisWeekRow = (await db.prepare(`
-            SELECT COALESCE(SUM(balance), 0) AS val 
-            FROM vendor_payments 
-            WHERE due_date >= ? AND due_date <= ? AND status != 'paid' AND business_id = ?
-        `).get(todayStr, sevenDaysLater, businessId)) as any;
-        const totalDueThisWeek = dueThisWeekRow?.val || 0;
-
-        // Card 4 — Paid this month (Instalments sum in current month)
-        const startOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1).toISOString().split('T')[0];
-        const endOfMonth = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0).toISOString().split('T')[0];
-        const paidThisMonthRow = (await db.prepare(`
-            SELECT COALESCE(SUM(amount), 0) AS val 
-            FROM vendor_payment_instalments vpi
-            JOIN vendor_payments vp ON vpi.vendor_payment_id = vp.id
-            WHERE vpi.date >= ? AND vpi.date <= ? AND vp.business_id = ?
-        `).get(startOfMonth, endOfMonth, businessId)) as any;
-        const totalPaidThisMonth = paidThisMonthRow?.val || 0;
+        const totalOutstanding = Number(outstandingRow?.val || 0);
+        const totalOverdue = Number(overdueRow?.val || 0);
+        const totalDueThisWeek = Number(dueThisWeekRow?.val || 0);
+        const totalPaidThisMonth = Number(paidThisMonthRow?.val || 0);
 
         // 3. Retrieve and Filter Payments
         let query = `
@@ -116,7 +127,7 @@ export async function GET(request: Request) {
         const payments = (await db.prepare(query).all(...params)) as any[];
 
         // Enrich with instalments history
-        const enrichedPayments = payments.map(async (payment) => {
+        const enrichedPayments = await Promise.all(payments.map(async (payment) => {
             const instalments = (await db.prepare(`
                 SELECT * FROM vendor_payment_instalments 
                 WHERE vendor_payment_id = ? 
@@ -126,7 +137,7 @@ export async function GET(request: Request) {
                 ...payment,
                 instalments
             };
-        });
+        }));
 
         return NextResponse.json({
             payments: enrichedPayments,
@@ -172,7 +183,12 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Vendor not found' }, { status: 400 });
         }
 
-        const todayStr = new Date().toISOString().split('T')[0];
+        const now = new Date();
+        const localYear = now.getFullYear();
+        const localMonth = String(now.getMonth() + 1).padStart(2, '0');
+        const localDay = String(now.getDate()).padStart(2, '0');
+        const todayStr = `${localYear}-${localMonth}-${localDay}`;
+        
         const status = due_date < todayStr ? 'overdue' : 'unpaid';
 
         const result = (await db.prepare(`

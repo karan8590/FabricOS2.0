@@ -158,7 +158,7 @@ export async function POST(request: Request) {
             return invoiceResult.lastInsertRowid;
         });
 
-        const invoiceId = generateInvoiceTransaction();
+        const invoiceId = await generateInvoiceTransaction();
 
         // Audit Logging
         await logAction({

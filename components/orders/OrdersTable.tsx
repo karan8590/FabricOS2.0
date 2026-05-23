@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
     MoreHorizontal, Eye, Edit2, Copy, FileText, 
-    CheckCircle2, Trash2, AlertTriangle, Truck, X, QrCode
+    CheckCircle2, Trash2, AlertTriangle, Truck, X, QrCode, Printer
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './OrdersTable.module.css';
@@ -13,6 +13,7 @@ import SendToVendorModal from './SendToVendorModal';
 import ConfirmReceivedModal from './ConfirmReceivedModal';
 import DispatchOrderModal from './DispatchOrderModal';
 import ConfirmDeliveryModal from './ConfirmDeliveryModal';
+import PrintQRModal from './PrintQRModal';
 import { ORDER_STATUSES, ORDER_STATUS_LABELS } from '@/lib/constants';
 
 interface OrdersTableProps {
@@ -488,6 +489,7 @@ export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdi
 function OrderActionMenu({ order, onUpdate, onGenerateInvoice, onEdit }: { order: any, onUpdate: () => void, onGenerateInvoice: (order: any) => void, onEdit?: (order: any) => void }) {
     const [isOpen, setIsOpen] = useState(false);
     const [showDeleteModal, setShowDeleteModal] = useState(false);
+    const [showPrintModal, setShowPrintModal] = useState(false);
     const [isDeleting, setIsDeleting] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const router = useRouter();
@@ -531,12 +533,14 @@ function OrderActionMenu({ order, onUpdate, onGenerateInvoice, onEdit }: { order
     };
 
     const menuItems = [
+        { type: 'section', label: 'Order Management' },
         { label: 'View Details', icon: <Eye size={16} />, onClick: () => router.push(`/orders/${order.id}`) },
         { label: 'Edit Order', icon: <Edit2 size={16} />, onClick: () => onEdit?.(order) },
         { label: 'Duplicate Order', icon: <Copy size={16} />, onClick: () => {} },
-        { label: 'Print QR Label', icon: <QrCode size={16} />, onClick: () => window.open(`/orders/${order.id}/qr`, '_blank') },
         
         { type: 'separator' },
+        { type: 'section', label: 'Documents & Printing' },
+        { label: 'Print QR Label', icon: <QrCode size={16} />, onClick: () => setShowPrintModal(true) },
         { 
             label: 'Generate Invoice', 
             icon: <FileText size={16} />, 
@@ -546,6 +550,7 @@ function OrderActionMenu({ order, onUpdate, onGenerateInvoice, onEdit }: { order
         },
 
         { type: 'separator' },
+        { type: 'section', label: 'Danger Zone' },
         { 
             label: 'Delete Order', 
             icon: <Trash2 size={16} />, 
@@ -598,23 +603,30 @@ function OrderActionMenu({ order, onUpdate, onGenerateInvoice, onEdit }: { order
                                 bottom: menuPosition.upward ? `${window.innerHeight - menuPosition.top + 8}px` : 'auto',
                                 left: `${menuPosition.left - 220}px`,
                                 zIndex: 9999,
-                                transformOrigin: menuPosition.upward ? 'bottom right' : 'top right'
+                                transformOrigin: menuPosition.upward ? 'bottom right' : 'top right',
+                                padding: '8px 0',
+                                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                                border: '1px solid rgba(0,0,0,0.05)',
+                                borderRadius: '12px'
                             }}
                         >
                             {menuItems.filter(item => item.show !== false).map((item, idx) => (
                                 item.type === 'separator' ? (
-                                    <div key={idx} className={styles.separator} />
+                                    <div key={idx} className={styles.separator} style={{ margin: '4px 0', borderTop: '1px solid #F3F4F6' }} />
+                                ) : item.type === 'section' ? (
+                                    <div key={idx} style={{ padding: '6px 16px', fontSize: '11px', fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                        {item.label}
+                                    </div>
                                 ) : (
                                     <button 
                                         key={idx} 
                                         className={styles.menuItem} 
                                         onClick={(e) => {
                                             e.stopPropagation();
-                                             
                                             item.onClick?.();
                                             setIsOpen(false);
                                         }}
-                                        style={{ color: item.color }}
+                                        style={{ color: item.color, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px', width: '100%', border: 'none', background: 'transparent', cursor: 'pointer', fontSize: '13px', textAlign: 'left', fontWeight: 500 }}
                                     >
                                         {item.icon}
                                         <span>{item.label}</span>
@@ -653,19 +665,27 @@ function OrderActionMenu({ order, onUpdate, onGenerateInvoice, onEdit }: { order
                 </div>,
                 document.body
             )}
+
+            {showPrintModal && (
+                <PrintQRModal 
+                    isOpen={showPrintModal} 
+                    onClose={() => setShowPrintModal(false)} 
+                    order={order} 
+                />
+            )}
         </div>
     );
 }
 
-const ACTION_CONFIG: Record<string, { label: string, icon: string, color: string, bg: string, border: string }> = {
-  draft:      { label: 'Review & Approve',  icon: 'ti ti-eye',          color: '#2563EB', bg: '#EFF6FF', border: '#2563EB' },
-  created:    { label: 'Approve',           icon: 'ti ti-circle-check', color: '#2563EB', bg: '#EFF6FF', border: '#2563EB' },
-  approved:   { label: 'Send to Embroidery',icon: 'ti ti-needle',       color: '#7C3AED', bg: '#F5F3FF', border: '#7C3AED' },
-  embroidery: { label: 'Mark Printing',     icon: 'ti ti-printer',      color: '#D97706', bg: '#FFFBEB', border: '#D97706' },
-  printing:   { label: 'Send to Dyeing',    icon: 'ti ti-droplet',      color: '#0D9488', bg: '#F0FDFA', border: '#0D9488' },
-  dyeing:     { label: 'Mark Ready',        icon: 'ti ti-package',      color: '#16A34A', bg: '#F0FDF4', border: '#16A34A' },
-  ready:      { label: 'Dispatch',          icon: 'ti ti-truck',        color: '#EA580C', bg: '#FFF7ED', border: '#EA580C' },
-  dispatched: { label: 'Mark Delivered',    icon: 'ti ti-circle-check', color: '#15803D', bg: '#DCFCE7', border: '#15803D' },
+const ACTION_CONFIG: Record<string, { label: string, icon: string, color: string, bg: string, border: string, hoverBg: string, hoverBorder: string }> = {
+  draft:      { label: '✓ Review & Approve',  icon: 'ti ti-eye',          color: '#D97706', bg: 'rgba(217, 119, 6, 0.05)', border: 'rgba(217, 119, 6, 0.15)', hoverBg: 'rgba(217, 119, 6, 0.1)', hoverBorder: 'rgba(217, 119, 6, 0.3)' },
+  created:    { label: '✓ Approve Order',     icon: 'ti ti-circle-check', color: '#D97706', bg: 'rgba(217, 119, 6, 0.05)', border: 'rgba(217, 119, 6, 0.15)', hoverBg: 'rgba(217, 119, 6, 0.1)', hoverBorder: 'rgba(217, 119, 6, 0.3)' },
+  approved:   { label: '↗ Send To Embroidery',icon: 'ti ti-needle',       color: '#AF52DE', bg: 'rgba(175, 82, 222, 0.08)', border: 'rgba(175, 82, 222, 0.2)', hoverBg: 'rgba(175, 82, 222, 0.15)', hoverBorder: 'rgba(175, 82, 222, 0.4)' },
+  embroidery: { label: '→ Mark Printing',     icon: 'ti ti-printer',      color: '#4F46E5', bg: 'rgba(79, 70, 229, 0.05)', border: 'rgba(79, 70, 229, 0.15)', hoverBg: 'rgba(79, 70, 229, 0.1)', hoverBorder: 'rgba(79, 70, 229, 0.3)' },
+  printing:   { label: '↗ Send To Dyeing',    icon: 'ti ti-droplet',      color: '#0EA5E9', bg: 'rgba(14, 165, 233, 0.05)', border: 'rgba(14, 165, 233, 0.15)', hoverBg: 'rgba(14, 165, 233, 0.1)', hoverBorder: 'rgba(14, 165, 233, 0.3)' },
+  dyeing:     { label: '✓ Mark Ready',        icon: 'ti ti-package',      color: '#EA580C', bg: 'rgba(234, 88, 12, 0.05)', border: 'rgba(234, 88, 12, 0.15)', hoverBg: 'rgba(234, 88, 12, 0.1)', hoverBorder: 'rgba(234, 88, 12, 0.3)' },
+  ready:      { label: '↗ Dispatch',          icon: 'ti ti-truck',        color: '#EA580C', bg: 'rgba(234, 88, 12, 0.05)', border: 'rgba(234, 88, 12, 0.15)', hoverBg: 'rgba(234, 88, 12, 0.1)', hoverBorder: 'rgba(234, 88, 12, 0.3)' },
+  dispatched: { label: '✓ Mark Delivered',    icon: 'ti ti-circle-check', color: '#16A34A', bg: 'rgba(22, 163, 74, 0.05)', border: 'rgba(22, 163, 74, 0.15)', hoverBg: 'rgba(22, 163, 74, 0.1)', hoverBorder: 'rgba(22, 163, 74, 0.3)' },
 };
 
 function OrderActionButton({ 
@@ -680,22 +700,23 @@ function OrderActionButton({
     const status = order.status?.toLowerCase() || ORDER_STATUSES.CREATED;
     const [isProcessing, setIsProcessing] = useState(false);
     const [showApproveModal, setShowApproveModal] = useState(false);
+    const [isHovered, setIsHovered] = useState(false);
 
     if (status === ORDER_STATUSES.DELIVERED || status === 'completed' || status === 'invoiced') {
         return (
             <div style={{
                 display: 'inline-flex',
                 alignItems: 'center',
-                gap: '4px',
-                background: '#F0FDF4',
-                color: '#15803D',
-                border: '1px solid #BBF7D0',
-                borderRadius: '999px',
-                padding: '3px 10px',
-                fontSize: '12px',
-                fontWeight: 500,
+                gap: '6px',
+                background: 'rgba(22, 163, 74, 0.08)',
+                color: '#16A34A',
+                border: '1px solid rgba(22, 163, 74, 0.2)',
+                borderRadius: '12px',
+                padding: '6px 14px',
+                fontSize: '13px',
+                fontWeight: 600,
             }}>
-                <i className="ti ti-check" style={{ fontSize: '12px' }}></i> Completed
+                <i className="ti ti-check"></i> ✓ Completed
             </div>
         );
     }
@@ -704,7 +725,6 @@ function OrderActionButton({
     if (!config) return null;
 
     const confirmApprove = async () => {
-        console.log("Approving order:", order.id);
         setIsProcessing(true);
         try {
             const res = await fetch(`/api/orders/${order.id}/workflow`, {
@@ -712,20 +732,15 @@ function OrderActionButton({
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ action: 'approve' })
             });
-            console.log("Approve response:", res);
 
             if (res.ok) {
-                const data = await res.json();
-                console.log("Approve data:", data);
                 setShowApproveModal(false);
                 if (onUpdate) onUpdate();
             } else {
                 const data = await res.json();
-                console.error('Approve failed:', data);
                 alert(`❌ Failed to approve order: ${data.error || 'Unknown error'}`);
             }
         } catch (error: any) {
-            console.error("Approve failed:", error);
             alert(`❌ Failed to approve order: ${error.message || error}`);
         } finally {
             setIsProcessing(false);
@@ -734,7 +749,6 @@ function OrderActionButton({
 
     const handleAction = () => {
         if (status === ORDER_STATUSES.CREATED || status === 'pending' || status === 'waiting_approval') {
-            console.log("Approve clicked, Opening modal");
             setShowApproveModal(true);
         } else {
             // Determine action keyword for modal
@@ -755,33 +769,37 @@ function OrderActionButton({
         <button 
             onClick={handleAction}
             disabled={isProcessing}
+            onMouseEnter={() => setIsHovered(true)}
+            onMouseLeave={() => setIsHovered(false)}
             style={{
-                border: `1.5px solid ${config.border}`,
+                border: `1px solid ${isHovered ? config.hoverBorder : config.border}`,
                 color: config.color,
-                background: config.bg,
-                padding: '6px 14px',
-                borderRadius: '8px',
+                background: isHovered ? config.hoverBg : config.bg,
+                padding: '8px 16px',
+                borderRadius: '12px',
                 fontSize: '13px',
                 fontWeight: 600,
-                cursor: 'pointer',
+                cursor: isProcessing ? 'not-allowed' : 'pointer',
                 display: 'flex',
                 alignItems: 'center',
-                gap: '6px',
-                transition: 'all 0.2s',
+                gap: '8px',
+                transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
                 width: '100%',
                 justifyContent: 'center',
-                opacity: isProcessing ? 0.7 : 1
+                opacity: isProcessing ? 0.7 : 1,
+                boxShadow: isHovered ? `0 4px 12px ${config.bg.replace('0.05', '0.2').replace('0.08', '0.2')}` : '0 2px 4px rgba(0,0,0,0.02)',
+                transform: isHovered && !isProcessing ? 'translateY(-1px)' : 'none'
             }}
         >
-            <i className={isProcessing ? "ti ti-loader ti-spin" : config.icon}></i> 
+            {isProcessing ? <i className="ti ti-loader ti-spin"></i> : null}
             {isProcessing ? 'Processing...' : config.label}
         </button>
 
         {showApproveModal && createPortal(
             <div className="global-modal-overlay" onClick={() => setShowApproveModal(false)}>
                 <div className={styles.modal} onClick={e => e.stopPropagation()}>
-                    <div className={styles.modalIcon} style={{ background: 'rgba(37, 99, 235, 0.1)' }}>
-                        <i className="ti ti-check" style={{ fontSize: '28px', color: '#2563EB' }}></i>
+                    <div className={styles.modalIcon} style={{ background: 'rgba(217, 119, 6, 0.1)' }}>
+                        <i className="ti ti-circle-check" style={{ fontSize: '28px', color: '#D97706' }}></i>
                     </div>
                     <h3 className={styles.modalTitle}>Approve Order?</h3>
                     <p className={styles.modalText}>
@@ -797,7 +815,7 @@ function OrderActionButton({
                             disabled={isProcessing}
                             style={{
                                 flex: 1,
-                                background: '#2563EB',
+                                background: '#D97706',
                                 color: '#ffffff',
                                 border: 'none',
                                 justifyContent: 'center',
@@ -807,7 +825,7 @@ function OrderActionButton({
                                 opacity: isProcessing ? 0.7 : 1
                             }}
                         >
-                            {isProcessing ? <i className="ti ti-loader ti-spin"></i> : <i className="ti ti-check"></i>}
+                            {isProcessing ? <i className="ti ti-loader ti-spin"></i> : <i className="ti ti-circle-check"></i>}
                             {isProcessing ? 'Approving...' : 'Confirm Approval'}
                         </button>
                     </div>

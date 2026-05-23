@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import styles from './VendorPayments.module.css';
 import tableStyles from '@/components/ui/Table.module.css';
+import actionBtnStyles from '@/components/orders/ProductionActionButton.module.css';
 import { 
     Clock, 
     AlertCircle, 
@@ -28,6 +29,7 @@ import Button from '@/components/ui/Button';
 import ActivityTimeline from '@/components/ui/ActivityTimeline';
 import Input from '@/components/ui/Input';
 import { celebrateSmall } from '@/lib/confetti';
+import { formatCurrencySafe, calculatePaymentDueDate } from '@/lib/utils';
 
 interface Instalment {
     id: number;
@@ -114,13 +116,37 @@ export default function VendorPaymentsPage() {
     const [manualVendorId, setManualVendorId] = useState('');
     const [manualWorkType, setManualWorkType] = useState<'embroidery' | 'dyeing'>('embroidery');
     const [manualAmount, setManualAmount] = useState<number>(0);
-    const [manualDueDate, setManualDueDate] = useState('');
+    const [manualDaysUntilDue, setManualDaysUntilDue] = useState('7');
     const [manualNotes, setManualNotes] = useState('');
     const [savingManual, setSavingManual] = useState(false);
 
     // Edit Due Date Form State
-    const [editDueDateVal, setEditDueDateVal] = useState('');
+    const [editDaysUntilDue, setEditDaysUntilDue] = useState('30');
     const [savingDueDate, setSavingDueDate] = useState(false);
+
+    const calculatedManualDueDate = useMemo(() => {
+        return calculatePaymentDueDate(parseInt(manualDaysUntilDue) || 0);
+    }, [manualDaysUntilDue]);
+
+    const displayManualDueDate = useMemo(() => {
+        if (!calculatedManualDueDate) return '';
+        const [year, month, day] = calculatedManualDueDate.split('-').map(Number);
+        const d = new Date(year, month - 1, day);
+        return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    }, [calculatedManualDueDate]);
+
+    const calculatedEditDueDate = useMemo(() => {
+        if (!selectedPayment) return '';
+        const baseDate = new Date(selectedPayment.created_at * 1000);
+        return calculatePaymentDueDate(parseInt(editDaysUntilDue) || 0, baseDate);
+    }, [selectedPayment, editDaysUntilDue]);
+
+    const displayEditDueDate = useMemo(() => {
+        if (!calculatedEditDueDate) return '';
+        const [year, month, day] = calculatedEditDueDate.split('-').map(Number);
+        const d = new Date(year, month - 1, day);
+        return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    }, [calculatedEditDueDate]);
 
     // Fetch Payments and Stats
     const fetchPaymentsData = async () => {
@@ -169,10 +195,8 @@ export default function VendorPaymentsPage() {
         fetchVendorsList();
     }, []);
 
-    // Format money as Indian Rupees
-    const formatCurrency = (val: number) => {
-        return `₹${val.toLocaleString('en-IN', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
-    };
+    // Format money as Indian Rupees using safe formatter
+    const formatCurrency = formatCurrencySafe;
 
     // Helper: Due Date split styling and relative timing Left
     const getDaysRemaining = (dueDateStr: string, status: string) => {
@@ -181,7 +205,10 @@ export default function VendorPaymentsPage() {
         
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        const due = new Date(dueDateStr);
+        
+        // Fix: Parse YYYY-MM-DD strictly as local midnight
+        const [year, month, day] = dueDateStr.split('-').map(Number);
+        const due = new Date(year, month - 1, day);
         due.setHours(0, 0, 0, 0);
 
         const diffTime = due.getTime() - today.getTime();
@@ -206,7 +233,9 @@ export default function VendorPaymentsPage() {
     const formatDueDate = (dateStr: string) => {
         if (!dateStr) return '-';
         try {
-            const d = new Date(dateStr);
+            // Fix: Parse YYYY-MM-DD strictly as local midnight
+            const [year, month, day] = dateStr.split('-').map(Number);
+            const d = new Date(year, month - 1, day);
             return d.toLocaleDateString('en-IN', {
                 day: 'numeric',
                 month: 'short',
@@ -221,7 +250,11 @@ export default function VendorPaymentsPage() {
     const openPayModal = async (payment: VendorPayment) => {
         setSelectedPayment(payment);
         setPayingAmount(payment.balance);
-        setPaymentDate(new Date().toISOString().split('T')[0]);
+        
+        const now = new Date();
+        const localDateStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+        setPaymentDate(localDateStr);
+        
         setPaymentMode('Cash');
         setPaymentReference('');
         setPaymentNotes('');
@@ -289,8 +322,8 @@ export default function VendorPaymentsPage() {
     // Submit Manual Outstanding Payment
     const handleManualSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!manualVendorId || manualAmount <= 0 || !manualDueDate) {
-            alert('Please select a vendor, enter a valid amount, and select a due date.');
+        if (!manualVendorId || manualAmount <= 0) {
+            alert('Please select a vendor and enter a valid amount.');
             return;
         }
 
@@ -303,7 +336,7 @@ export default function VendorPaymentsPage() {
                     vendor_id: parseInt(manualVendorId),
                     work_type: manualWorkType,
                     total_amount: manualAmount,
-                    due_date: manualDueDate,
+                    due_date: calculatedManualDueDate,
                     notes: manualNotes
                 })
             });
@@ -314,7 +347,7 @@ export default function VendorPaymentsPage() {
                 // Clear state
                 setManualVendorId('');
                 setManualAmount(0);
-                setManualDueDate('');
+                setManualDaysUntilDue('7');
                 setManualNotes('');
                 fetchPaymentsData();
             } else {
@@ -332,7 +365,19 @@ export default function VendorPaymentsPage() {
     // Trigger Edit Due Date Modal
     const openEditDateModal = (payment: VendorPayment) => {
         setSelectedPayment(payment);
-        setEditDueDateVal(payment.due_date);
+        
+        // Calculate existing days diff
+        const createdDate = new Date(payment.created_at * 1000);
+        createdDate.setHours(0, 0, 0, 0);
+        
+        const [year, month, day] = payment.due_date.split('-').map(Number);
+        const currentDueDate = new Date(year, month - 1, day);
+        currentDueDate.setHours(0, 0, 0, 0);
+        
+        const diffTime = currentDueDate.getTime() - createdDate.getTime();
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        
+        setEditDaysUntilDue(Math.max(0, diffDays).toString());
         setIsEditDateModalOpen(true);
         setActiveMenuId(null);
     };
@@ -340,14 +385,14 @@ export default function VendorPaymentsPage() {
     // Submit edited due date
     const handleEditDateSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!selectedPayment || !editDueDateVal) return;
+        if (!selectedPayment) return;
 
         try {
             setSavingDueDate(true);
             const res = await fetch(`/api/vendor-payments/${selectedPayment.id}`, {
                 method: 'PATCH',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ due_date: editDueDateVal })
+                body: JSON.stringify({ due_date: calculatedEditDueDate })
             });
 
             if (res.ok) {
@@ -528,34 +573,33 @@ export default function VendorPaymentsPage() {
     // Master Table Render function
     const renderTable = (list: VendorPayment[]) => {
         return (
-            <table className={styles.table}>
-                <thead className={styles.thead}>
+            <table className={tableStyles.table}>
+                <thead className={tableStyles.thead}>
                     <tr>
-                        <th className={styles.th} onClick={() => handleSort('vendor_name')}>
+                        <th className={tableStyles.th} onClick={() => handleSort('vendor_name')}>
                             <div className={styles.flexGap}>
                                 Vendor {getSortIcon('vendor_name')}
                             </div>
                         </th>
-                        <th className={styles.th}>Order</th>
-                        <th className={styles.th}>Work Type</th>
-                        <th className={`${styles.th} ${styles.sortable}`} onClick={() => handleSort('total_amount')} style={{ textAlign: 'right' }}>
+                        <th className={tableStyles.th}>Order</th>
+                        <th className={tableStyles.th}>Work Type</th>
+                        <th className={`${tableStyles.th} ${styles.sortable}`} onClick={() => handleSort('total_amount')} style={{ textAlign: 'right' }}>
                             <div className={styles.flexGap} style={{ justifyContent: 'flex-end' }}>
                                 Amount {getSortIcon('total_amount')}
                             </div>
                         </th>
-                        <th className={styles.th}>Payment Progress</th>
-                        <th className={`${styles.th} ${styles.sortable}`} onClick={() => handleSort('balance')} style={{ textAlign: 'right' }}>
+                        <th className={tableStyles.th}>Payment Progress</th>
+                        <th className={`${tableStyles.th} ${styles.sortable}`} onClick={() => handleSort('balance')} style={{ textAlign: 'right' }}>
                             <div className={styles.flexGap} style={{ justifyContent: 'flex-end' }}>
                                 Balance {getSortIcon('balance')}
                             </div>
                         </th>
-                        <th className={`${styles.th} ${styles.sortable}`} onClick={() => handleSort('due_date')}>
+                        <th className={`${tableStyles.th} ${styles.sortable}`} onClick={() => handleSort('due_date')}>
                             <div className={styles.flexGap}>
                                 Due Date {getSortIcon('due_date')}
                             </div>
                         </th>
-                        <th className={styles.th}>Status</th>
-                        <th className={styles.th} style={{ textAlign: 'right' }}>Actions</th>
+                        <th className={tableStyles.th} style={{ textAlign: 'right' }}>Actions</th>
                     </tr>
                 </thead>
                 <tbody className={tableStyles.tbody}>
@@ -563,9 +607,9 @@ export default function VendorPaymentsPage() {
                         const daysInfo = getDaysRemaining(p.due_date, p.status);
                         const progressPercent = Math.min(100, Math.max(0, (p.amount_paid / p.total_amount) * 100));
                         return (
-                            <tr key={p.id} className={styles.tr}>
+                            <tr key={p.id} className={tableStyles.tr}>
                                 {/* VENDOR */}
-                                <td className={styles.td}>
+                                <td className={tableStyles.td}>
                                     <div className={styles.vendorCol}>
                                         <span className={styles.vendorName}>{p.vendor_name}</span>
                                         <span className={styles.vendorPhone}>{p.vendor_phone || 'No phone'}</span>
@@ -573,7 +617,7 @@ export default function VendorPaymentsPage() {
                                 </td>
 
                                 {/* ORDER */}
-                                <td className={styles.td}>
+                                <td className={tableStyles.td}>
                                     {p.order_id ? (
                                         <Link href={`/orders/${p.order_id}`} className={styles.orderLink}>
                                             #{p.order_number || p.order_id}
@@ -584,19 +628,19 @@ export default function VendorPaymentsPage() {
                                 </td>
 
                                 {/* WORK TYPE */}
-                                <td className={styles.td}>
+                                <td className={tableStyles.td}>
                                     <span className={p.work_type === 'embroidery' ? styles.embroideryBadge : styles.dyeingBadge}>
                                         {p.work_type === 'embroidery' ? 'Embroidery' : 'Dyeing'}
                                     </span>
                                 </td>
 
                                 {/* AMOUNT */}
-                                <td className={`${styles.td} ${styles.amount}`} style={{ textAlign: 'right' }}>
+                                <td className={`${tableStyles.td} ${styles.amount}`} style={{ textAlign: 'right' }}>
                                     {formatCurrency(p.total_amount)}
                                 </td>
 
                                 {/* PAYMENT PROGRESS */}
-                                <td className={styles.td}>
+                                <td className={tableStyles.td}>
                                     <div className={styles.progressContainer}>
                                         <div className={styles.progressText}>
                                             <span>{formatCurrency(p.amount_paid)} paid</span>
@@ -615,12 +659,12 @@ export default function VendorPaymentsPage() {
                                 </td>
 
                                 {/* BALANCE */}
-                                <td className={styles.td} style={{ textAlign: 'right', fontWeight: '600', color: p.balance > 0 ? '#FF3B30' : 'var(--text-disabled)' }}>
+                                <td className={tableStyles.td} style={{ textAlign: 'right', fontWeight: '600', color: p.balance > 0 ? '#FF3B30' : 'var(--text-disabled)' }}>
                                     {p.balance > 0 ? formatCurrency(p.balance) : '—'}
                                 </td>
 
                                 {/* DUE DATE */}
-                                <td className={styles.td}>
+                                <td className={tableStyles.td}>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
                                         <span style={{ fontWeight: '500', color: 'var(--text-primary)' }}>{formatDueDate(p.due_date)}</span>
                                         <span style={{ fontSize: '11.5px', fontWeight: daysInfo.bold ? '600' : '500', color: daysInfo.color }}>
@@ -629,23 +673,16 @@ export default function VendorPaymentsPage() {
                                     </div>
                                 </td>
 
-                                {/* STATUS */}
-                                <td className={styles.td}>
-                                    <Badge status={p.status} />
-                                </td>
-
                                 {/* ACTIONS */}
-                                <td className={styles.td} style={{ textAlign: 'right' }}>
+                                <td className={tableStyles.td} style={{ textAlign: 'right' }}>
                                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center' }}>
                                         {p.status !== 'paid' && (
-                                            <Button 
-                                                variant="ghost" 
-                                                size="small"
+                                            <button 
+                                                className={`${actionBtnStyles.btn} ${actionBtnStyles.themeIndigo}`}
                                                 onClick={() => openPayModal(p)}
-                                                style={{ color: '#0071E3', fontWeight: '600' }}
                                             >
                                                 Pay
-                                            </Button>
+                                            </button>
                                         )}
 
                                         {p.instalments && p.instalments.length > 0 && (
@@ -721,7 +758,10 @@ export default function VendorPaymentsPage() {
                 <button 
                     className="action-btn-primary"
                     onClick={() => {
-                        setManualDueDate(new Date(Date.now() + 86400000 * 7).toISOString().split('T')[0]);
+                        setManualVendorId('');
+                        setManualAmount(0);
+                        setManualDaysUntilDue('7');
+                        setManualNotes('');
                         setIsManualModalOpen(true);
                     }}
                 >
@@ -864,9 +904,14 @@ export default function VendorPaymentsPage() {
 
             {/* Main Content Area */}
             {loading ? (
-                <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '64px', gap: '8px' }}>
-                    <Loader2 className="animate-spin" size={20} style={{ color: 'var(--accent)' }} />
-                    <span style={{ color: 'var(--text-secondary)' }}>Loading vendor payments ledger...</span>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '24px', background: 'var(--bg-card)', borderRadius: '16px', border: '1px solid var(--border-primary)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                        <Loader2 className="animate-spin" size={20} style={{ color: 'var(--accent)' }} />
+                        <span style={{ color: 'var(--text-secondary)' }}>Loading vendor payments...</span>
+                    </div>
+                    {[1, 2, 3, 4, 5].map((i) => (
+                        <div key={i} style={{ height: '64px', background: 'var(--bg-secondary)', borderRadius: '8px', animation: 'pulse 2s infinite' }}></div>
+                    ))}
                 </div>
             ) : sortedPayments.length === 0 ? (
                 <div className={styles.tableCard} style={{ textAlign: 'center', padding: '64px', color: 'var(--text-secondary)' }}>
@@ -929,8 +974,8 @@ export default function VendorPaymentsPage() {
 
             {/* Pay Vendor Modal */}
             {isPayModalOpen && selectedPayment && (
-                <div className="global-modal-overlay" onClick={() => setIsPayModalOpen(false)}>
-                    <div className="global-modal-content" onClick={(e) => e.stopPropagation()}>
+                <div className={styles.modalOverlay} onClick={() => setIsPayModalOpen(false)}>
+                    <div className={`${styles.modalContent} ${styles.modalContentLarge}`} onClick={(e) => e.stopPropagation()}>
                         <h2 className={styles.modalTitle}>Pay Vendor — {selectedPayment.vendor_name}</h2>
                         <p className={styles.modalSubtitle}>
                             {selectedPayment.work_type === 'embroidery' ? 'Embroidery' : 'Dyeing'} outsourcing 
@@ -1063,21 +1108,12 @@ export default function VendorPaymentsPage() {
                             </div>
 
                             {/* Buttons */}
-                            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
-                                <button 
-                                    type="button" 
-                                    className={styles.btnSecondary} 
-                                    onClick={() => setIsPayModalOpen(false)}
-                                    disabled={processingPayment}
-                                >
+                            <div className={styles.formFooter}>
+                                <button type="button" className={styles.btnSecondary} onClick={() => setIsPayModalOpen(false)}>
                                     Cancel
                                 </button>
-                                <button 
-                                    type="submit" 
-                                    className={styles.btnPrimary}
-                                    disabled={processingPayment || payingAmount <= 0}
-                                >
-                                    {processingPayment ? 'Confirming...' : 'Confirm Payment'}
+                                <button type="submit" className={styles.btnPrimary} disabled={processingPayment || payingAmount <= 0}>
+                                    {processingPayment ? <Loader2 size={16} className="animate-spin" /> : 'Confirm Payment'}
                                 </button>
                             </div>
                         </form>
@@ -1087,8 +1123,8 @@ export default function VendorPaymentsPage() {
 
             {/* Add Manual Outstanding Due Modal */}
             {isManualModalOpen && (
-                <div className="global-modal-overlay" onClick={() => setIsManualModalOpen(false)}>
-                    <div className="global-modal-content" onClick={(e) => e.stopPropagation()}>
+                <div className={styles.modalOverlay} onClick={() => setIsManualModalOpen(false)}>
+                    <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
                         <h2 className={styles.modalTitle}>Add Payment Due</h2>
                         <p className={styles.modalSubtitle}>Register a manual outsourced payment due outside of standard orders workflow</p>
 
@@ -1135,14 +1171,30 @@ export default function VendorPaymentsPage() {
                             </div>
 
                             <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>Payment Due Date</label>
+                                <label className={styles.formLabel}>Days Until Due <span style={{color: '#FF3B30'}}>*</span></label>
                                 <input 
-                                    type="date"
+                                    type="number"
                                     className={styles.formInput}
-                                    value={manualDueDate}
-                                    onChange={(e) => setManualDueDate(e.target.value)}
+                                    value={manualDaysUntilDue}
+                                    min="0"
+                                    onChange={(e) => setManualDaysUntilDue(e.target.value)}
                                     required
                                 />
+                            </div>
+
+                            <div className={styles.formGroup} style={{ marginTop: '4px', marginBottom: '8px' }}>
+                                <label className={styles.formLabel} style={{ color: 'var(--text-secondary)' }}>Payment Due On:</label>
+                                <div style={{ 
+                                    padding: '12px', 
+                                    background: '#F9FAFB', 
+                                    border: '1px solid #E5E7EB',
+                                    borderRadius: '8px',
+                                    fontWeight: '600',
+                                    color: '#4F46E5',
+                                    fontSize: '14px'
+                                }}>
+                                    {displayManualDueDate}
+                                </div>
                             </div>
 
                             <div className={styles.formGroup}>
@@ -1181,39 +1233,45 @@ export default function VendorPaymentsPage() {
 
             {/* Edit Due Date Modal */}
             {isEditDateModalOpen && selectedPayment && (
-                <div className="global-modal-overlay" onClick={() => setIsEditDateModalOpen(false)}>
-                    <div className="global-modal-content" style={{ maxWidth: '400px' }} onClick={(e) => e.stopPropagation()}>
+                <div className={styles.modalOverlay} onClick={() => setIsEditDateModalOpen(false)}>
+                    <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
                         <h2 className={styles.modalTitle}>Edit Due Date</h2>
                         <p className={styles.modalSubtitle}>Change payment target date for {selectedPayment.vendor_name}</p>
 
                         <form onSubmit={handleEditDateSubmit}>
                             <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>New Payment Due Date</label>
+                                <label className={styles.formLabel}>Days Until Due <span style={{color: '#FF3B30'}}>*</span></label>
                                 <input 
-                                    type="date"
+                                    type="number"
                                     className={styles.formInput}
-                                    value={editDueDateVal}
-                                    onChange={(e) => setEditDueDateVal(e.target.value)}
+                                    value={editDaysUntilDue}
+                                    min="0"
+                                    onChange={(e) => setEditDaysUntilDue(e.target.value)}
                                     required
                                 />
                             </div>
 
-                            {/* Buttons */}
-                            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
-                                <button 
-                                    type="button" 
-                                    className={styles.btnSecondary} 
-                                    onClick={() => setIsEditDateModalOpen(false)}
-                                    disabled={savingDueDate}
-                                >
+                            <div className={styles.formGroup} style={{ marginTop: '4px', marginBottom: '8px' }}>
+                                <label className={styles.formLabel} style={{ color: 'var(--text-secondary)' }}>Payment Due On:</label>
+                                <div style={{ 
+                                    padding: '12px', 
+                                    background: '#F9FAFB', 
+                                    border: '1px solid #E5E7EB',
+                                    borderRadius: '8px',
+                                    fontWeight: '600',
+                                    color: '#4F46E5',
+                                    fontSize: '14px'
+                                }}>
+                                    {displayEditDueDate}
+                                </div>
+                            </div>
+
+                            <div className={styles.formFooter}>
+                                <button type="button" className={styles.btnSecondary} onClick={() => setIsEditDateModalOpen(false)}>
                                     Cancel
                                 </button>
-                                <button 
-                                    type="submit" 
-                                    className={styles.btnPrimary}
-                                    disabled={savingDueDate || !editDueDateVal}
-                                >
-                                    {savingDueDate ? 'Saving...' : 'Save New Date'}
+                                <button type="submit" className={styles.btnPrimary} disabled={savingDueDate}>
+                                    {savingDueDate ? <Loader2 size={16} className="animate-spin" /> : 'Save Changes'}
                                 </button>
                             </div>
                         </form>

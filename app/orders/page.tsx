@@ -17,6 +17,8 @@ import GroupedPeriodSection from '@/components/ui/GroupedPeriodSection';
 import GenerateChallanModal from '@/components/challans/GenerateChallanModal';
 import QRScannerModal from '@/components/ui/QRScannerModal';
 import { ORDER_STATUSES, ORDER_STATUS_LABELS } from '@/lib/constants';
+import { formatCurrencySafe } from '@/lib/utils';
+import { Loader2 } from 'lucide-react';
 
 export default function OrdersPage() {
     const searchParams = useSearchParams();
@@ -315,7 +317,7 @@ export default function OrdersPage() {
 
     const stats = useMemo(() => {
         const totalOrders = filteredOrders.length;
-        const totalRevenue = filteredOrders.reduce((sum, o) => sum + (o.total_price || 0), 0);
+        const totalRevenue = filteredOrders.reduce((sum, o) => sum + (parseFloat(o.total_price) || 0), 0);
         const pendingCount = filteredOrders.filter(o => o.status.toLowerCase() === ORDER_STATUSES.CREATED).length;
         const productionCount = filteredOrders.filter(o => isProductionStatus(o.status)).length;
         const now = Math.floor(Date.now() / 1000);
@@ -350,7 +352,7 @@ export default function OrdersPage() {
             }
             
             groups[key].orders.push(o);
-            groups[key].revenue += (o.total_price || 0);
+            groups[key].revenue += (parseFloat(o.total_price) || 0);
             const status = o.status.toLowerCase();
             if (status === ORDER_STATUSES.CREATED) groups[key].pending++;
             else if (isProductionStatus(status)) groups[key].approved++;
@@ -362,11 +364,7 @@ export default function OrdersPage() {
         });
     }, [finalOrders]);
 
-    const formatCurrency = (val: number) => {
-        if (val >= 100000) return `₹${(val / 100000).toFixed(1)}L`;
-        if (val >= 1000) return `₹${(val / 1000).toFixed(1)}K`;
-        return `₹${val.toLocaleString('en-IN')}`;
-    };
+    const formatCurrency = formatCurrencySafe;
 
     const [showPaymentModal, setShowPaymentModal] = useState(false);
     const [selectedOrderForInvoice, setSelectedOrderForInvoice] = useState<any>(null);
@@ -581,7 +579,15 @@ export default function OrdersPage() {
             )}
 
             {loading ? (
-                <div className={styles.loading}>Loading orders...</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '24px', background: 'var(--bg-card)', borderRadius: '16px', border: '1px solid var(--border-primary)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                        <Loader2 className="animate-spin" size={20} style={{ color: 'var(--accent)' }} />
+                        <span style={{ color: 'var(--text-secondary)' }}>Loading orders...</span>
+                    </div>
+                    {[1, 2, 3, 4, 5].map((i) => (
+                        <div key={i} style={{ height: '64px', background: 'var(--bg-secondary)', borderRadius: '8px', animation: 'pulse 2s infinite' }}></div>
+                    ))}
+                </div>
             ) : (
                 <>
                     {finalOrders.length === 0 ? (

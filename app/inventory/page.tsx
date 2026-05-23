@@ -125,6 +125,9 @@ export default function InventoryPage() {
     });
 
     const [selectedInkForDeduct, setSelectedInkForDeduct] = useState<InkRecord | null>(null);
+    const [fabricErrors, setFabricErrors] = useState<Record<string, string>>({});
+    const [inkErrors, setInkErrors] = useState<Record<string, string>>({});
+    const [packagingErrors, setPackagingErrors] = useState<Record<string, string>>({});
 
     // --- LOAD DATA ---
     useEffect(() => {
@@ -195,6 +198,7 @@ export default function InventoryPage() {
             notes: '',
             metresUsed: '0'
         });
+        setFabricErrors({});
         setIsFabricModalOpen(true);
     };
 
@@ -277,6 +281,20 @@ export default function InventoryPage() {
         e.preventDefault();
         const action = editingItem ? 'edit_fabric' : 'add_fabric';
 
+        const newErrors: Record<string, string> = {};
+        if (!fabricForm.vendorId) newErrors.vendorId = 'Please select a vendor';
+        if (!fabricForm.designName?.trim()) newErrors.designName = 'Design name is required';
+        if (!fabricForm.metresOrdered || parseFloat(fabricForm.metresOrdered) <= 0) newErrors.metresOrdered = 'Metres ordered is required';
+        if (!fabricForm.metresReceived) newErrors.metresReceived = 'Metres received is required';
+        if (!fabricForm.ratePerMetre || parseFloat(fabricForm.ratePerMetre) <= 0) newErrors.ratePerMetre = 'Rate per metre is required';
+
+        if (Object.keys(newErrors).length > 0) {
+            setFabricErrors(newErrors);
+            const firstErrorField = document.querySelector('[data-error="true"]') as HTMLElement;
+            if (firstErrorField) firstErrorField.focus();
+            return;
+        }
+
         try {
             const res = await fetch('/api/inventory', {
                 method: 'POST',
@@ -295,6 +313,7 @@ export default function InventoryPage() {
 
             if (res.ok) {
                 setIsFabricModalOpen(false);
+                setFabricErrors({});
                 fetchInventory();
             } else {
                 const err = await res.json();
@@ -903,16 +922,17 @@ export default function InventoryPage() {
                             <div className={styles.formGroup}>
                                 <label>Vendor</label>
                                 <select
-                                    className={styles.formSelect}
-                                    required
+                                    className={`${styles.formSelect} ${fabricErrors.vendorId ? '!border-red-400 focus:!ring-red-500 !bg-red-50/30' : ''}`}
                                     value={fabricForm.vendorId}
                                     onChange={(e) => {
                                         if (e.target.value === 'ADD_NEW') {
                                             setIsVendorModalOpen(true);
                                         } else {
                                             setFabricForm(prev => ({ ...prev, vendorId: e.target.value }));
+                                            setFabricErrors(p => ({...p, vendorId: ''}));
                                         }
                                     }}
+                                    data-error={!!fabricErrors.vendorId}
                                 >
                                     <option value="">Select Vendor...</option>
                                     {vendors.map(v => (
@@ -922,18 +942,20 @@ export default function InventoryPage() {
                                         + Add new vendor
                                     </option>
                                 </select>
+                                {fabricErrors.vendorId && <p className="text-red-500 text-xs mt-1">{fabricErrors.vendorId}</p>}
                             </div>
 
                             <div className={styles.formGroup}>
                                 <label>Design Name</label>
                                 <input
                                     type="text"
-                                    className={styles.formInput}
-                                    required
+                                    className={`${styles.formInput} ${fabricErrors.designName ? '!border-red-400 focus:!ring-red-500 !bg-red-50/30' : ''}`}
                                     placeholder="e.g. Cotton Print Blue"
                                     value={fabricForm.designName}
-                                    onChange={(e) => setFabricForm(prev => ({ ...prev, designName: e.target.value }))}
+                                    onChange={(e) => { setFabricForm(prev => ({ ...prev, designName: e.target.value })); setFabricErrors(p => ({...p, designName: ''})); }}
+                                    data-error={!!fabricErrors.designName}
                                 />
+                                {fabricErrors.designName && <p className="text-red-500 text-xs mt-1">{fabricErrors.designName}</p>}
                             </div>
 
                             <div className={styles.formRow}>

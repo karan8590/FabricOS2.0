@@ -477,7 +477,7 @@ export async function POST(request: Request) {
             });
 
             try {
-                runMarkPaidTx();
+                await runMarkPaidTx();
             } catch (txErr: any) {
                 console.error('Failed to run mark_paid transaction:', txErr);
                 return NextResponse.json({ error: txErr.message || 'Failed to update salary payment record' }, { status: 500 });

@@ -12,7 +12,8 @@ import StatWidget from '@/components/ui/StatWidget';
 import ViewingPeriodSelector from '@/components/ui/ViewingPeriodSelector';
 import styles from './Invoices.module.css';
 import tableStyles from '@/components/ui/Table.module.css';
-import { Calendar, ChevronRight, ChevronDown, Layers, Grid, FileText, CheckCircle, AlertTriangle, FileSearch, Eye, Download, Send, RefreshCw } from 'lucide-react';
+import { Calendar, ChevronRight, ChevronDown, Layers, Grid, FileText, CheckCircle, AlertTriangle, FileSearch, Eye, Download, Send, RefreshCw, Loader2 } from 'lucide-react';
+import { formatCurrencySafe } from '@/lib/utils';
 
 interface Invoice {
     id: number;
@@ -183,11 +184,7 @@ export default function InvoicesPage() {
         }
     };
 
-    const formatCurrency = (val: number) => {
-        if (val >= 100000) return `₹${(val / 100000).toFixed(1)}L`;
-        if (val >= 1000) return `₹${(val / 1000).toFixed(1)}K`;
-        return `₹${Math.round(val)}`;
-    };
+    const formatCurrency = formatCurrencySafe;
 
     const searchFilteredInvoices = useMemo(() => {
         return invoices.filter(
@@ -708,7 +705,15 @@ export default function InvoicesPage() {
             )}
 
             {loading ? (
-                <div className={styles.loading}>Loading invoices...</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', padding: '24px', background: 'var(--bg-card)', borderRadius: '16px', border: '1px solid var(--border-primary)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                        <Loader2 className="animate-spin" size={20} style={{ color: 'var(--accent)' }} />
+                        <span style={{ color: 'var(--text-secondary)' }}>Loading invoices...</span>
+                    </div>
+                    {[1, 2, 3, 4, 5].map((i) => (
+                        <div key={i} style={{ height: '64px', background: 'var(--bg-secondary)', borderRadius: '8px', animation: 'pulse 2s infinite' }}></div>
+                    ))}
+                </div>
             ) : (
                 <div className={styles.resultsWrapper}>
                     {filteredInvoices.length === 0 ? (

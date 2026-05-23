@@ -43,6 +43,7 @@ export default function EditOrderModal({ order, isOpen, onClose, onSuccess }: Ed
     const [deliveryDate, setDeliveryDate] = useState<string>('');
     const [priority, setPriority] = useState<'Normal' | 'Urgent' | 'VIP'>('Normal');
     const [notes, setNotes] = useState<string>('');
+    const [errors, setErrors] = useState<Record<string, string>>({});
 
     // Dropdown States
     const [customerSearch, setCustomerSearch] = useState('');
@@ -108,6 +109,7 @@ export default function EditOrderModal({ order, isOpen, onClose, onSuccess }: Ed
         setSelectedDesign(design);
         setPricePerUnit(design.price_per_meter.toString());
         setIsDesignPickerOpen(false);
+        setErrors(prev => ({...prev, design: ''}));
     };
 
     const fetchInitialData = async () => {
@@ -161,7 +163,19 @@ export default function EditOrderModal({ order, isOpen, onClose, onSuccess }: Ed
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!selectedCustomer || !selectedDesign || !quantity) return;
+
+        const newErrors: Record<string, string> = {};
+        if (!selectedCustomer) newErrors.customer = 'Please select a customer';
+        if (!selectedDesign) newErrors.design = 'Please select a design';
+        if (!quantity || parseFloat(quantity) <= 0) newErrors.quantity = 'Quantity is required and must be > 0';
+        if (!pricePerUnit || parseFloat(pricePerUnit) <= 0) newErrors.pricePerUnit = 'Price per unit is required';
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            const firstErrorField = document.querySelector('[data-error="true"]') as HTMLElement;
+            if (firstErrorField) firstErrorField.focus();
+            return;
+        }
 
         setLoading(true);
         try {
@@ -233,12 +247,14 @@ export default function EditOrderModal({ order, isOpen, onClose, onSuccess }: Ed
                                 <label className={styles.label}>Select Customer</label>
                                 <div className={styles.selectWrapper}>
                                     <div 
-                                        className={styles.selectTrigger} 
+                                        className={`${styles.selectTrigger} ${errors.customer ? '!border-red-400 focus:!ring-red-500 !bg-red-50/30' : ''}`} 
                                         onClick={() => setIsCustomerDropdownOpen(!isCustomerDropdownOpen)}
+                                        data-error={!!errors.customer}
                                     >
                                         <span>{selectedCustomer ? selectedCustomer.name : 'Choose a customer...'}</span>
                                         <ChevronDown size={16} />
                                     </div>
+                                    {errors.customer && <p className="text-red-500 text-xs mt-1 transition-all duration-200">{errors.customer}</p>}
                                     {isCustomerDropdownOpen && (
                                         <div className={styles.selectDropdown}>
                                             <input 
@@ -255,6 +271,7 @@ export default function EditOrderModal({ order, isOpen, onClose, onSuccess }: Ed
                                                     onClick={() => {
                                                         setSelectedCustomer(c);
                                                         setIsCustomerDropdownOpen(false);
+                                                        setErrors(prev => ({...prev, customer: ''}));
                                                     }}
                                                 >
                                                     <div style={{ fontWeight: 600 }}>{c.name}</div>
@@ -289,9 +306,10 @@ export default function EditOrderModal({ order, isOpen, onClose, onSuccess }: Ed
                                 <label className={styles.label}>Fabric / Design Catalog</label>
                                 <div className={styles.selectWrapper}>
                                     <div 
-                                        className={styles.selectTrigger} 
+                                        className={`${styles.selectTrigger} ${errors.design ? '!border-red-400 focus:!ring-red-500 !bg-red-50/30' : ''}`} 
                                         onClick={() => setIsDesignPickerOpen(true)}
-                                        style={{ height: '52px', borderStyle: 'dashed', borderColor: selectedDesign ? '#2563eb' : '#333' }}
+                                        style={{ height: '52px', borderStyle: 'dashed', borderColor: errors.design ? '#ef4444' : (selectedDesign ? '#2563eb' : '#333') }}
+                                        data-error={!!errors.design}
                                     >
                                         {selectedDesign ? (
                                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
@@ -308,28 +326,33 @@ export default function EditOrderModal({ order, isOpen, onClose, onSuccess }: Ed
                                         )}
                                         <div className={styles.pickerBtn}>Browse Catalog</div>
                                     </div>
+                                    {errors.design && <p className="text-red-500 text-xs mt-1 transition-all duration-200">{errors.design}</p>}
                                 </div>
                             </div>
                             <div className={styles.field}>
                                 <label className={styles.label}>Quantity (Meters)</label>
                                 <input 
                                     type="number"
-                                    className={styles.selectTrigger}
+                                    className={`${styles.selectTrigger} ${errors.quantity ? '!border-red-400 focus:!ring-red-500 !bg-red-50/30' : ''}`}
                                     placeholder="0.00"
                                     value={quantity}
-                                    onChange={e => setQuantity(e.target.value)}
+                                    onChange={e => { setQuantity(e.target.value); setErrors(prev => ({...prev, quantity: ''})); }}
                                     step="0.01"
+                                    data-error={!!errors.quantity}
                                 />
+                                {errors.quantity && <p className="text-red-500 text-xs mt-1 transition-all duration-200">{errors.quantity}</p>}
                             </div>
                             <div className={styles.field}>
                                 <label className={styles.label}>Price per Meter (₹)</label>
                                 <input 
                                     type="number"
-                                    className={styles.selectTrigger}
+                                    className={`${styles.selectTrigger} ${errors.pricePerUnit ? '!border-red-400 focus:!ring-red-500 !bg-red-50/30' : ''}`}
                                     placeholder="0.00"
                                     value={pricePerUnit}
-                                    onChange={e => setPricePerUnit(e.target.value)}
+                                    onChange={e => { setPricePerUnit(e.target.value); setErrors(prev => ({...prev, pricePerUnit: ''})); }}
+                                    data-error={!!errors.pricePerUnit}
                                 />
+                                {errors.pricePerUnit && <p className="text-red-500 text-xs mt-1 transition-all duration-200">{errors.pricePerUnit}</p>}
                             </div>
                         </div>
 
@@ -409,7 +432,7 @@ export default function EditOrderModal({ order, isOpen, onClose, onSuccess }: Ed
                     <button 
                         className={styles.createBtn} 
                         onClick={handleSubmit} 
-                        disabled={loading || !selectedCustomer || !selectedDesign || !quantity}
+                        disabled={loading}
                     >
                         {loading ? 'Saving Changes...' : 'Save Changes'}
                     </button>

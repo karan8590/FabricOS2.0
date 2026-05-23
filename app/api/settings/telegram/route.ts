@@ -64,7 +64,7 @@ export async function POST(request: Request) {
                                       .run(`role_lang_default_${role}`, String(lang)));
                 }
             });
-            saveTx();
+            await saveTx();
             return NextResponse.json({ success: true });
         }
 

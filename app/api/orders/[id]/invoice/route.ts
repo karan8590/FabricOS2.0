@@ -94,7 +94,7 @@ export async function POST(
             return invoiceResult.lastInsertRowid;
         });
 
-        const invoiceId = generateInvoiceTransaction();
+        const invoiceId = await generateInvoiceTransaction();
 
         // Generate Premium PDF server-side
         let relativePath = `/api/invoices/${invoiceId}/pdf`;

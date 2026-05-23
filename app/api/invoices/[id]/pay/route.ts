@@ -41,7 +41,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
                 INSERT INTO expenses (
                     category, amount, date, description, paymentMode, reference, notes, 
                     addedBy, created_by_user_id, isAuto, linkedId, type, customerName, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, 'in', ?, strftime('%s', 'now'))
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, 'in', ?, (EXTRACT(EPOCH FROM NOW()))::integer)
             `).run(
                             'Invoice Payment',
                             paymentAmount,

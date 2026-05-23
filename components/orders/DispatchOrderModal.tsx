@@ -20,6 +20,7 @@ export default function DispatchOrderModal({ isOpen, onClose, onSuccess, order }
     const [notes, setNotes] = useState<string>('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
+    const [errors, setErrors] = useState<Record<string, string>>({});
     const [mounted, setMounted] = useState(false);
 
     useEffect(() => {
@@ -40,6 +41,7 @@ export default function DispatchOrderModal({ isOpen, onClose, onSuccess, order }
             setGenerateChallan(true);
             setNotes('');
             setError('');
+            setErrors({});
         }
     }, [isOpen, order]);
 
@@ -47,8 +49,18 @@ export default function DispatchOrderModal({ isOpen, onClose, onSuccess, order }
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!transporterName || !lrNumber || !dispatchDate || !metresDispatched || !expectedDelivery) {
-            setError('Please fill all required fields');
+        
+        const newErrors: Record<string, string> = {};
+        if (!transporterName?.trim()) newErrors.transporterName = 'Transporter name is required';
+        if (!lrNumber?.trim()) newErrors.lrNumber = 'LR/Docket number is required';
+        if (!dispatchDate) newErrors.dispatchDate = 'Dispatch date is required';
+        if (!metresDispatched || parseFloat(metresDispatched) <= 0) newErrors.metresDispatched = 'Metres dispatched is required and must be > 0';
+        if (!expectedDelivery) newErrors.expectedDelivery = 'Expected delivery date is required';
+
+        if (Object.keys(newErrors).length > 0) {
+            setErrors(newErrors);
+            const firstErrorField = document.querySelector('[data-error="true"]') as HTMLElement;
+            if (firstErrorField) firstErrorField.focus();
             return;
         }
 
@@ -114,20 +126,22 @@ export default function DispatchOrderModal({ isOpen, onClose, onSuccess, order }
                             <input
                                 type="text"
                                 value={transporterName}
-                                onChange={(e) => setTransporterName(e.target.value)}
-                                className={styles.input}
-                                required
+                                onChange={(e) => { setTransporterName(e.target.value); setErrors({...errors, transporterName: ''}); }}
+                                className={`${styles.input} ${errors.transporterName ? 'border-red-400 focus:ring-red-500 bg-red-50/30' : ''}`}
+                                data-error={!!errors.transporterName}
                             />
+                            {errors.transporterName && <p className="text-red-500 text-xs mt-1 transition-all duration-200">{errors.transporterName}</p>}
                         </div>
                         <div className={styles.formGroup}>
                             <label className={styles.label}>LR / Docket Number *</label>
                             <input
                                 type="text"
                                 value={lrNumber}
-                                onChange={(e) => setLrNumber(e.target.value)}
-                                className={styles.input}
-                                required
+                                onChange={(e) => { setLrNumber(e.target.value); setErrors({...errors, lrNumber: ''}); }}
+                                className={`${styles.input} ${errors.lrNumber ? 'border-red-400 focus:ring-red-500 bg-red-50/30' : ''}`}
+                                data-error={!!errors.lrNumber}
                             />
+                            {errors.lrNumber && <p className="text-red-500 text-xs mt-1 transition-all duration-200">{errors.lrNumber}</p>}
                         </div>
                     </div>
 
@@ -137,10 +151,11 @@ export default function DispatchOrderModal({ isOpen, onClose, onSuccess, order }
                             <input
                                 type="date"
                                 value={dispatchDate}
-                                onChange={(e) => setDispatchDate(e.target.value)}
-                                className={styles.input}
-                                required
+                                onChange={(e) => { setDispatchDate(e.target.value); setErrors({...errors, dispatchDate: ''}); }}
+                                className={`${styles.input} ${errors.dispatchDate ? 'border-red-400 focus:ring-red-500 bg-red-50/30' : ''}`}
+                                data-error={!!errors.dispatchDate}
                             />
+                            {errors.dispatchDate && <p className="text-red-500 text-xs mt-1 transition-all duration-200">{errors.dispatchDate}</p>}
                         </div>
                         <div className={styles.formGroup}>
                             <label className={styles.label}>Metres Dispatched *</label>
@@ -149,10 +164,11 @@ export default function DispatchOrderModal({ isOpen, onClose, onSuccess, order }
                                 min="0"
                                 step="0.1"
                                 value={metresDispatched}
-                                onChange={(e) => setMetresDispatched(e.target.value)}
-                                className={styles.input}
-                                required
+                                onChange={(e) => { setMetresDispatched(e.target.value); setErrors({...errors, metresDispatched: ''}); }}
+                                className={`${styles.input} ${errors.metresDispatched ? 'border-red-400 focus:ring-red-500 bg-red-50/30' : ''}`}
+                                data-error={!!errors.metresDispatched}
                             />
+                            {errors.metresDispatched && <p className="text-red-500 text-xs mt-1 transition-all duration-200">{errors.metresDispatched}</p>}
                         </div>
                     </div>
 
@@ -161,10 +177,11 @@ export default function DispatchOrderModal({ isOpen, onClose, onSuccess, order }
                         <input
                             type="date"
                             value={expectedDelivery}
-                            onChange={(e) => setExpectedDelivery(e.target.value)}
-                            className={styles.input}
-                            required
+                            onChange={(e) => { setExpectedDelivery(e.target.value); setErrors({...errors, expectedDelivery: ''}); }}
+                            className={`${styles.input} ${errors.expectedDelivery ? 'border-red-400 focus:ring-red-500 bg-red-50/30' : ''}`}
+                            data-error={!!errors.expectedDelivery}
                         />
+                        {errors.expectedDelivery && <p className="text-red-500 text-xs mt-1 transition-all duration-200">{errors.expectedDelivery}</p>}
                     </div>
 
                     <div className={styles.formGroup} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>

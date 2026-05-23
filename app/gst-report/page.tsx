@@ -7,7 +7,8 @@ import Input from '@/components/ui/Input';
 import AdvancedFilter, { FilterDefinition, FilterRow } from '@/components/ui/AdvancedFilter';
 import ViewingPeriodSelector from '@/components/ui/ViewingPeriodSelector';
 import tableStyles from '@/components/ui/Table.module.css';
-import { FileText, TrendingUp, TrendingDown, FileSpreadsheet, Receipt, Package, Search } from 'lucide-react';
+import { FileText, TrendingUp, TrendingDown, FileSpreadsheet, Receipt, Package, Search, Loader2 } from 'lucide-react';
+import { formatCurrencySafe } from '@/lib/utils';
 
 export default function GstReportPage() {
     const { user, loading: authLoading } = useAuth();
@@ -158,9 +159,17 @@ export default function GstReportPage() {
 
     if (authLoading || (loading && !reportData)) {
         return (
-            <div style={{ padding: '32px', display: 'flex', alignItems: 'center', gap: '12px', color: 'var(--text-secondary)' }}>
-                <div style={{ width: '20px', height: '20px', borderRadius: '50%', border: '2px solid var(--border-primary)', borderTopColor: 'var(--accent)', animation: 'spin 0.8s linear infinite' }} />
-                Loading GST Report...
+            <div style={{ padding: '24px 32px', maxWidth: '1280px', margin: '0 auto' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '32px' }}>
+                    <Loader2 className="animate-spin" size={24} style={{ color: 'var(--accent)' }} />
+                    <span style={{ color: 'var(--text-secondary)', fontSize: '18px' }}>Loading GST Report...</span>
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px', marginBottom: '28px' }}>
+                    {[1, 2, 3].map((i) => (
+                        <div key={i} style={{ height: '140px', background: 'var(--bg-secondary)', borderRadius: '16px', animation: 'pulse 2s infinite' }}></div>
+                    ))}
+                </div>
+                <div style={{ height: '400px', background: 'var(--bg-secondary)', borderRadius: '16px', animation: 'pulse 2s infinite' }}></div>
             </div>
         );
     }
@@ -170,7 +179,7 @@ export default function GstReportPage() {
     }
 
 
-    const fmt = (val: number) => `₹${(val || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 })}`;
+    const fmt = (val: number) => formatCurrencySafe(val || 0);
     const fmtNum = (val: number) => (val || 0).toLocaleString('en-IN', { maximumFractionDigits: 2 });
     const fmtDate = (ts: number) => new Date(ts * 1000).toLocaleDateString('en-IN', { day: '2-digit', month: 'short', year: 'numeric' });
 

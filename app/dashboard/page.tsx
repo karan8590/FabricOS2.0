@@ -94,7 +94,27 @@ export default function DashboardPage() {
             year: 'numeric',
         };
         setFormattedDate(new Date().toLocaleDateString('en-GB', options));
-    }, [fetchStats]);
+    }, [fetchStats, user, router]);
+
+    // Safely extract metrics
+    const ordersReceived = stats?.ordersReceived?.value || 0;
+    const ordersReceivedChange = stats?.ordersReceived?.change || 0;
+    
+    const ordersDelivered = stats?.ordersDelivered?.value || 0;
+    const ordersDeliveredChange = stats?.ordersDelivered?.change || 0;
+    
+    const revenueCollected = stats?.revenueCollected?.value || 0;
+    const revenueCollectedChange = stats?.revenueCollected?.change || 0;
+    
+    const outstandingAmount = stats?.outstandingAmount?.value || 0;
+    const outstandingAmountChange = stats?.outstandingAmount?.change || 0;
+
+    useEffect(() => {
+        if (revenueCollected > 10000000) {
+            // Trigger confetti if revenue crosses 1 Crore this month
+            celebrateMedium(`confetti_monthly_target_${new Date().getFullYear()}_${new Date().getMonth()}`);
+        }
+    }, [revenueCollected]);
 
     if (loading) {
         return (
@@ -121,26 +141,6 @@ export default function DashboardPage() {
             </div>
         );
     }
-
-    // Safely extract metrics
-    const ordersReceived = stats?.ordersReceived?.value || 0;
-    const ordersReceivedChange = stats?.ordersReceived?.change || 0;
-    
-    const ordersDelivered = stats?.ordersDelivered?.value || 0;
-    const ordersDeliveredChange = stats?.ordersDelivered?.change || 0;
-    
-    const revenueCollected = stats?.revenueCollected?.value || 0;
-    const revenueCollectedChange = stats?.revenueCollected?.change || 0;
-    
-    const outstandingAmount = stats?.outstandingAmount?.value || 0;
-    const outstandingAmountChange = stats?.outstandingAmount?.change || 0;
-
-    useEffect(() => {
-        if (revenueCollected > 10000000) {
-            // Trigger confetti if revenue crosses 1 Crore this month
-            celebrateMedium(`confetti_monthly_target_${new Date().getFullYear()}_${new Date().getMonth()}`);
-        }
-    }, [revenueCollected]);
 
     const gstLiability = stats?.gstLiability || 0;
 

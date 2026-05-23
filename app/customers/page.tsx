@@ -10,6 +10,7 @@ import CustomerQuickView from '@/components/customers/CustomerQuickView';
 import CreateCustomerModal from '@/components/customers/CreateCustomerModal';
 import { Eye, Plus } from 'lucide-react';
 import styles from './Customers.module.css';
+import { formatCurrencySafe } from '@/lib/utils';
 
 export default function CustomersPage() {
     const [customers, setCustomers] = useState<any[]>([]);
@@ -79,7 +80,8 @@ export default function CustomersPage() {
                 const data = await res.json();
                 const normalizedCustomers = (data.customers || []).map((customer: any) => ({
                     ...customer,
-                    name: customer?.name || customer?.company_name || 'Unknown Customer'
+                    name: customer?.name || customer?.company_name || 'Unknown Customer',
+                    avatar: (customer?.name || customer?.company_name || 'U').charAt(0).toUpperCase()
                 }));
                 setCustomers(normalizedCustomers);
             }
@@ -90,11 +92,7 @@ export default function CustomersPage() {
         }
     };
 
-    const formatCurrency = (val: number) => {
-        if (val >= 100000) return `₹${(val / 100000).toFixed(1)}L`;
-        if (val >= 1000) return `₹${(val / 1000).toFixed(1)}K`;
-        return `₹${Math.round(val)}`;
-    };
+    const formatCurrency = formatCurrencySafe;
 
     const searchFilteredCustomers = useMemo(() => {
         return customers.filter(
@@ -297,7 +295,11 @@ export default function CustomersPage() {
             )}
 
             {loading ? (
-                <div className={styles.loading}>Loading customers...</div>
+                <div className={styles.skeletonGrid}>
+                    {[1, 2, 3, 4].map((i) => (
+                        <div key={i} className={styles.skeletonCard} />
+                    ))}
+                </div>
             ) : (
                 <div className={styles.customersGrid}>
                     {filteredCustomers.length === 0 ? (
@@ -307,7 +309,7 @@ export default function CustomersPage() {
                             <div key={customer.id} onClick={() => handleCustomerClick(customer.id)} className={`${styles.customerCard} ${activeWidget === 'top' && customer.id === stats.topCustomer?.id ? styles.topCustomerCard : ''}`}>
                                 <div className={styles.cardHeader}>
                                     <div className={styles.cardMain}>
-                                        <div className={styles.avatarZone}><div className={styles.customerAvatar}>{(customer.name || customer.company_name || 'U').charAt(0).toUpperCase()}</div></div>
+                                        <div className={styles.avatarZone}><div className={styles.customerAvatar}>{customer.avatar}</div></div>
                                         <div className={styles.infoZone}>
                                             <h3 className={styles.customerName}>{customer.name || customer.company_name || 'Unknown Customer'}</h3>
                                             <p className={styles.customerPhone}>{customer.phone || '—'}</p>

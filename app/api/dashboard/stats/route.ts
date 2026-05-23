@@ -54,59 +54,20 @@ export async function GET(req: Request) {
             return ((current - previous) / previous) * 100;
         };
 
-        // 1. Orders Received
-        const currentOrders = (await db
-                    .prepare('SELECT COUNT(*) as count FROM orders WHERE business_id = ? AND COALESCE(order_date, created_at) >= ? AND COALESCE(order_date, created_at) <= ?')
-                    .get(businessId, startTs, endTs)) as { count: number };
-
-        const lastOrders = (await db
-                    .prepare('SELECT COUNT(*) as count FROM orders WHERE business_id = ? AND COALESCE(order_date, created_at) >= ? AND COALESCE(order_date, created_at) <= ?')
-                    .get(businessId, prevStartTs, prevEndTs)) as { count: number };
-
-        // 2. Orders Delivered (Completed)
-        const currentDelivered = (await db
-                    .prepare(
-                        "SELECT COUNT(*) as count FROM orders WHERE business_id = ? AND status IN ('completed', 'invoiced') AND completed_at >= ? AND completed_at <= ?"
-                    )
-                    .get(businessId, startTs, endTs)) as { count: number };
-
-        const lastDelivered = (await db
-                    .prepare(
-                        "SELECT COUNT(*) as count FROM orders WHERE business_id = ? AND status IN ('completed', 'invoiced') AND completed_at >= ? AND completed_at <= ?"
-                    )
-                    .get(businessId, prevStartTs, prevEndTs)) as { count: number };
-
-        // 3. Revenue Collected (Paid Invoices)
-        const currentRevenue = (await db
-                    .prepare(
-                        `SELECT COALESCE(SUM(amount), 0) as revenue 
-                 FROM invoices 
-                 WHERE business_id = ? AND status = 'paid' 
-                 AND paid_at >= ? AND paid_at <= ?`
-                    )
-                    .get(businessId, startTs, endTs)) as { revenue: number };
-
-        const lastRevenue = (await db
-                    .prepare(
-                        `SELECT COALESCE(SUM(amount), 0) as revenue 
-                 FROM invoices 
-                 WHERE business_id = ? AND status = 'paid' 
-                 AND paid_at >= ? AND paid_at <= ?`
-                    )
-                    .get(businessId, prevStartTs, prevEndTs)) as { revenue: number };
-
-        // 4. Outstanding Amount (Snapshot of the end of the selected period)
-        const currentOutstanding = (await db
-                    .prepare(
-                        "SELECT COALESCE(SUM(amount), 0) as total FROM invoices WHERE business_id = ? AND status IN ('unpaid', 'overdue') AND generated_at <= ?"
-                    )
-                    .get(businessId, endTs)) as { total: number };
-
-        const lastOutstandingValue = (await db
-                    .prepare(
-                        "SELECT COALESCE(SUM(amount), 0) as total FROM invoices WHERE business_id = ? AND status IN ('unpaid', 'overdue') AND generated_at <= ?"
-                    )
-                    .get(businessId, prevEndTs)) as { total: number };
+        // Group the 8 aggregate queries into a single Promise.all for performance
+        const [
+            currentOrders, lastOrders, currentDelivered, lastDelivered, 
+            currentRevenue, lastRevenue, currentOutstanding, lastOutstandingValue
+        ] = await Promise.all([
+            db.prepare('SELECT COUNT(*) as count FROM orders WHERE business_id = ? AND COALESCE(order_date, created_at) >= ? AND COALESCE(order_date, created_at) <= ?').get(businessId, startTs, endTs) as Promise<{ count: number }>,
+            db.prepare('SELECT COUNT(*) as count FROM orders WHERE business_id = ? AND COALESCE(order_date, created_at) >= ? AND COALESCE(order_date, created_at) <= ?').get(businessId, prevStartTs, prevEndTs) as Promise<{ count: number }>,
+            db.prepare("SELECT COUNT(*) as count FROM orders WHERE business_id = ? AND status IN ('completed', 'invoiced') AND completed_at >= ? AND completed_at <= ?").get(businessId, startTs, endTs) as Promise<{ count: number }>,
+            db.prepare("SELECT COUNT(*) as count FROM orders WHERE business_id = ? AND status IN ('completed', 'invoiced') AND completed_at >= ? AND completed_at <= ?").get(businessId, prevStartTs, prevEndTs) as Promise<{ count: number }>,
+            db.prepare("SELECT COALESCE(SUM(amount), 0) as revenue FROM invoices WHERE business_id = ? AND status = 'paid' AND paid_at >= ? AND paid_at <= ?").get(businessId, startTs, endTs) as Promise<{ revenue: number }>,
+            db.prepare("SELECT COALESCE(SUM(amount), 0) as revenue FROM invoices WHERE business_id = ? AND status = 'paid' AND paid_at >= ? AND paid_at <= ?").get(businessId, prevStartTs, prevEndTs) as Promise<{ revenue: number }>,
+            db.prepare("SELECT COALESCE(SUM(amount), 0) as total FROM invoices WHERE business_id = ? AND status IN ('unpaid', 'overdue') AND generated_at <= ?").get(businessId, endTs) as Promise<{ total: number }>,
+            db.prepare("SELECT COALESCE(SUM(amount), 0) as total FROM invoices WHERE business_id = ? AND status IN ('unpaid', 'overdue') AND generated_at <= ?").get(businessId, prevEndTs) as Promise<{ total: number }>
+        ]);
 
         // --- Analytics Data (Trends) ---
         const analyticsData = [];
@@ -164,82 +125,79 @@ export async function GET(req: Request) {
         }
 
         // Recent Deliveries, Top Customers, etc. (Filtered by period)
-        const recentDeliveries = (await db.prepare(`
-            SELECT o.id, o.customer_id, c.name as customer, d.name as design, o.status, o.completed_at as date
-            FROM orders o
-            JOIN customers c ON o.customer_id = c.id
-            JOIN designs d ON o.design_id = d.id
-            WHERE o.business_id = ? AND o.status IN ('completed', 'invoiced')
-            AND o.completed_at >= ? AND o.completed_at <= ?
-            ORDER BY o.completed_at DESC
-            LIMIT 5
-        `).all(businessId, startTs, endTs));
+        // Run the 8 secondary dashboard queries in parallel
+        const [
+            recentDeliveries, topCustomers, lowStock, upcomingDeliveries, 
+            invoiceAlerts, vendorPaymentAlerts, salesGST, purchasesGST
+        ] = await Promise.all([
+            db.prepare(`
+                SELECT o.id, o.customer_id, c.name as customer, d.name as design, o.status, o.completed_at as date
+                FROM orders o
+                JOIN customers c ON o.customer_id = c.id
+                JOIN designs d ON o.design_id = d.id
+                WHERE o.business_id = ? AND o.status IN ('completed', 'invoiced')
+                AND o.completed_at >= ? AND o.completed_at <= ?
+                ORDER BY o.completed_at DESC
+                LIMIT 5
+            `).all(businessId, startTs, endTs) as Promise<any[]>,
 
-        const topCustomers = (await db.prepare(`
-            SELECT c.id, c.name, COALESCE(SUM(i.amount), 0) as revenue
-            FROM customers c
-            LEFT JOIN invoices i ON c.id = i.customer_id AND i.status = 'paid' AND i.paid_at >= ? AND i.paid_at <= ? AND i.business_id = ?
-            WHERE c.business_id = ?
-            GROUP BY c.id
-            ORDER BY revenue DESC
-            LIMIT 5
-        `).all(startTs, endTs, businessId, businessId));
+            db.prepare(`
+                SELECT c.id, c.name, COALESCE(SUM(i.amount), 0) as revenue
+                FROM customers c
+                LEFT JOIN invoices i ON c.id = i.customer_id AND i.status = 'paid' AND i.paid_at >= ? AND i.paid_at <= ? AND i.business_id = ?
+                WHERE c.business_id = ?
+                GROUP BY c.id
+                ORDER BY revenue DESC
+                LIMIT 5
+            `).all(startTs, endTs, businessId, businessId) as Promise<any[]>,
 
-        // For designs, wait do we scope designs? The schema says NO designs business_id! Wait, I haven't checked if designs has business_id.
-        // Let's assume designs will be scoped later or is already scoped. I will add business_id if it exists. But wait, if it doesn't exist, SQL error.
-        // I should check `designs` schema first! Let's NOT scope designs here yet until I verify, or let's omit `business_id` from designs query for now.
-        const lowStock = (await db.prepare(`
-            SELECT id, name, stock_quantity as remaining
-            FROM designs
-            WHERE stock_quantity < 20
-            LIMIT 5
-        `).all()); // I will come back to this when I fix inventory/designs API.
+            db.prepare(`
+                SELECT id, name, stock_quantity as remaining
+                FROM designs
+                WHERE stock_quantity < 20
+                LIMIT 5
+            `).all() as Promise<any[]>,
 
-        const upcomingDeliveries = (await db.prepare(`
-            SELECT o.id, o.customer_id, c.name as customer, d.name as design, o.quantity_meters as quantity, COALESCE(o.order_date, o.created_at) as date, o.status
-            FROM orders o
-            JOIN customers c ON o.customer_id = c.id
-            JOIN designs d ON o.design_id = d.id
-            WHERE o.business_id = ? AND o.status IN ('pending', 'approved')
-            AND COALESCE(o.order_date, o.created_at) >= ? AND COALESCE(o.order_date, o.created_at) <= ?
-            ORDER BY COALESCE(o.order_date, o.created_at) ASC
-            LIMIT 8
-        `).all(businessId, startTs, endTs));
+            db.prepare(`
+                SELECT o.id, o.customer_id, c.name as customer, d.name as design, o.quantity_meters as quantity, COALESCE(o.order_date, o.created_at) as date, o.status
+                FROM orders o
+                JOIN customers c ON o.customer_id = c.id
+                JOIN designs d ON o.design_id = d.id
+                WHERE o.business_id = ? AND o.status IN ('pending', 'approved')
+                AND COALESCE(o.order_date, o.created_at) >= ? AND COALESCE(o.order_date, o.created_at) <= ?
+                ORDER BY COALESCE(o.order_date, o.created_at) ASC
+                LIMIT 8
+            `).all(businessId, startTs, endTs) as Promise<any[]>,
 
-        // Fetch Overdue Invoice Alerts
-        const nowEpoch = Math.floor(Date.now() / 1000);
-        const invoiceAlerts = (await db.prepare(`
-            SELECT i.id, c.name as customer, i.amount, i.due_date, i.status
-            FROM invoices i
-            JOIN customers c ON i.customer_id = c.id
-            WHERE i.business_id = ? AND (i.status = 'overdue' OR (i.status = 'unpaid' AND i.due_date < ?))
-            ORDER BY i.due_date ASC
-            LIMIT 2
-        `).all(businessId, nowEpoch));
+            db.prepare(`
+                SELECT i.id, c.name as customer, i.amount, i.due_date, i.status
+                FROM invoices i
+                JOIN customers c ON i.customer_id = c.id
+                WHERE i.business_id = ? AND (i.status = 'overdue' OR (i.status = 'unpaid' AND i.due_date < ?))
+                ORDER BY i.due_date ASC
+                LIMIT 2
+            `).all(businessId, nowEpoch) as Promise<any[]>,
 
-        // Fetch Overdue Vendor Payment Alerts
-        // due_date in vendor_payments is TEXT (YYYY-MM-DD)
-        const todayDateStr = new Date().toISOString().split('T')[0];
-        const vendorPaymentAlerts = (await db.prepare(`
-            SELECT id, vendor_name, work_type, balance, due_date, status
-            FROM vendor_payments
-            WHERE business_id = ? AND (status = 'overdue' OR (status = 'unpaid' AND due_date < ?))
-            ORDER BY due_date ASC
-            LIMIT 2
-        `).all(businessId, todayDateStr));
+            db.prepare(`
+                SELECT id, vendor_name, work_type, balance, due_date, status
+                FROM vendor_payments
+                WHERE business_id = ? AND (status = 'overdue' OR (status = 'unpaid' AND due_date < ?))
+                ORDER BY due_date ASC
+                LIMIT 2
+            `).all(businessId, todayDateStr) as Promise<any[]>,
 
-        // Calculate GST Liability (Current Month)
-        const salesGST = (await db.prepare(`
-            SELECT COALESCE(SUM(gst_amount), 0) as totalOutput
-            FROM invoices
-            WHERE business_id = ? AND generated_at >= ? AND generated_at <= ? AND gst_type != 'NONE'
-        `).get(businessId, startTs, endTs)) as { totalOutput: number };
+            db.prepare(`
+                SELECT COALESCE(SUM(gst_amount), 0) as totalOutput
+                FROM invoices
+                WHERE business_id = ? AND generated_at >= ? AND generated_at <= ? AND gst_type != 'NONE'
+            `).get(businessId, startTs, endTs) as Promise<{ totalOutput: number }>,
 
-        const purchasesGST = (await db.prepare(`
-            SELECT COALESCE(SUM(gst_amount), 0) as totalInput
-            FROM expenses
-            WHERE business_id = ? AND date >= ? AND date <= ? AND has_gst = 1 AND itc_claimed = 1 AND type = 'out'
-        `).get(businessId, startTs, endTs)) as { totalInput: number };
+            db.prepare(`
+                SELECT COALESCE(SUM(gst_amount), 0) as totalInput
+                FROM expenses
+                WHERE business_id = ? AND date >= ? AND date <= ? AND has_gst = 1 AND itc_claimed = 1 AND type = 'out'
+            `).get(businessId, startTs, endTs) as Promise<{ totalInput: number }>
+        ]);
 
         const netGstLiability = (salesGST.totalOutput || 0) - (purchasesGST.totalInput || 0);
 

@@ -1,4 +1,7 @@
-import { Pool } from 'pg';
+import { Pool, PoolClient } from 'pg';
+import { AsyncLocalStorage } from 'async_hooks';
+
+const asyncLocalStorage = new AsyncLocalStorage<PoolClient>();
 
 // ─── Validate required environment variable ───────────────────────────────────
 const connectionString = process.env.DATABASE_URL;
@@ -84,13 +87,17 @@ function getDatabase() {
             return {
                 get: async (...args: any[]) => {
                     const params = args.length === 1 && Array.isArray(args[0]) ? args[0] : args;
-                    const { rows } = await pool.query(pgSql, params);
+                    const client = asyncLocalStorage.getStore();
+                    const executor = client || pool;
+                    const { rows } = await executor.query(pgSql, params);
                     return rows[0] || undefined;
                 },
 
                 all: async (...args: any[]) => {
                     const params = args.length === 1 && Array.isArray(args[0]) ? args[0] : args;
-                    const { rows } = await pool.query(pgSql, params);
+                    const client = asyncLocalStorage.getStore();
+                    const executor = client || pool;
+                    const { rows } = await executor.query(pgSql, params);
                     return rows;
                 },
 
@@ -112,7 +119,9 @@ function getDatabase() {
                         }
                     }
 
-                    const res = await pool.query(finalSql, params);
+                    const client = asyncLocalStorage.getStore();
+                    const executor = client || pool;
+                    const res = await executor.query(finalSql, params);
                     return {
                         changes: res.rowCount || 0,
                         lastInsertRowid: (res.rows && res.rows[0] && res.rows[0].id)
@@ -128,7 +137,30 @@ function getDatabase() {
 
         // Support for db.exec used in transactions (BEGIN/COMMIT/ROLLBACK)
         exec: async (sql: string) => {
-            return await pool.query(sql);
+            const client = asyncLocalStorage.getStore();
+            const executor = client || pool;
+            return await executor.query(sql);
+        },
+
+        // Polyfill better-sqlite3 db.transaction using AsyncLocalStorage 
+        // to share the pg client across all internal queries
+        transaction: (fn: (...args: any[]) => any) => {
+            return async (...args: any[]) => {
+                const client = await pool.connect();
+                try {
+                    await client.query('BEGIN');
+                    const result = await asyncLocalStorage.run(client, async () => {
+                        return await fn(...args);
+                    });
+                    await client.query('COMMIT');
+                    return result;
+                } catch (err) {
+                    await client.query('ROLLBACK');
+                    throw err;
+                } finally {
+                    client.release();
+                }
+            };
         },
     };
 }
