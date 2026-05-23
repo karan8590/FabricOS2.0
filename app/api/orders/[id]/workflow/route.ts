@@ -165,6 +165,7 @@ export async function POST(
             `).run(
                             businessId, order.customer_id, 'production_workflow', activityTitle, activityDescription,
                             JSON.stringify({ order_id: orderId, action, status: newStatus }), Math.floor(Date.now() / 1000)
+                        ));
 
         } catch (txnError) {
             throw txnError;
