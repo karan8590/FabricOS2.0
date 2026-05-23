@@ -959,6 +959,71 @@ export default function TelegramCenterPage() {
                 />
             )}
 
+            {/* Add Recipient Modal */}
+            {showAddModal && (
+                <div className={styles.modalOverlay}>
+                    <div className={styles.modalContent}>
+                        <div className={styles.modalHeader}>
+                            <div className={styles.modalTitle}>
+                                <h3>Add New Recipient</h3>
+                                <p>Register a new staff member or business partner.</p>
+                            </div>
+                            <button className={styles.closeBtn} onClick={() => setShowAddModal(false)}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <form onSubmit={handleAddRecipient} className={styles.modalForm}>
+                            <div className={styles.formField}>
+                                <label>Recipient Name</label>
+                                <input type="text" value={newName} onChange={e => setNewName(e.target.value)} required placeholder="e.g. John Doe" />
+                            </div>
+                            <div className={styles.formField}>
+                                <label>Telegram Chat ID</label>
+                                <input type="text" value={newChatId} onChange={e => setNewChatId(e.target.value)} required placeholder="e.g. 123456789" />
+                            </div>
+                            <div className={styles.formField}>
+                                <label>Telegram Username (Optional)</label>
+                                <input type="text" value={newUsername} onChange={e => setNewUsername(e.target.value)} placeholder="e.g. johndoe" />
+                            </div>
+                            <div className={styles.formField}>
+                                <label>Role</label>
+                                <select value={newRole} onChange={e => setNewRole(e.target.value)}>
+                                    <option value="Admin">Admin</option>
+                                    <option value="Manager">Manager</option>
+                                    <option value="Accountant">Accountant</option>
+                                    <option value="Staff">Staff</option>
+                                </select>
+                            </div>
+
+                            <div style={{ marginTop: '20px' }}>
+                                <h4 style={{ fontSize: '13px', fontWeight: 600, color: 'var(--text-secondary)', marginBottom: '12px' }}>Notification Preferences</h4>
+                                <div className={styles.formGrid}>
+                                    {Object.entries(newPrefs).map(([key, value]) => (
+                                        <label key={key} className={`${styles.checkboxCard} ${value === 1 ? styles.checkboxCardActive : ''}`}>
+                                            <input 
+                                                type="checkbox" 
+                                                checked={value === 1} 
+                                                onChange={e => setNewPrefs({...newPrefs, [key]: e.target.checked ? 1 : 0})}
+                                            />
+                                            <div className={styles.checkboxDetails}>
+                                                <h5>{key.replace(/_/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}</h5>
+                                            </div>
+                                        </label>
+                                    ))}
+                                </div>
+                            </div>
+
+                            <div className={styles.modalFooter}>
+                                <button type="button" className="action-btn-secondary" onClick={() => setShowAddModal(false)}>Cancel</button>
+                                <button type="submit" className="action-btn-primary" disabled={adding}>
+                                    {adding ? 'Saving...' : 'Save Recipient'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
             {/* Toast Notifications */}
             <div className={styles.toastContainer}>
                 {toasts.map(t => (

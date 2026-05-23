@@ -95,7 +95,8 @@ export default function CustomersPage() {
     const searchFilteredCustomers = useMemo(() => {
         return customers.filter(
             (customer) =>
-                customer.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (customer.name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
+                (customer.company_name || '').toLowerCase().includes(searchTerm.toLowerCase()) ||
                 (customer.phone && customer.phone.includes(searchTerm))
         );
     }, [customers, searchTerm]);
