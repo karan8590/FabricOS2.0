@@ -77,7 +77,11 @@ export default function CustomersPage() {
             const res = await fetch(`/api/customers?${params.toString()}`);
             if (res.ok) {
                 const data = await res.json();
-                setCustomers(data.customers);
+                const normalizedCustomers = (data.customers || []).map((customer: any) => ({
+                    ...customer,
+                    name: customer?.name || customer?.company_name || 'Unknown Customer'
+                }));
+                setCustomers(normalizedCustomers);
             }
         } catch (error) {
             console.error('Failed to fetch customers:', error);
@@ -179,7 +183,7 @@ export default function CustomersPage() {
     const widgetConfig = [
         { id: 'total', label: 'Total Customers', value: stats.totalCustomers, color: 'blue', icon: 'users' },
         { id: 'active', label: 'Active', value: stats.activeCount, color: 'green', icon: 'check' },
-        { id: 'top', label: 'Top Customer', value: stats.topCustomer ? formatCurrency(stats.topCustomer.ltv) : '₹0', color: 'purple', icon: 'trophy', secondary: stats.topCustomer?.name },
+        { id: 'top', label: 'Top Customer', value: stats.topCustomer ? formatCurrency(stats.topCustomer.ltv) : '₹0', color: 'purple', icon: 'trophy', secondary: stats.topCustomer?.name || stats.topCustomer?.company_name || 'Unknown' },
         { id: 'new', label: 'New This Month', value: stats.newThisMonth, color: 'orange', icon: 'plus' },
     ];
 
@@ -305,8 +309,8 @@ export default function CustomersPage() {
                                     <div className={styles.cardMain}>
                                         <div className={styles.avatarZone}><div className={styles.customerAvatar}>{(customer.name || customer.company_name || 'U').charAt(0).toUpperCase()}</div></div>
                                         <div className={styles.infoZone}>
-                                            <h3 className={styles.customerName}>{customer.name}</h3>
-                                            <p className={styles.customerPhone}>{customer.phone}</p>
+                                            <h3 className={styles.customerName}>{customer.name || customer.company_name || 'Unknown Customer'}</h3>
+                                            <p className={styles.customerPhone}>{customer.phone || '—'}</p>
                                         </div>
                                     </div>
                                     <div className={styles.actionZone}>

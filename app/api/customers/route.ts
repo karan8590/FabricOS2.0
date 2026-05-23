@@ -119,6 +119,7 @@ export async function GET(request: Request) {
 
             return {
                 ...customer,
+                name: customer.name || customer.company_name || 'Unknown Customer',
                 total_orders: orderStats ? orderStats.count : 0,
                 last_order_date: orderStats ? orderStats.last_order : null,
                 ltv,
@@ -132,31 +133,35 @@ export async function GET(request: Request) {
             };
         });
 
-        // Apply filters
+        // Resolve all async enhancements
+        let resolvedCustomers = await Promise.all(enhancedCustomers);
+
+        // Apply filters on resolved data
+        let filtered = resolvedCustomers;
         if (behaviorFilter) {
-            enhancedCustomers = enhancedCustomers.filter(c => c.behavior === behaviorFilter);
+            filtered = filtered.filter(c => c.behavior === behaviorFilter);
         }
         if (minLtv) {
-            enhancedCustomers = enhancedCustomers.filter(c => c.ltv >= parseFloat(minLtv));
+            filtered = filtered.filter(c => (c.ltv || 0) >= parseFloat(minLtv));
         }
         if (maxLtv) {
-            enhancedCustomers = enhancedCustomers.filter(c => c.ltv <= parseFloat(maxLtv));
+            filtered = filtered.filter(c => (c.ltv || 0) <= parseFloat(maxLtv));
         }
         if (minOutstanding) {
-            enhancedCustomers = enhancedCustomers.filter(c => c.outstanding_amount >= parseFloat(minOutstanding));
+            filtered = filtered.filter(c => (c.outstanding_amount || 0) >= parseFloat(minOutstanding));
         }
         if (maxOutstanding) {
-            enhancedCustomers = enhancedCustomers.filter(c => c.outstanding_amount <= parseFloat(maxOutstanding));
+            filtered = filtered.filter(c => (c.outstanding_amount || 0) <= parseFloat(maxOutstanding));
         }
         if (search) {
             const s = search.toLowerCase();
-            enhancedCustomers = enhancedCustomers.filter(c => 
-                c.name.toLowerCase().includes(s) || 
+            filtered = filtered.filter(c =>
+                (c.name || '').toLowerCase().includes(s) ||
                 (c.phone && c.phone.includes(s))
             );
         }
 
-        return NextResponse.json({ customers: enhancedCustomers });
+        return NextResponse.json({ customers: filtered });
     } catch (error) {
         console.error('Customers fetch error:', error);
         return NextResponse.json({ error: 'Internal server error' }, { status: 500 });

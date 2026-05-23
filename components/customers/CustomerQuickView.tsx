@@ -31,10 +31,10 @@ export default function CustomerQuickView({ customer, isOpen, onClose, onViewFul
                     
                     <div className={styles.profileSection}>
                         <div className={styles.avatar}>
-                            {customer.name.charAt(0).toUpperCase()}
+                            {(customer.name || customer.company_name || 'U').charAt(0).toUpperCase()}
                         </div>
                         <div className={styles.profileInfo}>
-                            <h3 className={styles.customerName}>{customer.name}</h3>
+                            <h3 className={styles.customerName}>{customer.name || customer.company_name || 'Unknown Customer'}</h3>
                             <p className={styles.customerPhone}>{customer.phone}</p>
                         </div>
                         <div className={`${styles.riskBadge} ${styles[customer.behavior?.replace(' ', '') || 'New']}`}>

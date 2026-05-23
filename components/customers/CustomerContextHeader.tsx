@@ -26,10 +26,10 @@ export default function CustomerContextHeader({ customer }: CustomerContextHeade
         <div className={styles.container}>
             <div className={styles.left}>
                 <div className={styles.avatar}>
-                    {customer.name.charAt(0).toUpperCase()}
+                    {(customer.name || customer.company_name || 'U').charAt(0).toUpperCase()}
                 </div>
                 <div className={styles.info}>
-                    <h2 className={styles.name}>{customer.name}</h2>
+                    <h2 className={styles.name}>{customer.name || customer.company_name || 'Unknown Customer'}</h2>
                     <div className={styles.meta}>
                         <span className={styles.phone}>{customer.phone}</span>
                         <span className={styles.dot}>•</span>
