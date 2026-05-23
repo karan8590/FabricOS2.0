@@ -1,270 +1,296 @@
 import React, { useState } from 'react';
-import { Bot, Link as LinkIcon, Users, Bell, Command, CheckCircle2, Send, Rocket, AlertTriangle, PlayCircle } from 'lucide-react';
+import { CheckCircle2, Circle, Edit2, PlayCircle, Shield, ArrowRight, Bell, Package, Check, Loader2 } from 'lucide-react';
 import styles from '@/app/telegram-center/TelegramCenter.module.css';
+import confetti from 'canvas-confetti';
 
 interface SetupWizardProps {
     currentStep: number;
+    setWizardStep: (step: number) => void;
+    saveWizardState: (updates: any) => Promise<void>;
     botToken: string;
     setBotToken: (val: string) => void;
     onValidateBot: () => void;
     validatingBot: boolean;
     botValid: boolean;
-    
-    onConnectWebhook: () => void;
-    connectingWebhook: boolean;
-    webhookActive: boolean;
-    
-    onAddRecipientClick: () => void;
-    recipientsCount: number;
-    
-    onToggleNotification: (type: string, enabled: boolean) => void;
-    notificationPrefs: Record<string, boolean>;
-    
-    commands: string[];
-    onToggleCommand: (cmd: string, enabled: boolean) => void;
-    
-    onSendTest: () => void;
-    testSent: boolean;
-    
     onActivate: () => void;
     activating: boolean;
 }
 
 export function SetupWizard(props: SetupWizardProps) {
-    const renderStepContent = () => {
-        switch (props.currentStep) {
-            case 1:
-                return (
-                    <div className={styles.card} style={{ animation: 'fadeIn 0.3s ease' }}>
-                        <div style={{ display: 'flex', gap: '16px', marginBottom: '24px' }}>
-                            <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#EEF2FF', color: 'var(--accent)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <Bot size={24} />
-                            </div>
-                            <div>
-                                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>Connect Telegram Bot</h3>
-                                <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)', fontSize: '14px' }}>Enter your Telegram Bot Token from BotFather to link your account.</p>
-                            </div>
-                        </div>
+    const { currentStep, setWizardStep, saveWizardState } = props;
 
-                        <div className={styles.formField} style={{ marginBottom: '20px' }}>
-                            <label>Bot Token</label>
-                            <input 
-                                type="text" 
-                                value={props.botToken}
-                                onChange={(e) => props.setBotToken(e.target.value)}
-                                placeholder="1234567890:ABCDEFGHIJKLMNOPQRSTUVWXYZ"
-                                className={styles.formInput}
-                            />
-                        </div>
+    // Local State for Steps
+    const [chatId, setChatId] = useState('');
+    const [verifyingChatId, setVerifyingChatId] = useState(false);
+    const [chatIdValid, setChatIdValid] = useState(false);
+    const [testReceived, setTestReceived] = useState<boolean | null>(null);
 
-                        {props.botValid && (
-                            <div className={styles.alertSuccess} style={{ marginBottom: '20px' }}>
-                                <CheckCircle2 size={16} /> Successfully connected to Telegram Bot
-                            </div>
-                        )}
+    // Configuration Toggles
+    const [dailySummary, setDailySummary] = useState(true);
+    
+    const [paymentAlerts, setPaymentAlerts] = useState(true);
+    const [paySubBefore, setPaySubBefore] = useState(true);
+    const [paySubOn, setPaySubOn] = useState(true);
+    const [paySubOverdue, setPaySubOverdue] = useState(true);
 
-                        <button 
-                            className="action-btn-primary"
-                            onClick={props.onValidateBot}
-                            disabled={props.validatingBot || !props.botToken}
-                        >
-                            {props.validatingBot ? 'Validating...' : (props.botValid ? 'Save & Continue' : 'Validate Bot')}
-                        </button>
-                    </div>
-                );
-            case 2:
-                return (
-                    <div className={styles.card} style={{ animation: 'fadeIn 0.3s ease' }}>
-                        <div style={{ display: 'flex', gap: '16px', marginBottom: '24px' }}>
-                            <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#FFF4E5', color: '#FF9800', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <LinkIcon size={24} />
-                            </div>
-                            <div>
-                                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>Register Webhook</h3>
-                                <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)', fontSize: '14px' }}>We will automatically configure Telegram to send real-time events to FabricOS.</p>
-                            </div>
-                        </div>
+    const [stockInk, setStockInk] = useState(true);
+    const [stockPack, setStockPack] = useState(true);
 
-                        {props.webhookActive && (
-                            <div className={styles.alertSuccess} style={{ marginBottom: '20px' }}>
-                                <CheckCircle2 size={16} /> Webhook is active and receiving events
-                            </div>
-                        )}
+    const handleVerifyChatId = async () => {
+        setVerifyingChatId(true);
+        // Simulate API call to verify Chat ID
+        await new Promise(r => setTimeout(r, 1000));
+        setChatIdValid(true);
+        setVerifyingChatId(false);
+        saveWizardState({ step: 3, chatId });
+        setWizardStep(3);
+    };
 
-                        <button 
-                            className="action-btn-primary"
-                            onClick={props.onConnectWebhook}
-                            disabled={props.connectingWebhook}
-                        >
-                            {props.connectingWebhook ? 'Connecting...' : (props.webhookActive ? 'Continue' : 'Connect Webhook')}
-                        </button>
-                    </div>
-                );
-            case 3:
-                return (
-                    <div className={styles.card} style={{ animation: 'fadeIn 0.3s ease' }}>
-                        <div style={{ display: 'flex', gap: '16px', marginBottom: '24px' }}>
-                            <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#E8F5E9', color: '#4CAF50', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <Users size={24} />
-                            </div>
-                            <div>
-                                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>Add Recipients</h3>
-                                <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)', fontSize: '14px' }}>Add staff members or admins who should receive notifications.</p>
-                            </div>
-                        </div>
-
-                        <div style={{ marginBottom: '20px', padding: '16px', background: 'var(--bg-grouped)', borderRadius: '12px', border: '1px solid var(--border-primary)' }}>
-                            <p style={{ margin: 0, fontSize: '14px', fontWeight: 600 }}>{props.recipientsCount} recipient(s) added</p>
-                        </div>
-
-                        <div style={{ display: 'flex', gap: '12px' }}>
-                            <button className="action-btn-secondary" onClick={props.onAddRecipientClick}>
-                                Add Recipient
-                            </button>
-                            <button className="action-btn-primary" onClick={props.onValidateBot} disabled={props.recipientsCount === 0}>
-                                Continue
-                            </button>
-                        </div>
-                    </div>
-                );
-            case 4:
-                return (
-                    <div className={styles.card} style={{ animation: 'fadeIn 0.3s ease' }}>
-                        <div style={{ display: 'flex', gap: '16px', marginBottom: '24px' }}>
-                            <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#FCE4EC', color: '#E91E63', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <Bell size={24} />
-                            </div>
-                            <div>
-                                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>Select Notifications</h3>
-                                <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)', fontSize: '14px' }}>Choose what types of alerts the system should broadcast.</p>
-                            </div>
-                        </div>
-
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '24px' }}>
-                            {Object.keys(props.notificationPrefs).map(key => (
-                                <label key={key} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '12px', border: '1px solid var(--border-primary)', borderRadius: '8px', cursor: 'pointer' }}>
-                                    <input 
-                                        type="checkbox" 
-                                        checked={props.notificationPrefs[key]} 
-                                        onChange={(e) => props.onToggleNotification(key, e.target.checked)} 
-                                    />
-                                    <span style={{ fontSize: '14px', fontWeight: 500 }}>{key.replace(/_/g, ' ').replace(/\\b\\w/g, l => l.toUpperCase())}</span>
-                                </label>
-                            ))}
-                        </div>
-                        <button className="action-btn-primary" onClick={props.onValidateBot}>Save & Continue</button>
-                    </div>
-                );
-            case 5:
-                const availableCommands = [
-                    { id: 'summary', desc: 'Instantly fetch order details' },
-                    { id: 'order', desc: 'Check order status' },
-                    { id: 'payment', desc: 'Log or view payments' },
-                    { id: 'dispatch', desc: 'Dispatch tracking' },
-                    { id: 'pending', desc: 'Pending items list' },
-                    { id: 'help', desc: 'Help menu' }
-                ];
-
-                return (
-                    <div className={styles.card} style={{ animation: 'fadeIn 0.3s ease' }}>
-                        <div style={{ display: 'flex', gap: '16px', marginBottom: '24px' }}>
-                            <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#E0F7FA', color: '#00BCD4', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <Command size={24} />
-                            </div>
-                            <div>
-                                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>Enable Two-Way Commands</h3>
-                                <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)', fontSize: '14px' }}>Allow users to interact with FabricOS directly via Telegram.</p>
-                            </div>
-                        </div>
-
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '24px' }}>
-                            {availableCommands.map(cmd => (
-                                <div key={cmd.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px', border: '1px solid var(--border-primary)', borderRadius: '8px' }}>
-                                    <div>
-                                        <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>/{cmd.id}</div>
-                                        <div style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>{cmd.desc}</div>
-                                    </div>
-                                    <label className="switch">
-                                        <input 
-                                            type="checkbox" 
-                                            checked={props.commands.includes(cmd.id)} 
-                                            onChange={(e) => props.onToggleCommand(cmd.id, e.target.checked)} 
-                                        />
-                                        <span className="slider round"></span>
-                                    </label>
-                                </div>
-                            ))}
-                        </div>
-                        <button className="action-btn-primary" onClick={props.onValidateBot}>Save Commands</button>
-                    </div>
-                );
-            case 6:
-                return (
-                    <div className={styles.card} style={{ animation: 'fadeIn 0.3s ease' }}>
-                        <div style={{ display: 'flex', gap: '16px', marginBottom: '24px' }}>
-                            <div style={{ width: '48px', height: '48px', borderRadius: '12px', background: '#F3E5F5', color: '#9C27B0', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                                <PlayCircle size={24} />
-                            </div>
-                            <div>
-                                <h3 style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>Test Automation</h3>
-                                <p style={{ margin: '4px 0 0 0', color: 'var(--text-secondary)', fontSize: '14px' }}>Send a test message to verify the connection is working flawlessly.</p>
-                            </div>
-                        </div>
-
-                        <div style={{ background: '#F0F4F8', borderRadius: '12px', padding: '16px', marginBottom: '24px', position: 'relative' }}>
-                            <div style={{ background: '#fff', borderRadius: '12px', padding: '16px', boxShadow: '0 1px 2px rgba(0,0,0,0.05)', maxWidth: '80%' }}>
-                                <p style={{ margin: 0, fontSize: '14px', whiteSpace: 'pre-wrap' }}>
-                                    🤖 <b>FabricOS Alert</b><br/>
-                                    Hello! This is a test message to confirm your Telegram Automation is set up correctly.<br/><br/>
-                                    If you are seeing this, you are ready to go! 🎉
-                                </p>
-                            </div>
-                        </div>
-
-                        {props.testSent && (
-                            <div className={styles.alertSuccess} style={{ marginBottom: '20px' }}>
-                                <CheckCircle2 size={16} /> Test message dispatched successfully!
-                            </div>
-                        )}
-
-                        <div style={{ display: 'flex', gap: '12px' }}>
-                            <button className="action-btn-secondary" onClick={props.onSendTest}>
-                                <Send size={16} style={{ marginRight: '6px' }} /> Send Test Message
-                            </button>
-                            <button className="action-btn-primary" onClick={props.onValidateBot} disabled={!props.testSent}>
-                                Continue
-                            </button>
-                        </div>
-                    </div>
-                );
-            case 7:
-                return (
-                    <div className={styles.card} style={{ animation: 'fadeIn 0.3s ease', textAlign: 'center', padding: '48px 24px' }}>
-                        <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: '#E8F5E9', color: '#4CAF50', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 24px auto' }}>
-                            <Rocket size={40} />
-                        </div>
-                        <h2 style={{ fontSize: '24px', fontWeight: 700, margin: '0 0 12px 0' }}>Ready for Liftoff</h2>
-                        <p style={{ color: 'var(--text-secondary)', margin: '0 auto 32px auto', maxWidth: '400px', lineHeight: '1.5' }}>
-                            Your Telegram Automation is fully configured. Background jobs will be enabled and notifications will start flowing instantly.
-                        </p>
-                        <button 
-                            className="action-btn-primary" 
-                            style={{ padding: '12px 32px', fontSize: '16px', height: 'auto' }}
-                            onClick={props.onActivate}
-                            disabled={props.activating}
-                        >
-                            {props.activating ? 'Activating...' : 'Activate Telegram Automation'}
-                        </button>
-                    </div>
-                );
-            default:
-                return null;
+    const handleTestReceived = (received: boolean) => {
+        setTestReceived(received);
+        if (received) {
+            saveWizardState({ step: 4 });
+            setWizardStep(4);
         }
     };
 
+    const triggerConfetti = () => {
+        confetti({ particleCount: 100, spread: 70, origin: { y: 0.6 } });
+    };
+
+    const handleFinalActivate = async () => {
+        triggerConfetti();
+        await props.saveWizardState({ 
+            chatId, 
+            dailySummary, 
+            paymentAlerts: paymentAlerts ? { before: paySubBefore, on: paySubOn, overdue: paySubOverdue } : false,
+            stockAlerts: { ink: stockInk, pack: stockPack }
+        });
+        props.onActivate();
+    };
+
+    // Helper to render the Step Wrapper with Connector
+    const StepRow = ({ stepNumber, title, status, children, onEdit }: any) => {
+        const isCompleted = status === 'completed';
+        const isActive = status === 'active';
+        const isPending = status === 'pending';
+
+        return (
+            <div className={styles.stepWrapper}>
+                <div className={styles.stepConnectorWrapper}>
+                    <div className={styles.stepCircle} style={{
+                        background: isCompleted ? '#10B981' : isActive ? 'var(--accent)' : 'var(--bg-grouped)',
+                        color: isCompleted || isActive ? '#fff' : 'var(--text-secondary)',
+                        border: isPending ? '1px solid var(--border-primary)' : 'none'
+                    }}>
+                        {isCompleted ? <Check size={14} /> : stepNumber}
+                    </div>
+                    {stepNumber < 7 && (
+                        <div className={`${styles.stepLine} ${isCompleted ? styles.stepLineActive : ''}`} />
+                    )}
+                </div>
+
+                <div className={`${styles.stepCard} ${
+                    isCompleted ? styles.stepCardCompleted : 
+                    isActive ? styles.stepCardActive : styles.stepCardPending
+                }`}>
+                    <div className={styles.stepHeader}>
+                        <h3 style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            {isCompleted && '✅'}
+                            {isActive && '🔵'}
+                            {isPending && '⬜'}
+                            Step {stepNumber} — {title}
+                        </h3>
+                        {isCompleted && <span className={`${styles.stepBadge} ${styles.badgeCompleted}`}>COMPLETED</span>}
+                        {isActive && <span className={`${styles.stepBadge} ${styles.badgeCurrent}`}>← CURRENT</span>}
+                        {isPending && <span className={`${styles.stepBadge} ${styles.badgePending}`}>PENDING</span>}
+                    </div>
+                    
+                    {isCompleted && (
+                        <div style={{ marginTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <div style={{ fontSize: '13px', color: '#166534' }}>Configured successfully.</div>
+                            <button onClick={onEdit} style={{ background: 'none', border: 'none', color: '#166534', cursor: 'pointer', fontSize: '13px', textDecoration: 'underline' }}>
+                                Edit
+                            </button>
+                        </div>
+                    )}
+
+                    {isActive && (
+                        <div className={styles.stepContent}>
+                            {children}
+                        </div>
+                    )}
+                </div>
+            </div>
+        );
+    };
+
+    const getStatus = (step: number) => {
+        if (currentStep > step) return 'completed';
+        if (currentStep === step) return 'active';
+        return 'pending';
+    };
+
     return (
-        <div>
-            {renderStepContent()}
+        <div className={styles.wizardContainer}>
+            {/* STEP 1: Connect Telegram Bot */}
+            <StepRow stepNumber={1} title="Connect Telegram Bot" status={getStatus(1)} onEdit={() => setWizardStep(1)}>
+                <p>Go to @BotFather on Telegram → /newbot → copy the Bot Token</p>
+                <input 
+                    type="text" 
+                    value={props.botToken}
+                    onChange={(e) => props.setBotToken(e.target.value)}
+                    placeholder="1234567890:ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+                    className={styles.formInput}
+                    style={{ borderColor: props.botValid === false && props.botToken ? '#EF4444' : undefined }}
+                />
+                <button 
+                    className="action-btn-primary"
+                    onClick={props.onValidateBot}
+                    disabled={props.validatingBot || !props.botToken}
+                >
+                    {props.validatingBot ? <><Loader2 size={16} className="animate-spin" /> Validating...</> : 'Validate Bot'}
+                </button>
+            </StepRow>
+
+            {/* STEP 2: Get Your Chat ID */}
+            <StepRow stepNumber={2} title="Get Your Chat ID" status={getStatus(2)} onEdit={() => setWizardStep(2)}>
+                <p>1. Open Telegram and search for your bot: @FabricOSBot</p>
+                <p>2. Send the message /start to your bot</p>
+                <p>3. Your Chat ID will appear — paste it below</p>
+                
+                <div className={styles.codeBox}>
+                    Send this to your bot in Telegram:<br/><br/>
+                    /start
+                </div>
+
+                <input 
+                    type="text" 
+                    value={chatId}
+                    onChange={(e) => setChatId(e.target.value)}
+                    placeholder="e.g. 123456789"
+                    className={styles.formInput}
+                />
+                <div style={{ display: 'flex', gap: '12px', marginTop: '12px' }}>
+                    <button 
+                        className="action-btn-primary"
+                        onClick={handleVerifyChatId}
+                        disabled={verifyingChatId || !chatId}
+                    >
+                        {verifyingChatId ? <><Loader2 size={16} className="animate-spin" /> Verifying...</> : 'Verify Chat ID'}
+                    </button>
+                    <button className="action-btn-secondary" onClick={() => setWizardStep(3)}>
+                        Skip for now
+                    </button>
+                </div>
+            </StepRow>
+
+            {/* STEP 3: Send Test Message */}
+            <StepRow stepNumber={3} title="Send Test Message" status={getStatus(3)} onEdit={() => setWizardStep(3)}>
+                <p>We just sent a test message to your Telegram. Did you receive it?</p>
+                <div style={{ display: 'flex', gap: '12px', marginTop: '16px' }}>
+                    <button className="action-btn-primary" onClick={() => handleTestReceived(true)} style={{ background: '#10B981', borderColor: '#059669' }}>
+                        ✅ Yes, I received it
+                    </button>
+                    <button className="action-btn-secondary" onClick={() => handleTestReceived(false)} style={{ color: '#EF4444', borderColor: '#FCA5A5', background: '#FEF2F2' }}>
+                        ❌ No, try again
+                    </button>
+                </div>
+                {testReceived === false && (
+                    <div style={{ marginTop: '12px', padding: '12px', background: '#FEF2F2', border: '1px solid #FCA5A5', borderRadius: '8px', color: '#991B1B', fontSize: '13px' }}>
+                        Ensure you started the conversation with the bot and entered the correct Chat ID in Step 2.
+                    </div>
+                )}
+            </StepRow>
+
+            {/* STEP 4: Configure Daily Reminders */}
+            <StepRow stepNumber={4} title="Configure Daily Reminders" status={getStatus(4)} onEdit={() => setWizardStep(4)}>
+                <label className="switch-row" style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
+                    <input type="checkbox" checked={dailySummary} onChange={e => setDailySummary(e.target.checked)} className={styles.checkboxInput} />
+                    <span style={{ fontWeight: 500, color: 'var(--text-primary)' }}>Enable daily business summary at 9:00 AM IST</span>
+                </label>
+
+                {dailySummary && (
+                    <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '16px', borderRadius: '8px', marginBottom: '16px', fontFamily: 'monospace', fontSize: '13px' }}>
+                        📊 <b>FabricOS — Daily Summary</b><br/>
+                        {new Date().toLocaleDateString()}<br/>
+                        - New orders: 12<br/>
+                        - Dispatched: 8<br/>
+                        - Unpaid invoices: ₹45,000<br/>
+                        - Overdue: 3
+                    </div>
+                )}
+
+                <button className="action-btn-primary" onClick={() => { setWizardStep(5); saveWizardState({ step: 5 }); }}>
+                    Save & Continue
+                </button>
+            </StepRow>
+
+            {/* STEP 5: Set Up Payment Reminders */}
+            <StepRow stepNumber={5} title="Set Up Payment Reminders" status={getStatus(5)} onEdit={() => setWizardStep(5)}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                    <input type="checkbox" checked={paymentAlerts} onChange={e => setPaymentAlerts(e.target.checked)} />
+                    <span style={{ fontWeight: 600 }}>Alert me when invoices are due</span>
+                </label>
+
+                {paymentAlerts && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginLeft: '28px', marginBottom: '20px' }}>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="checkbox" checked={paySubBefore} onChange={e=>setPaySubBefore(e.target.checked)} /> 3 days before due date</label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="checkbox" checked={paySubOn} onChange={e=>setPaySubOn(e.target.checked)} /> On due date</label>
+                        <label style={{ display: 'flex', alignItems: 'center', gap: '8px' }}><input type="checkbox" checked={paySubOverdue} onChange={e=>setPaySubOverdue(e.target.checked)} /> When overdue</label>
+                    </div>
+                )}
+
+                <label style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
+                    <input type="checkbox" defaultChecked />
+                    <span style={{ fontWeight: 600 }}>Alert me when vendor payments are due</span>
+                </label>
+
+                <button className="action-btn-primary" onClick={() => { setWizardStep(6); saveWizardState({ step: 6 }); }}>
+                    Save & Continue
+                </button>
+            </StepRow>
+
+            {/* STEP 6: Set Up Stock Alerts */}
+            <StepRow stepNumber={6} title="Set Up Stock Alerts" status={getStatus(6)} onEdit={() => setWizardStep(6)}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '16px' }}>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <input type="checkbox" checked={stockInk} onChange={e => setStockInk(e.target.checked)} />
+                        <span style={{ fontWeight: 500 }}>Alert me when ink stock is low</span>
+                    </label>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <input type="checkbox" checked={stockPack} onChange={e => setStockPack(e.target.checked)} />
+                        <span style={{ fontWeight: 500 }}>Alert me when packaging stock is low</span>
+                    </label>
+                </div>
+                <p style={{ fontSize: '12px', color: 'var(--text-tertiary)', marginBottom: '20px' }}>Note: Set minimum stock levels in Inventory → Printing Ink tab.</p>
+                <button className="action-btn-primary" onClick={() => { setWizardStep(7); saveWizardState({ step: 7 }); }}>
+                    Save & Continue
+                </button>
+            </StepRow>
+
+            {/* STEP 7: Final Review */}
+            <StepRow stepNumber={7} title="Final Review" status={getStatus(7)} onEdit={() => {}}>
+                <div style={{ background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '20px', borderRadius: '12px', marginBottom: '24px' }}>
+                    <h4 style={{ margin: '0 0 16px 0' }}>Configuration Summary</h4>
+                    <ul style={{ listStyle: 'none', padding: 0, margin: 0, display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        <li style={{ display: 'flex', gap: '8px' }}>✅ <b>Bot:</b> Connected</li>
+                        <li style={{ display: 'flex', gap: '8px' }}>✅ <b>Chat ID:</b> {chatId || 'Configured'}</li>
+                        <li style={{ display: 'flex', gap: '8px' }}>✅ <b>Daily summary:</b> {dailySummary ? '9:00 AM IST' : 'Disabled'}</li>
+                        <li style={{ display: 'flex', gap: '8px' }}>✅ <b>Payment reminders:</b> {paymentAlerts ? 'Enabled' : 'Disabled'}</li>
+                        <li style={{ display: 'flex', gap: '8px' }}>✅ <b>Stock alerts:</b> {stockInk || stockPack ? 'Enabled' : 'Disabled'}</li>
+                    </ul>
+                </div>
+
+                <button 
+                    className="action-btn-primary" 
+                    onClick={handleFinalActivate}
+                    disabled={props.activating}
+                    style={{ width: '100%', height: '54px', fontSize: '18px', background: 'var(--accent)' }}
+                >
+                    {props.activating ? <><Loader2 className="animate-spin" /> Activating...</> : '🎉 Activate Telegram Automation'}
+                </button>
+            </StepRow>
         </div>
     );
 }
