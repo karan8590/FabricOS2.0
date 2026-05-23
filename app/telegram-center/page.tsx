@@ -3,6 +3,9 @@
 import { useState, useEffect } from 'react';
 import { Shield, Send, Check, X, BellOff, RefreshCw, Search, Plus, Eye, Database, AlertCircle, Sparkles, Trash2, Activity, FileText, Bell, Save } from 'lucide-react';
 import styles from './TelegramCenter.module.css';
+import { SetupProgressHeader } from '@/components/telegram/SetupProgressHeader';
+import { SetupWizard } from '@/components/telegram/SetupWizard';
+import { AutomationHealthPanel } from '@/components/telegram/AutomationHealthPanel';
 import { buildDailySummaryTemplate, ReceivableItem, PayableItem } from '@/lib/telegram-templates';
 
 interface Recipient {
@@ -107,6 +110,129 @@ export default function TelegramCenterPage() {
     const [logFilter, setLogFilter] = useState<'all' | 'delivered' | 'failed'>('all');
     const [loadingLogs, setLoadingLogs] = useState(false);
 
+
+    // Wizard States
+    const [wizardStep, setWizardStep] = useState(1);
+    const [isActivated, setIsActivated] = useState(false);
+    const [enabledCommands, setEnabledCommands] = useState<string[]>(['summary', 'order', 'payment', 'dispatch']);
+    const [botValid, setBotValid] = useState(false);
+    const [webhookActive, setWebhookActive] = useState(false);
+    const [testSent, setTestSent] = useState(false);
+    const [activating, setActivating] = useState(false);
+    const [advancedOpen, setAdvancedOpen] = useState(false);
+
+    // Fetch wizard state wrapper
+    const loadWizardState = async () => {
+        try {
+            const res = await fetch('/api/settings/telegram/wizard-state');
+            const data = await res.json();
+            if (data.success && data.state) {
+                setWizardStep(data.state.step || 1);
+                setBotValid(data.state.botTokenValid || false);
+                setWebhookActive(data.state.webhookRegistered || false);
+                setTestSent(data.state.testSent || false);
+                setIsActivated(data.state.isActivated || false);
+            }
+            
+            const cmdRes = await fetch('/api/settings/telegram/commands');
+            const cmdData = await cmdRes.json();
+            if (cmdData.success && cmdData.commands) {
+                setEnabledCommands(cmdData.commands);
+            }
+        } catch(e) {}
+    };
+
+    const saveWizardState = async (updates: any) => {
+        try {
+            const newState = {
+                step: wizardStep,
+                botTokenValid: botValid,
+                webhookRegistered: webhookActive,
+                recipientsAdded: recipients.length > 0,
+                commandsEnabled: true,
+                testSent: testSent,
+                isActivated: isActivated,
+                ...updates
+            };
+            await fetch('/api/settings/telegram/wizard-state', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ state: newState })
+            });
+        } catch(e) {}
+    };
+
+    const handleValidateBot = async () => {
+        setSavingToken(true);
+        try {
+            const res = await fetch('/api/settings/telegram', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ token: botToken })
+            });
+            const data = await res.json();
+            if (data.success) {
+                setBotValid(true);
+                showToast('success', 'Bot Validated');
+                if (wizardStep === 1) {
+                    setWizardStep(2);
+                    saveWizardState({ step: 2, botTokenValid: true });
+                } else if (wizardStep === 3) {
+                    setWizardStep(4);
+                    saveWizardState({ step: 4 });
+                } else if (wizardStep === 4) {
+                    setWizardStep(5);
+                    saveWizardState({ step: 5 });
+                } else if (wizardStep === 5) {
+                    // Save commands
+                    await fetch('/api/settings/telegram/commands', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ commands: enabledCommands })
+                    });
+                    setWizardStep(6);
+                    saveWizardState({ step: 6 });
+                } else if (wizardStep === 6) {
+                    setWizardStep(7);
+                    saveWizardState({ step: 7 });
+                }
+            } else {
+                showToast('error', data.error || 'Invalid token');
+            }
+        } catch(e) {
+            showToast('error', 'Network error');
+        }
+        setSavingToken(false);
+    };
+
+    const handleConnectWebhook = async () => {
+        setRegisteringWebhook(true);
+        try {
+            const url = `${window.location.origin}/api/telegram-webhook`;
+            const res = await fetch(`/api/telegram-webhook/register?url=${encodeURIComponent(url)}`);
+            const data = await res.json();
+            if (data.success) {
+                setWebhookActive(true);
+                setWizardStep(3);
+                saveWizardState({ step: 3, webhookRegistered: true });
+                showToast('success', 'Webhook Connected');
+            } else {
+                showToast('error', data.error || data.description);
+            }
+        } catch(e) {
+            showToast('error', 'Network error');
+        }
+        setRegisteringWebhook(false);
+    };
+
+    const handleActivate = async () => {
+        setActivating(true);
+        await saveWizardState({ isActivated: true });
+        setIsActivated(true);
+        setActivating(false);
+        showToast('success', 'Telegram Automation Activated!');
+    };
+    
     // Refresh Trigger
     const [refreshing, setRefreshing] = useState(false);
 
@@ -359,6 +485,10 @@ export default function TelegramCenterPage() {
         setSendingType(null);
         fetchStatsSummary();
 
+        if (failCount === 0 || successCount > 0) {
+            setTestSent(true);
+            saveWizardState({ testSent: true });
+        }
         if (failCount === 0) {
             const firstRecipientName = recipients.find(r => r.id === selectedTestTargets[0])?.recipient_name || 'Recipient';
             const extra = selectedTestTargets.length > 1 ? ` & ${selectedTestTargets.length - 1} others` : '';
@@ -396,7 +526,8 @@ export default function TelegramCenterPage() {
                 fetchRecipients(),
                 fetchGlobalSettings(),
                 fetchStatsSummary(),
-                fetchRoleDefaults()
+                fetchRoleDefaults(),
+                loadWizardState()
             ]);
         } catch (err) {
             console.error('Error loading center data:', err);
@@ -802,9 +933,78 @@ export default function TelegramCenterPage() {
 
 
 
-            {/* Main Content Dashboard Grid */}
-            <div className={styles.dashboardGrid}>
-                {/* Left Column: Recipients List */}
+            {/* MAIN WIZARD OR DASHBOARD SWITCH */}
+            {!isActivated ? (
+                <>
+                    <SetupProgressHeader currentStep={wizardStep} totalSteps={7} isActivated={isActivated} />
+                    <SetupWizard 
+                        currentStep={wizardStep}
+                        botToken={botToken}
+                        setBotToken={setBotToken}
+                        onValidateBot={handleValidateBot}
+                        validatingBot={savingToken}
+                        botValid={botValid}
+                        onConnectWebhook={handleConnectWebhook}
+                        connectingWebhook={registeringWebhook}
+                        webhookActive={webhookActive}
+                        onAddRecipientClick={() => setShowAddModal(true)}
+                        recipientsCount={recipients.length}
+                        onToggleNotification={(type, enabled) => {}}
+                        notificationPrefs={{
+                            daily_payments: true,
+                            weekly_summary: true,
+                            order_alerts: true,
+                            dispatch_updates: true
+                        }}
+                        commands={enabledCommands}
+                        onToggleCommand={(cmd, enabled) => {
+                            if (enabled) setEnabledCommands(prev => [...prev, cmd]);
+                            else setEnabledCommands(prev => prev.filter(c => c !== cmd));
+                        }}
+                        onSendTest={() => setPreviewingType('daily_payments')}
+                        testSent={testSent}
+                        onActivate={handleActivate}
+                        activating={activating}
+                    />
+                </>
+            ) : (
+                <>
+                    <AutomationHealthPanel 
+                        botValid={botValid}
+                        webhookActive={webhookActive}
+                        cronRunning={true}
+                        commandsEnabled={enabledCommands.length > 0}
+                        recipientsLinked={recipients.length > 0}
+                        lastMessageSent={testLogs.length > 0 ? testLogs[0].time : null}
+                        failedJobsCount={testLogs.filter(l => l.status === 'failed').length}
+                        onFixIssue={(issue) => {
+                            if (issue === 'bot') { setIsActivated(false); setWizardStep(1); }
+                            if (issue === 'webhook') { setIsActivated(false); setWizardStep(2); }
+                            if (issue === 'recipients') setShowAddModal(true);
+                            if (issue === 'commands') { setIsActivated(false); setWizardStep(5); }
+                        }}
+                    />
+
+                    {/* Advanced Settings Accordion */}
+                    <div className={styles.card} style={{ marginTop: '24px', cursor: 'pointer' }} onClick={() => setAdvancedOpen(!advancedOpen)}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                            <h2 style={{ fontSize: '18px', margin: 0 }}>Advanced Settings</h2>
+                            <span>{advancedOpen ? '▲' : '▼'}</span>
+                        </div>
+                        {advancedOpen && (
+                            <div style={{ marginTop: '24px', borderTop: '1px solid var(--border-primary)', paddingTop: '24px' }} onClick={e => e.stopPropagation()}>
+                                {/* Place the old right column here */}
+                                <div className={styles.apiBlock}>
+                                    <span className={styles.apiBlockTitle}>Webhook URL (Read Only)</span>
+                                    <input type="text" readOnly value={webhookUrl} className={styles.formInput} />
+                                </div>
+                            </div>
+                        )}
+                    </div>
+
+                    {/* Original Recipients Grid */}
+                    <div className={styles.dashboardGrid} style={{ marginTop: '24px' }}>
+
                 <div className={styles.card}>
                     <div className={styles.cardHeader}>
                         <h2>Recipients Directory</h2>
@@ -1863,6 +2063,8 @@ export default function TelegramCenterPage() {
                     </div>
                 </div>
             )}
+
+            </>)}
 
             {/* Toast Notifications */}
             <div className={styles.toastContainer}>

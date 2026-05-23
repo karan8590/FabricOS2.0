@@ -207,23 +207,26 @@ export async function GET(req: Request) {
         `).all(businessId, startTs, endTs));
 
         // Fetch Overdue Invoice Alerts
+        const nowEpoch = Math.floor(Date.now() / 1000);
         const invoiceAlerts = (await db.prepare(`
             SELECT i.id, c.name as customer, i.amount, i.due_date, i.status
             FROM invoices i
             JOIN customers c ON i.customer_id = c.id
-            WHERE i.business_id = ? AND (i.status = 'overdue' OR (i.status = 'unpaid' AND i.due_date < date('now')))
+            WHERE i.business_id = ? AND (i.status = 'overdue' OR (i.status = 'unpaid' AND i.due_date < ?))
             ORDER BY i.due_date ASC
             LIMIT 2
-        `).all(businessId));
+        `).all(businessId, nowEpoch));
 
         // Fetch Overdue Vendor Payment Alerts
+        // due_date in vendor_payments is TEXT (YYYY-MM-DD)
+        const todayDateStr = new Date().toISOString().split('T')[0];
         const vendorPaymentAlerts = (await db.prepare(`
             SELECT id, vendor_name, work_type, balance, due_date, status
             FROM vendor_payments
-            WHERE business_id = ? AND (status = 'overdue' OR (status = 'unpaid' AND due_date < date('now')))
+            WHERE business_id = ? AND (status = 'overdue' OR (status = 'unpaid' AND due_date < ?))
             ORDER BY due_date ASC
             LIMIT 2
-        `).all(businessId));
+        `).all(businessId, todayDateStr));
 
         // Calculate GST Liability (Current Month)
         const salesGST = (await db.prepare(`

@@ -25,6 +25,14 @@ export async function GET(request: Request) {
         const res = await fetch(telegramUrl);
         const data = await res.json();
 
+        if (data.ok) {
+            await db.prepare(`
+                INSERT INTO settings (key, value, business_id) 
+                VALUES ('telegram_webhook_status', 'active', 'business_001')
+                ON CONFLICT (key) DO UPDATE SET value = 'active'
+            `).run();
+        }
+
         return NextResponse.json({ success: data.ok, description: data.description });
     } catch (error: any) {
         console.error('Webhook registration error:', error);
