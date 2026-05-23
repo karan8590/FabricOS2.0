@@ -1,0 +1,24 @@
+{
+  "crons": [
+    {
+      "path": "/api/daily-reminder",
+      "schedule": "30 3 * * *"
+    },
+    {
+      "path": "/api/cron/attendance-reminder",
+      "schedule": "30 4 * * *"
+    },
+    {
+      "path": "/api/cron/weekly-summary",
+      "schedule": "30 3 * * 1"
+    },
+    {
+      "path": "/api/cron/monthly-summary",
+      "schedule": "30 3 1 * *"
+    },
+    {
+      "path": "/api/check-recurring-orders",
+      "schedule": "0 4 * * *"
+    }
+  ]
+}

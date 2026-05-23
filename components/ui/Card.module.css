@@ -1,0 +1,43 @@
+.card {
+    background: #FFFFFF;
+    border: 1px solid #E8EAED;
+    border-radius: 10px;
+    padding: 20px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+    transition: all 150ms ease;
+    overflow: hidden;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 6px -1px rgba(16,24,40,0.04), 0 2px 4px -2px rgba(16,24,40,0.04);
+    border-color: #4F46E5;
+}
+
+.clickable {
+    cursor: pointer;
+}
+
+.clickable:active {
+    transform: translateY(0);
+}
+
+/* Variants */
+.elevated {
+    background: #FFFFFF;
+    box-shadow: 0 10px 15px -3px rgba(16,24,40,0.04), 0 4px 6px -4px rgba(16,24,40,0.04);
+}
+
+.glass {
+    background: #FFFFFF;
+    border: 1px solid #E8EAED;
+}
+
+/* Padding variants */
+.compact {
+    padding: 12px;
+}
+
+.spacious {
+    padding: 32px;
+}

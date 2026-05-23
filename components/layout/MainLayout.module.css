@@ -1,0 +1,94 @@
+.mainLayout {
+    display: flex;
+    min-height: 100vh;
+    background: var(--bg-page);
+}
+
+.content {
+    flex: 1;
+    margin-left: 220px; /* 220px fixed sidebar width */
+    width: calc(100% - 220px);
+    min-height: 100vh;
+    background: var(--bg-page);
+}
+
+.main {
+    padding: 32px;
+    width: 100%;
+    animation: fadeIn 400ms ease-out;
+}
+
+.header {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+    padding: 0 32px;
+    padding-top: env(safe-area-inset-top, 0px);
+    height: calc(var(--header-height) + env(safe-area-inset-top, 0px));
+    position: sticky;
+    top: 0;
+    z-index: var(--z-sticky);
+    background: transparent;
+    border-bottom: none;
+}
+
+.headerRight {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+}
+
+.menuButton {
+    position: fixed;
+    top: calc(16px + env(safe-area-inset-top, 0px));
+    left: 16px;
+    z-index: 1001;
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    width: 44px;
+    height: 44px;
+    cursor: pointer;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow-md);
+    transition: all 200ms ease;
+    backdrop-filter: blur(10px);
+}
+
+.menuButton:hover {
+    background: var(--bg-hover);
+    transform: scale(1.02);
+}
+
+.menuButton svg {
+    width: 20px;
+    height: 20px;
+    stroke: var(--text-primary);
+}
+
+@media (max-width: 1023px) {
+    .content {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    .main {
+        padding: 16px;
+        padding-top: 64px;
+    }
+
+    .header {
+        padding: 0 16px;
+    }
+
+    .menuButton {
+        display: flex;
+    }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}

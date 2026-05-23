@@ -1,0 +1,324 @@
+.container {
+    max-width: 1440px;
+    margin: 0 auto;
+    padding: 24px 40px;
+    animation: fadeIn 0.4s ease-out;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.backBtn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: none;
+    border: none;
+    color: var(--text-tertiary);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    margin-bottom: 24px;
+    transition: color 0.2s;
+    padding: 0;
+}
+
+.backBtn:hover {
+    color: var(--accent);
+}
+
+/* --- Header --- */
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 40px;
+    margin-bottom: 40px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-primary);
+    border-radius: 24px;
+    padding: 32px;
+    box-shadow: var(--shadow-md);
+}
+
+.headerLeft {
+    display: flex;
+    gap: 24px;
+}
+
+.avatar {
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: var(--bg-grouped);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+    font-weight: 700;
+    border: 1px solid var(--border-subtle);
+}
+
+.customerInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.customerName {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+    letter-spacing: -0.8px;
+}
+
+.meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 15px;
+    color: var(--text-tertiary);
+}
+
+.dot { opacity: 0.4; }
+
+.contactActions {
+    display: flex;
+    gap: 12px;
+    margin-top: 12px;
+}
+
+.contactBtn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 16px;
+    border-radius: 12px;
+    background: var(--bg-grouped);
+    color: var(--text-secondary);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    transition: all 0.2s;
+    border: 1px solid var(--border-subtle);
+}
+
+.contactBtn:hover {
+    background: var(--bg-hover);
+    transform: translateY(-2px);
+}
+
+.contactBtn.whatsapp {
+    color: #25D366;
+}
+
+.contactBtn.whatsapp:hover {
+    background: rgba(37, 211, 102, 0.08);
+}
+
+/* --- Metrics Grid --- */
+
+.headerRight {
+    flex: 1;
+    max-width: 800px;
+}
+
+.metricsGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+
+.metricCard {
+    background: var(--bg-grouped);
+    padding: 16px 20px;
+    border-radius: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    border: 1px solid #E5E7EB;
+}
+
+.metricLabel {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+}
+
+.metricValue {
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.metricValue.due { color: #FFCC00; }
+.metricValue.paid { color: #34C759; }
+.metricValue.alert { color: #FF3B30; }
+
+.riskCard {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.riskBadge {
+    font-size: 12px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 8px;
+    width: fit-content;
+    text-transform: uppercase;
+}
+
+.Reliable { background: rgba(52, 199, 89, 0.15); color: #34C759; }
+.SlowPayer { background: rgba(255, 204, 0, 0.15); color: #FFCC00; }
+.HighRisk { background: rgba(255, 59, 48, 0.15); color: #FF3B30; }
+.New { background: rgba(0, 113, 227, 0.15); color: var(--accent); }
+
+/* --- Summary Widgets --- */
+
+.summaryWidgets {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+    margin-bottom: 32px;
+}
+
+.summaryCard {
+    background: var(--bg-card);
+    border: 1px solid #E5E7EB;
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    box-shadow: none;
+}
+
+.summaryIcon {
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.summaryData {
+    display: flex;
+    flex-direction: column;
+}
+
+.summaryLabel {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+}
+
+.summaryValue {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.summarySubValue {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    margin-top: 2px;
+}
+
+@media (max-width: 1400px) {
+    .summaryWidgets {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 900px) {
+    .summaryWidgets {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 600px) {
+    .summaryWidgets {
+        grid-template-columns: 1fr;
+    }
+}
+
+.addOrderBtn {
+    background: var(--accent) !important;
+    color: white !important;
+    border: none !important;
+}
+
+.addOrderBtn:hover {
+    background: #005BB5 !important;
+}
+
+/* --- Tabs --- */
+
+.tabsNav {
+    margin-bottom: 32px;
+}
+
+.tabsList {
+    display: inline-flex;
+    background: var(--bg-card);
+    padding: 4px;
+    border-radius: 14px;
+    border: 1px solid var(--border-primary);
+}
+
+.tabTrigger {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 20px;
+    border-radius: 10px;
+    background: none;
+    border: none;
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.tabTrigger.active {
+    background: var(--accent);
+    color: white;
+    box-shadow: 0 4px 12px rgba(0, 113, 227, 0.25);
+}
+
+.tabTrigger:not(.active):hover {
+    background: var(--bg-hover);
+}
+
+/* --- Responsive --- */
+
+@media (max-width: 1200px) {
+    .header { flex-direction: column; }
+    .headerRight { max-width: 100%; width: 100%; }
+}
+
+@media (max-width: 768px) {
+    .container { padding: 20px; }
+    .metricsGrid { grid-template-columns: repeat(2, 1fr); }
+    .customerName { font-size: 24px; }
+}
+
+.loading, .error {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 60vh;
+    font-size: 18px;
+    color: var(--text-secondary);
+}

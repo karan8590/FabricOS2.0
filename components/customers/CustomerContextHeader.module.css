@@ -1,0 +1,209 @@
+.container {
+    background: var(--bg-card);
+    border: 1px solid var(--border-primary);
+    border-radius: 20px;
+    padding: 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 32px;
+    box-shadow: var(--shadow-card);
+    animation: slideDown 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-20px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.left {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+}
+
+.avatar {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: var(--bg-grouped);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 24px;
+    font-weight: 700;
+    border: 1px solid var(--border-subtle);
+}
+
+.info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.name {
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+    letter-spacing: -0.5px;
+}
+
+.meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    color: var(--text-tertiary);
+}
+
+.dot {
+    opacity: 0.5;
+}
+
+.right {
+    display: flex;
+    align-items: center;
+    gap: 40px;
+}
+
+.statGroup {
+    display: flex;
+    align-items: center;
+    gap: 24px;
+}
+
+.stat {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.statLabel {
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+}
+
+.statValue {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.statValue.due {
+    color: #FF3B30;
+}
+
+.divider {
+    width: 1px;
+    height: 32px;
+    background: var(--separator);
+}
+
+.actions {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 12px;
+}
+
+.riskBadge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 8px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.Reliable { background: rgba(52, 199, 89, 0.15); color: #34C759; }
+.SlowPayer { background: rgba(255, 149, 0, 0.15); color: #FF9500; }
+.HighRisk { background: rgba(255, 59, 48, 0.15); color: #FF3B30; }
+.New { background: rgba(0, 113, 227, 0.15); color: var(--accent); }
+
+.buttonGroup {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.actionBtn {
+    width: 38px;
+    height: 38px;
+    border-radius: 12px;
+    background: var(--bg-grouped);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    border: 1px solid var(--border-subtle);
+}
+
+.actionBtn:hover {
+    background: var(--bg-hover);
+    color: var(--accent);
+    transform: translateY(-2px);
+}
+
+.actionBtn.whatsapp {
+    color: #25D366;
+}
+
+.actionBtn.whatsapp:hover {
+    background: rgba(37, 211, 102, 0.1);
+    border-color: rgba(37, 211, 102, 0.2);
+}
+
+.moreBtn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    color: var(--text-tertiary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.moreBtn:hover {
+    background: var(--bg-grouped);
+    color: var(--text-primary);
+}
+
+@media (max-width: 1024px) {
+    .container {
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 24px;
+    }
+    .right {
+        width: 100%;
+        justify-content: space-between;
+        gap: 20px;
+    }
+}
+
+@media (max-width: 640px) {
+    .right {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+    .statGroup {
+        width: 100%;
+        justify-content: space-between;
+    }
+    .actions {
+        width: 100%;
+        flex-direction: row;
+        justify-content: space-between;
+        align-items: center;
+    }
+}

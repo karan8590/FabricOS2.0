@@ -1,0 +1,88 @@
+import { NextResponse } from 'next/server';
+import { cookies } from 'next/headers';
+import { verifyToken } from '@/lib/auth/jwt';
+import getDatabase from '@/lib/db';
+import { generateInvoicePDFServer } from '@/lib/pdf/generateInvoiceServer';
+
+export async function POST(
+    request: Request,
+    context: { params: Promise<{ id: string }> }
+) {
+    try {
+        const cookieStore = await cookies();
+        const token = cookieStore.get('auth-token')?.value;
+
+        if (!token) {
+            return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+        }
+
+        const payload = verifyToken(token);
+        if (!payload || payload.role === 'customer') {
+            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
+
+        const params = await context.params;
+        const invoiceId = parseInt(params.id);
+        const db = getDatabase();
+
+        // Get fresh details joined with current order and customer values
+        const invoice = (await db.prepare(`
+            SELECT i.*, o.quantity_meters, o.total_price, o.price_per_unit, d.price_per_meter, d.name as design_name, d.category as fabric_type, c.name as customer_name, c.phone as customer_phone
+            FROM invoices i
+            JOIN orders o ON i.order_id = o.id
+            JOIN designs d ON o.design_id = d.id
+            JOIN customers c ON i.customer_id = c.id
+            WHERE i.id = ?
+        `).get(invoiceId)) as any;
+
+        if (!invoice) {
+            return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
+        }
+
+        const oldAmount = invoice.amount;
+        const pricePerMeter = invoice.price_per_unit && invoice.price_per_unit > 0 ? invoice.price_per_unit : invoice.price_per_meter;
+        const amount = invoice.total_price && invoice.total_price > 0 ? invoice.total_price : (invoice.quantity_meters * pricePerMeter);
+
+        // Re-generate Premium PDF server-side with latest details
+        const pdfResult = await generateInvoicePDFServer({
+            invoice_number: invoice.invoice_number,
+            customer_name: invoice.customer_name,
+            customer_phone: invoice.customer_phone || '',
+            amount: amount,
+            amount_paid: invoice.amount_paid || 0,
+            status: invoice.status,
+            generated_at: invoice.generated_at,
+            due_date: invoice.due_date,
+            design_name: invoice.design_name,
+            fabric_type: invoice.fabric_type || 'Printed Fabric',
+            quantity_meters: invoice.quantity_meters,
+            price_per_meter: pricePerMeter,
+            generated_by: payload.name || 'System'
+        });
+
+        const relativePath = `/api/invoices/${invoiceId}/pdf`;
+        
+        // Update database pdf_url and amount inside a transaction
+        const updateTransaction = db.transaction(async () => {
+            (await db.prepare('UPDATE invoices SET pdf_url = ?, amount = ? WHERE id = ?').run(relativePath, amount, invoiceId));
+            if (oldAmount !== amount) {
+                const diff = amount - oldAmount;
+                (await db.prepare('UPDATE customers SET outstanding_amount = outstanding_amount + ? WHERE id = ?').run(diff, invoice.customer_id));
+            }
+        });
+        updateTransaction();
+
+        return NextResponse.json({
+            success: true,
+            pdfUrl: relativePath,
+            message: 'Invoice PDF regenerated successfully'
+        });
+
+    } catch (error: any) {
+        console.error('Regenerate invoice error:', error);
+        return NextResponse.json(
+            { error: `Internal server error: ${error.message}` },
+            { status: 500 }
+        );
+    }
+}

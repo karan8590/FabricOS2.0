@@ -1,0 +1,217 @@
+.monthGroup {
+    background: var(--bg-card);
+    border: 1px solid rgba(0, 0, 0, 0.04);
+    border-radius: 14px;
+    overflow: visible;
+    box-shadow: var(--shadow-sm);
+    transition: all 160ms ease-out;
+    margin-bottom: 16px;
+}
+
+.monthGroup:hover {
+    border-color: rgba(0, 0, 0, 0.07);
+    background: var(--bg-hover);
+}
+
+:global([data-theme="dark"]) .monthGroup {
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+:global([data-theme="dark"]) .monthGroup:hover {
+    border-color: rgba(255, 255, 255, 0.07);
+    background: #1C212B;
+}
+
+.monthGroupHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg-grouped);
+    padding: 14px 20px;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 1px solid var(--border-primary);
+    border-top-left-radius: 14px;
+    border-top-right-radius: 14px;
+}
+
+.monthGroupTitleGroup {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.collapseArrow {
+    color: var(--text-secondary);
+    transition: transform 120ms ease-out;
+    transform: rotate(-90deg);
+}
+
+.collapseArrowExpanded {
+    transform: rotate(0deg) !important;
+}
+
+.monthGroupTitle {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: 0.5px;
+}
+
+.monthGroupSummaryPills {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.summaryPill {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-primary);
+    padding: 4px 10px;
+    border-radius: 8px;
+}
+
+.pillValue {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.pillLabel {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-tertiary);
+    text-transform: lowercase;
+}
+
+.pillWarning {
+    background: rgba(255, 149, 0, 0.06);
+    border-color: rgba(255, 149, 0, 0.2);
+}
+
+.pillWarning .pillValue {
+    color: #FF9500;
+}
+
+.pillUrgent {
+    background: rgba(255, 59, 48, 0.06);
+    border-color: rgba(255, 59, 48, 0.2);
+}
+
+.pillUrgent .pillValue {
+    color: #FF3B30;
+}
+
+.pillSuccess {
+    background: rgba(52, 199, 89, 0.06);
+    border-color: rgba(52, 199, 89, 0.2);
+}
+
+.pillSuccess .pillValue {
+    color: #34C759;
+}
+
+.pillInfo {
+    background: rgba(37, 99, 235, 0.05);
+    border-color: rgba(37, 99, 235, 0.15);
+}
+
+.pillInfo .pillValue {
+    color: #2563EB;
+}
+
+:global([data-theme="dark"]) .pillInfo {
+    background: rgba(59, 130, 246, 0.10);
+    border-color: rgba(59, 130, 246, 0.18);
+    box-shadow: 0 0 0 1px rgba(59, 130, 246, 0.06);
+}
+
+:global([data-theme="dark"]) .pillInfo .pillValue {
+    color: #60A5FA;
+}
+
+.monthGroupContent {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 120ms ease-out, padding 120ms ease-out;
+    padding: 0 20px;
+    background: var(--bg-card);
+    border-bottom-left-radius: 14px;
+    border-bottom-right-radius: 14px;
+}
+
+.monthGroupContentExpanded {
+    max-height: 3500px; /* high enough to cover long lists */
+    padding: 16px 20px;
+    overflow: visible;
+    transition: max-height 120ms ease-in, padding 120ms ease-in;
+}
+
+@media (max-width: 768px) {
+    .monthGroup {
+        border-radius: 12px;
+        margin-bottom: 12px;
+    }
+    
+    .monthGroupHeader {
+        padding: 12px 14px;
+        flex-direction: column;
+        align-items: flex-start;
+        gap: 8px;
+    }
+    
+    .monthGroupTitleGroup {
+        width: 100%;
+        display: flex;
+        justify-content: flex-start;
+        align-items: center;
+        gap: 8px;
+    }
+    
+    .monthGroupTitle {
+        font-size: 12px;
+        letter-spacing: 0.2px;
+    }
+    
+    .monthGroupSummaryPills {
+        width: 100%;
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+        gap: 6px;
+        padding-bottom: 4px;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+    
+    .monthGroupSummaryPills::-webkit-scrollbar {
+        display: none;
+    }
+    
+    .summaryPill {
+        flex-shrink: 0;
+        padding: 3px 8px;
+        border-radius: 6px;
+        font-size: 11px;
+    }
+    
+    .pillValue {
+        font-size: 11px;
+    }
+    
+    .pillLabel {
+        font-size: 9px;
+    }
+    
+    .monthGroupContent {
+        padding: 0 12px;
+    }
+    
+    .monthGroupContentExpanded {
+        padding: 12px 12px;
+    }
+}

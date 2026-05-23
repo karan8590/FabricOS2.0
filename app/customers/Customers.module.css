@@ -1,0 +1,355 @@
+.customersPage {
+    animation: fadeIn 400ms ease-out;
+}
+
+.header {
+    margin-bottom: 32px;
+}
+
+.title {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.5px;
+    margin: 0;
+}
+
+.subtitle {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+/* Stat Widgets */
+.widgetRow {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+/* Showing Filter Pill */
+.activeWidgetPill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-grouped);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 13px;
+    color: var(--text-primary);
+    margin-bottom: 24px;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.closePill {
+    background: none;
+    border: none;
+    padding: 2px;
+    cursor: pointer;
+    color: var(--text-tertiary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+
+.closePill:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.filterControls {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+    align-items: center;
+}
+
+.searchWrapper {
+    width: 260px;
+}
+
+.searchWrapper :global(.input-wrapper) {
+    background: var(--bg-card);
+    border: 1px solid var(--border-primary);
+    border-radius: 10px;
+}
+
+.activeFilters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 24px;
+    animation: fadeIn 200ms ease-out;
+}
+
+.filterChip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-primary);
+    padding: 6px 12px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    transition: all 150ms ease;
+}
+
+.filterChip:hover {
+    background: var(--bg-hover);
+}
+
+.chipLabel {
+    color: var(--text-tertiary);
+    margin-right: 4px;
+}
+
+.clearFilterBtn {
+    background: none;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+    cursor: pointer;
+    color: var(--text-tertiary);
+    border-radius: 50%;
+    transition: all 150ms ease;
+}
+
+.clearFilterBtn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.clearAllBtn {
+    background: transparent;
+    border: none;
+    color: #FF3B30;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 8px;
+    transition: all 150ms ease;
+}
+
+.clearAllBtn:hover {
+    background: rgba(255, 59, 48, 0.08);
+}
+
+/* Customers Grid */
+.customersGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: 20px;
+    padding-bottom: 40px;
+}
+
+.customerCard {
+    background: var(--bg-card);
+    border-radius: 18px;
+    padding: 24px;
+    box-shadow: var(--shadow-card);
+    transition: all 200ms cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    cursor: pointer;
+    border: 1px solid transparent;
+}
+
+.customerCard:hover {
+    transform: translateY(-4px);
+    box-shadow: var(--shadow-md);
+}
+
+.customerCard:active {
+    transform: scale(0.98);
+}
+
+.topCustomerCard {
+    border: 1.5px solid #AF52DE;
+    box-shadow: 0 4px 16px rgba(175, 82, 222, 0.12);
+}
+
+.cardHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 20px;
+}
+
+.cardMain {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.customerAvatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--bg-grouped);
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    font-size: 18px;
+}
+
+.customerName {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.customerPhone {
+    font-size: 13px;
+    color: var(--text-tertiary);
+    margin: 0;
+}
+
+.actionZone {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+}
+
+.quickViewBtn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--bg-grouped);
+    color: var(--text-tertiary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    border: 1px solid var(--border-subtle);
+}
+
+.quickViewBtn:hover {
+    background: var(--bg-hover);
+    color: var(--accent);
+    transform: scale(1.1);
+}
+
+.badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 3px 8px;
+    border-radius: 6px;
+    text-transform: uppercase;
+}
+
+.badgeReliable { background: rgba(52, 199, 89, 0.15); color: #34C759; }
+.badgeSlow { background: rgba(255, 149, 0, 0.15); color: #FF9500; }
+.badgeRisk { background: rgba(255, 59, 48, 0.15); color: #FF3B30; }
+.badgeNew { background: rgba(0, 113, 227, 0.15); color: #0071E3; }
+
+.lastOrder {
+    font-size: 11px;
+    color: var(--text-tertiary);
+}
+
+.statsGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    gap: 12px;
+    padding-top: 16px;
+    border-top: 1px solid var(--separator);
+}
+
+.statBlock {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.statValue {
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.statLabel {
+    font-size: 11px;
+    color: var(--text-tertiary);
+}
+
+.textBlue { color: var(--accent); }
+.textOrange { color: #FF9500; }
+
+.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    color: var(--text-tertiary);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+
+
+.emptyState {
+    grid-column: 1 / -1;
+    text-align: center;
+    padding: 60px 20px;
+    color: var(--text-tertiary);
+}
+
+@media (max-width: 768px) {
+    .filterControls {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 10px !important;
+    }
+    .searchWrapper {
+        width: 100%;
+    }
+    .customersPage :global(.action-btn-primary) {
+        width: 100%;
+        justify-content: center;
+        height: 40px !important;
+        border-radius: 10px !important;
+        font-size: 13px !important;
+    }
+    .customersGrid {
+        gap: 12px !important;
+    }
+    .customerCard {
+        padding: 14px !important;
+        border-radius: 12px !important;
+    }
+    .cardHeader {
+        margin-bottom: 12px !important;
+    }
+    .customerAvatar {
+        width: 36px !important;
+        height: 36px !important;
+        font-size: 15px !important;
+    }
+    .customerName {
+        font-size: 15px !important;
+    }
+    .statsGrid {
+        padding-top: 12px !important;
+        gap: 8px !important;
+    }
+    .statValue {
+        font-size: 13px !important;
+    }
+    .statLabel {
+        font-size: 10px !important;
+    }
+}

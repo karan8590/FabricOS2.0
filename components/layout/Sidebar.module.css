@@ -1,0 +1,192 @@
+.rebuiltSidebar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 220px;
+    background: #FFFFFF;
+    color: #111827;
+    display: flex;
+    flex-direction: column;
+    z-index: 1000;
+    transition: transform 150ms ease;
+    border-right: 1px solid #E8EAED;
+    pointer-events: auto;
+    overflow: hidden;
+}
+
+.sidebarBrand {
+    padding: calc(16px + env(safe-area-inset-top, 0px)) 20px 16px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: #FFFFFF;
+    border-bottom: 1px solid #E8EAED;
+}
+
+.logoBox {
+    width: 32px;
+    height: 32px;
+    background: rgba(79, 70, 229, 0.1);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.logoBox svg {
+    color: #4F46E5 !important;
+}
+
+.sidebarBrand h1 {
+    font-size: 18px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+    margin: 0;
+    color: #111827;
+}
+
+.navWrapper {
+    flex: 1;
+    overflow-y: auto;
+    padding: 16px 0;
+}
+
+.rebuiltNav {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.rebuiltNavLink {
+    display: flex;
+    align-items: center;
+    padding: 10px 20px;
+    color: #6B7280;
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 150ms ease;
+    position: relative;
+    overflow: hidden;
+    gap: 12px;
+    border-left: 3px solid transparent;
+}
+
+.navIcon {
+    opacity: 0.8;
+    color: inherit;
+    transition: none;
+}
+
+.rebuiltNavLink:hover {
+    color: #111827;
+    background: #F3F4F6;
+}
+
+.rebuiltActive {
+    background: #EEF2FF !important;
+    color: #4F46E5 !important;
+    font-weight: 600;
+    border-left: 3px solid #4F46E5 !important;
+    box-shadow: none !important;
+}
+
+.rebuiltActive .navIcon {
+    opacity: 1;
+    color: #4F46E5;
+}
+
+.sidebarBottom {
+    padding: 16px;
+    background: #FFFFFF;
+    border-top: 1px solid #E8EAED;
+    margin-top: auto;
+}
+
+.userCard {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 12px;
+    padding: 4px;
+}
+
+.userAvatar {
+    width: 36px;
+    height: 36px;
+    background: #EEF2FF;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+    color: #4F46E5;
+}
+
+.userBrief {
+    display: flex;
+    flex-direction: column;
+}
+
+.userBrief strong {
+    font-size: 13px;
+    color: #111827;
+    font-weight: 600;
+}
+
+.userBrief span {
+    font-size: 11px;
+    color: #6B7280;
+    text-transform: capitalize;
+}
+
+.logoutDivider {
+    height: 1px;
+    background: #E8EAED;
+    margin: 12px 0;
+}
+
+.rebuiltLogout {
+    width: 100%;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    color: #DC2626;
+    font-size: 13px;
+    font-weight: 600;
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    border-radius: 8px;
+    transition: all 150ms ease;
+}
+
+.rebuiltLogout:hover {
+    background: #FEF2F2;
+}
+
+.rebuiltOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+    z-index: 999;
+}
+
+@media (max-width: 1023px) {
+    .rebuiltSidebar {
+        left: -220px;
+        width: 220px;
+    }
+    
+    .rebuiltOpen {
+        left: 0;
+        box-shadow: 0 0 40px rgba(0, 0, 0, 0.15);
+    }
+}

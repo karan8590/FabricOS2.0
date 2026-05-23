@@ -1,0 +1,153 @@
+.orderCard {
+    background: var(--bg-card);
+    border: none;
+    box-shadow: var(--shadow-card);
+    border-radius: 22px;
+    padding: 16px;
+    transition: all var(--transition-fast);
+    position: relative;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+}
+
+.orderCard:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.orderCard.completed {
+    background: var(--bg-grouped);
+    opacity: 0.9;
+}
+
+/* Section 1: Customer */
+.customerSection {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.customerName {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 240px;
+}
+
+.orderDate {
+    font-size: 13px;
+    color: var(--text-tertiary);
+}
+
+/* Section 2: Stats */
+.statsSection {
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    gap: 16px;
+    padding-top: 12px;
+    border-top: 1px solid var(--separator);
+}
+
+.statItem {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.statLabel {
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--text-tertiary);
+    font-weight: 600;
+    letter-spacing: 0.8px;
+}
+
+.statValue {
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    white-space: nowrap;
+}
+
+.statValue.price {
+    color: var(--text-primary);
+    font-weight: 600;
+}
+
+/* Section 3: Actions */
+.actionsSection {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    padding-top: 4px;
+}
+
+.actionBtn {
+    min-width: 84px;
+}
+
+.viewOnlyText {
+    font-size: 13px;
+    color: var(--text-tertiary);
+    font-style: italic;
+    margin-right: 8px;
+}
+
+.deliveredBadge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 14px;
+    font-weight: 600;
+    color: #34C759;
+    padding-right: 8px;
+}
+
+.deliveredBadge svg {
+    width: 16px;
+    height: 16px;
+}
+
+/* Desktop Grid Layout */
+@media (min-width: 768px) {
+    .orderCard {
+        display: grid;
+        grid-template-columns: auto 1fr auto;
+        align-items: center;
+        gap: 32px;
+        padding: 16px 24px;
+        min-height: 80px;
+    }
+
+    .customerSection {
+        min-width: 180px;
+        padding: 0;
+    }
+
+    .statsSection {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 40px;
+        padding: 0;
+        border: none;
+        justify-content: flex-start;
+    }
+
+    .statItem {
+        flex-direction: column;
+    }
+
+    .actionsSection {
+        padding: 0;
+        min-width: 120px;
+        justify-content: flex-end;
+    }
+}

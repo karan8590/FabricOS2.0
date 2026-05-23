@@ -1,0 +1,163 @@
+.tableContainer {
+    background: #FFFFFF;
+    border: 1px solid #E8EAED;
+    border-radius: 10px;
+    overflow: hidden;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+}
+
+.table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.thead {
+    background: #F8F9FB;
+    border-bottom: 1px solid #E8EAED;
+}
+
+.th {
+    padding: 14px 24px;
+    text-align: left;
+    font-size: 11px;
+    font-weight: 600;
+    color: #6B7280;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    user-select: none;
+    transition: color 150ms ease;
+    border-bottom: 1px solid #E8EAED;
+}
+
+.th:hover {
+    color: #111827;
+}
+
+.th.sortable {
+    position: relative;
+    padding-right: 32px;
+}
+
+.sortIcon {
+    position: absolute;
+    right: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    opacity: 0.5;
+    transition: opacity 150ms ease;
+}
+
+.th:hover .sortIcon {
+    opacity: 1;
+}
+
+.tbody {
+    background: #FFFFFF;
+}
+
+.tr {
+    border-bottom: 1px solid #E8EAED;
+    transition: background 150ms ease;
+}
+
+.tr:hover {
+    background: #F8F9FB !important;
+}
+
+.tr:last-child {
+    border-bottom: none;
+}
+
+.td {
+    padding: 16px 24px;
+    font-size: 14px;
+    color: #374151;
+}
+
+.td.amount {
+    font-weight: 600;
+    color: #15803D;
+}
+
+.actions {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+}
+
+.emptyState {
+    padding: 48px 24px;
+    text-align: center;
+    color: #9CA3AF;
+}
+
+.emptyIcon {
+    font-size: 32px;
+    margin-bottom: 16px;
+}
+
+.emptyTitle {
+    font-size: 16px;
+    font-weight: 600;
+    color: #6B7280;
+    margin-bottom: 8px;
+}
+
+.emptyText {
+    font-size: 14px;
+    color: #9CA3AF;
+}
+
+.pagination {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 24px;
+    border-top: 1px solid #E8EAED;
+    background: #FFFFFF;
+}
+
+.paginationInfo {
+    font-size: 13px;
+    color: #6B7280;
+}
+
+.paginationButtons {
+    display: flex;
+    gap: 8px;
+}
+
+/* Mobile responsive */
+@media (max-width: 768px) {
+    .tableContainer:has([class*="mobileCardsList"]) .table,
+    .tableContainer:has([class*="mobileCard"]) .table,
+    .table:has(~ [class*="mobileCardsList"]),
+    .table:has(~ [class*="mobileCard"]) {
+        display: none !important;
+    }
+
+    .table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+
+    .th,
+    .td {
+        padding: 12px 16px;
+        font-size: 12px;
+    }
+
+    .pagination {
+        flex-direction: column;
+        gap: 12px;
+        align-items: stretch;
+    }
+
+    .paginationButtons {
+        justify-content: center;
+    }
+}

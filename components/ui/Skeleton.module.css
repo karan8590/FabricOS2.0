@@ -1,0 +1,43 @@
+.skeleton {
+    background: linear-gradient(90deg,
+            var(--color-bg-card) 0px,
+            var(--color-bg-elevated) 40px,
+            var(--color-bg-card) 80px);
+    background-size: 1000px 100%;
+    animation: shimmer 2s infinite linear;
+    border-radius: var(--radius-md);
+}
+
+.text {
+    height: 1em;
+    margin-bottom: 0.5em;
+}
+
+.title {
+    height: 1.5em;
+    width: 60%;
+    margin-bottom: 0.75em;
+}
+
+.circle {
+    border-radius: 50%;
+    aspect-ratio: 1;
+}
+
+.rectangle {
+    width: 100%;
+}
+
+@keyframes shimmer {
+    0% {
+        background-position: -1000px 0;
+    }
+
+    100% {
+        background-position: 1000px 0;
+    }
+}
+
+.roundedInput {
+    border-radius: 10px !important;
+}

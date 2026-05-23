@@ -1,0 +1,189 @@
+.loginPage {
+    min-height: 100vh;
+    /* Fallback */
+    min-height: 100dvh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-4);
+    /* Safe Area */
+    padding-bottom: calc(var(--spacing-4) + var(--safe-area-bottom));
+    background: var(--color-bg-primary);
+    animation: fadeIn var(--transition-smooth) ease-out;
+}
+
+.loginContainer {
+    width: 100%;
+    max-width: 450px;
+    animation: fadeInScale var(--transition-smooth) ease-out;
+}
+
+.logo {
+    text-align: center;
+    margin-bottom: var(--spacing-8);
+}
+
+.logoText {
+    font-size: var(--font-size-4xl);
+    font-weight: var(--font-weight-bold);
+    background: linear-gradient(135deg, var(--color-accent-primary), #0066DD);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    margin-bottom: var(--spacing-2);
+}
+
+.logoSubtext {
+    font-size: var(--font-size-sm);
+    color: var(--color-text-tertiary);
+    margin-top: var(--spacing-2);
+}
+
+.loginCard {
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-8);
+    box-shadow: var(--shadow-xl);
+}
+
+.title {
+    font-size: var(--font-size-2xl);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-text-primary);
+    margin-bottom: var(--spacing-2);
+    text-align: center;
+}
+
+.subtitle {
+    font-size: var(--font-size-base);
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-8);
+    text-align: center;
+}
+
+.form {
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-5);
+}
+
+.error {
+    background: rgba(255, 69, 58, 0.1);
+    border: 1px solid rgba(255, 69, 58, 0.3);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-3) var(--spacing-4);
+    color: var(--color-danger);
+    font-size: var(--font-size-sm);
+    animation: fadeInUp var(--transition-base) ease-out;
+}
+
+.footer {
+    margin-top: var(--spacing-6);
+    text-align: center;
+    font-size: var(--font-size-sm);
+    color: var(--color-text-tertiary);
+}
+
+.divider {
+    margin: var(--spacing-6) 0;
+    height: 1px;
+    background: var(--color-border-subtle);
+    position: relative;
+}
+
+.dividerText {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: var(--color-bg-card);
+    padding: 0 var(--spacing-3);
+    font-size: var(--font-size-sm);
+    color: var(--color-text-tertiary);
+}
+
+.demoCredentials {
+    background: rgba(10, 132, 255, 0.05);
+    border: 1px solid rgba(10, 132, 255, 0.2);
+    border-radius: var(--radius-md);
+    padding: var(--spacing-4);
+    margin-top: var(--spacing-4);
+}
+
+.demoTitle {
+    font-size: var(--font-size-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--color-accent-primary);
+    margin-bottom: var(--spacing-2);
+}
+
+.demoList {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    font-size: var(--font-size-xs);
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+}
+
+.demoList li {
+    margin-bottom: var(--spacing-1);
+}
+
+.demoList code {
+    background: rgba(10, 132, 255, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-family: 'SF Mono', Monaco, monospace;
+    color: var(--color-accent-primary);
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
+}
+
+@keyframes fadeInScale {
+    from {
+        opacity: 0;
+        transform: scale(0.95);
+    }
+
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Mobile Optimizations */
+@media (max-width: 640px) {
+    .loginCard {
+        padding: var(--spacing-6);
+    }
+
+    .logoText {
+        font-size: 32px;
+    }
+
+    .title {
+        font-size: 24px;
+    }
+}

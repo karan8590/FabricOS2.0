@@ -1,0 +1,141 @@
+.timeline {
+    display: flex;
+    flex-direction: column;
+    gap: 1.5rem;
+    padding: 1rem 0;
+}
+
+.loading, .empty {
+    padding: 2rem;
+    text-align: center;
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+}
+
+.timelineItem {
+    display: flex;
+    gap: 1rem;
+    position: relative;
+}
+
+/* Vertical line connector */
+.timelineItem:not(:last-child)::before {
+    content: '';
+    position: absolute;
+    left: 15px; /* center of 32px icon circle */
+    top: 32px;
+    bottom: -1.5rem; /* reaches to next item */
+    width: 2px;
+    background: var(--border-color);
+}
+
+.timelineIcon {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--bg-secondary);
+    border: 2px solid var(--bg-primary);
+    z-index: 1;
+    flex-shrink: 0;
+}
+
+.timelineContent {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    padding-top: 0.25rem;
+}
+
+.timelineHeader {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    font-size: 0.9rem;
+}
+
+.timelineUser {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.timelineAction {
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: capitalize;
+}
+
+.timelineEntity {
+    color: var(--text-secondary);
+}
+
+.timelineTime {
+    margin-left: auto;
+    font-size: 0.8rem;
+    color: var(--text-tertiary);
+}
+
+.changesBox {
+    background: var(--bg-secondary);
+    border-radius: 6px;
+    padding: 0.75rem;
+    font-size: 0.85rem;
+    border: 1px solid var(--border-color);
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+}
+
+.changeItem {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+}
+
+.changeKey {
+    font-weight: 500;
+    color: var(--text-secondary);
+    text-transform: capitalize;
+}
+
+.changeOld {
+    color: #e11d48; /* Red for removed/old */
+    text-decoration: line-through;
+}
+
+.changeArrow {
+    color: var(--text-tertiary);
+    font-size: 0.8rem;
+}
+
+.changeNew {
+    color: #10b981; /* Green for added/new */
+    font-weight: 500;
+}
+
+/* Icon colors */
+.iconCreate { color: #3b82f6; }
+.iconUpdate { color: #f59e0b; }
+.iconDelete { color: #ef4444; }
+.iconStatus { color: #8b5cf6; }
+.iconApprove { color: #10b981; }
+.iconPayment { color: #14b8a6; }
+.iconDispatch { color: #6366f1; }
+.iconDefault { color: #6b7280; }
+
+/* Badge styles matching icons */
+.badgeCreate { background: #eff6ff; color: #1d4ed8; }
+.badgeUpdate { background: #fef3c7; color: #b45309; }
+.badgeDelete { background: #fef2f2; color: #b91c1c; }
+.badgeStatus { background: #f5f3ff; color: #6d28d9; }
+.badgeApprove { background: #ecfdf5; color: #047857; }
+.badgePayment { background: #f0fdfa; color: #0f766e; }
+.badgeDispatch { background: #eef2ff; color: #4338ca; }
+.badgeDefault { background: #f3f4f6; color: #374151; }

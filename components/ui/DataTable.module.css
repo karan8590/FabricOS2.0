@@ -1,0 +1,131 @@
+.container {
+  width: 100%;
+}
+
+.skeletonContainer {
+  padding: 16px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: 12px;
+}
+
+.empty {
+  padding: 48px;
+  text-align: center;
+  color: var(--text-secondary);
+  font-size: 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--border-primary);
+  border-radius: 12px;
+}
+
+.clickableRow {
+  cursor: pointer;
+}
+
+.clickableRow:hover {
+  background: var(--bg-hover) !important;
+}
+
+.desktopTable {
+  display: block;
+}
+
+.mobileCards {
+  display: none;
+}
+
+@media (max-width: 768px) {
+  .desktopTable {
+    display: none;
+  }
+  .mobileCards {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  .mobileCard {
+    background: var(--bg-card);
+    border: 1px solid var(--border-primary);
+    border-radius: 10px;
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    box-shadow: var(--shadow-card);
+  }
+  .clickableCard {
+    cursor: pointer;
+  }
+  .clickableCard:active {
+    background: var(--bg-hover);
+  }
+  .cardRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border-subtle);
+    padding-bottom: 6px;
+  }
+  .cardRow:last-child {
+    border-bottom: none;
+    padding-bottom: 0;
+  }
+  .cardLabel {
+    font-size: 11px;
+    text-transform: uppercase;
+    color: var(--text-secondary);
+    font-weight: 600;
+  }
+  .cardValue {
+    font-size: 14px;
+    color: var(--text-primary);
+    font-weight: 500;
+    text-align: right;
+  }
+}
+
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  padding: 16px 24px;
+  border-top: 1px solid var(--border-primary);
+  background: var(--bg-card);
+  border-bottom-left-radius: 12px;
+  border-bottom-right-radius: 12px;
+  margin-top: 12px;
+}
+
+.paginationBtn {
+  border: 1px solid #D1D5DB;
+  color: #374151;
+  background: #FFFFFF;
+  border-radius: 8px;
+  height: 36px;
+  padding: 0 14px;
+  font-size: 13px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 150ms ease;
+}
+
+.paginationBtn:hover:not(:disabled) {
+  background: #F9FAFB;
+  border-color: #C4C7C5;
+}
+
+.paginationBtn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.paginationInfo {
+  font-size: 13px;
+  color: var(--text-secondary);
+  font-weight: 500;
+}

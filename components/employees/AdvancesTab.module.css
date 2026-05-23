@@ -1,0 +1,710 @@
+.tabContainer {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    animation: fadeIn var(--transition-fast) ease-out;
+}
+
+.headerRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    gap: 16px;
+}
+
+.filterPills {
+    display: flex;
+    background: var(--bg-card-hover);
+    border: 1px solid var(--border-subtle);
+    padding: 4px;
+    border-radius: 12px;
+    gap: 4px;
+}
+
+.filterPill {
+    padding: 8px 16px;
+    font-size: 13px;
+    font-weight: 600;
+    border: none;
+    background: transparent;
+    color: var(--text-secondary);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+}
+
+.filterPillActive {
+    background: var(--bg-card);
+    color: var(--accent);
+    box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+}
+
+.btnNewAdvance {
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 10px;
+    background: var(--accent);
+    color: #ffffff;
+    border: none;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.btnNewAdvance:hover {
+    background: #1d4ed8;
+    transform: translateY(-1px);
+}
+
+.cardsGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+    gap: 24px;
+    margin-bottom: 32px;
+}
+
+.advanceCard {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 20px;
+    padding: 24px;
+    box-shadow: var(--shadow-card);
+    transition: all var(--transition-fast);
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow: hidden;
+}
+
+.advanceCard:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.08);
+}
+
+.cardHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 18px;
+}
+
+.employeeCell {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.avatar {
+    width: 44px;
+    height: 44px;
+    border-radius: 50%;
+    background: var(--accent-bg);
+    color: var(--accent);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: 16px;
+    border: 1px solid rgba(37, 99, 235, 0.15);
+}
+
+.nameSection {
+    display: flex;
+    flex-direction: column;
+}
+
+.employeeName {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.employeeRole {
+    font-size: 12px;
+    color: var(--text-secondary);
+    text-transform: capitalize;
+}
+
+/* Status Badges */
+.badge {
+    padding: 6px 12px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+}
+
+.badgeActive {
+    background: rgba(10, 132, 255, 0.1);
+    color: #0A84FF;
+    border: 1px solid rgba(10, 132, 255, 0.2);
+}
+
+.badgeCompleted {
+    background: rgba(52, 199, 89, 0.1);
+    color: #34C759;
+    border: 1px solid rgba(52, 199, 89, 0.2);
+}
+
+/* Fully Repaid Subdued Card State */
+.advanceCardCompleted {
+    opacity: 0.85;
+    border-color: #BBF7D0;
+}
+
+/* Stats Row (Three Column) */
+.statsRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg-card-hover);
+    border-radius: 12px;
+    padding: 12px 16px;
+    margin-bottom: 16px;
+}
+
+.statCol {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    text-align: center;
+}
+
+.statDivider {
+    width: 1px;
+    height: 30px;
+    background: var(--separator);
+    margin: 0 12px;
+}
+
+.statLabel {
+    font-size: 10px;
+    color: var(--text-secondary);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 4px;
+}
+
+.statValue {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.valGreen { color: #15803D; }
+.valRed { color: #DC2626; }
+.valGray { color: var(--text-secondary); }
+
+/* Progress Section */
+.progressSection {
+    margin-bottom: 20px;
+}
+
+.progressBarTrack {
+    height: 6px;
+    width: 100%;
+    background: #E5E7EB;
+    border: 1px solid #D1D5DB;
+    border-radius: 999px;
+    overflow: hidden;
+    margin-bottom: 8px;
+    box-sizing: border-box;
+}
+
+.progressBarFill {
+    height: 100%;
+    background: #16A34A;
+    border-radius: 999px;
+    transition: width 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.progressGreen {
+    background: #16A34A !important;
+}
+
+.progressLabelRow {
+    display: flex;
+    justify-content: space-between;
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+/* Card Actions Row */
+.cardActionsRow {
+    display: flex;
+    gap: 6px;
+    width: 100%;
+}
+
+.btnActionPrimary {
+    flex: 1;
+    height: 36px;
+    background: #4F46E5;
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btnActionPrimary:hover {
+    background: #4338CA;
+}
+
+.btnActionSecondary {
+    flex: 1;
+    height: 36px;
+    background: transparent;
+    border: 1px solid #D1D5DB;
+    color: var(--text-secondary);
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btnActionSecondary:hover {
+    background: var(--bg-card-hover);
+    color: var(--text-primary);
+}
+
+.btnActionIcon {
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid #D1D5DB;
+    color: var(--text-secondary);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btnActionIcon:hover {
+    background: var(--bg-card-hover);
+    color: var(--text-primary);
+}
+
+/* Expandable History Drawer */
+.historyDrawer {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 200ms ease;
+    margin-top: 0;
+}
+
+.historyDrawerOpen {
+    max-height: 300px;
+    margin-top: 16px;
+    border-top: 1px solid var(--separator);
+    padding-top: 16px;
+}
+
+.sectionTitle {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-secondary);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 10px;
+}
+
+.instalmentsTableWrapper {
+    max-height: 140px;
+    overflow-y: auto;
+    border-radius: 8px;
+    border: 1px solid var(--border-subtle);
+    scrollbar-width: none;
+}
+
+.instalmentsTable {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+    text-align: left;
+}
+
+.instalmentsTable th {
+    background: var(--bg-card-hover);
+    color: var(--text-secondary);
+    font-weight: 600;
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--separator);
+}
+
+.instalmentsTable td {
+    padding: 8px 12px;
+    border-bottom: 1px solid var(--separator);
+    color: var(--text-primary);
+}
+
+.instalmentsTable tr:last-child td {
+    border-bottom: none;
+}
+
+/* Inline Instalment Form */
+.inlineForm {
+    background: var(--bg-card-hover);
+    border: 1px solid var(--border-subtle);
+    border-radius: 14px;
+    padding: 16px;
+    margin-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    animation: slideDown var(--transition-fast) ease-out;
+}
+
+.inlineFormTitle {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.inlineFormRow {
+    display: flex;
+    gap: 8px;
+}
+
+.inlineInput {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: var(--text-primary);
+    font-size: 13px;
+    outline: none;
+    transition: all var(--transition-fast);
+}
+
+.inlineInput:focus {
+    border-color: var(--accent);
+}
+
+.inlineActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-top: 4px;
+}
+
+.btnSubmitInline {
+    padding: 6px 12px;
+    background: var(--accent);
+    color: #ffffff;
+    border: none;
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.btnCancelInline {
+    padding: 6px 12px;
+    background: transparent;
+    border: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    border-radius: 8px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+/* New Advance Modal */
+.modalBackdrop {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    animation: fadeIn var(--transition-fast) ease-out;
+}
+
+.modal {
+    background: var(--bg-card);
+    border: 1px solid var(--border-subtle);
+    border-radius: 20px;
+    width: 440px;
+    max-width: 90vw;
+    box-shadow: 0 12px 36px rgba(0, 0, 0, 0.15);
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    animation: scaleUp var(--transition-fast) cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.modalHeader {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 16px;
+}
+
+.formGroup {
+    display: flex;
+    flex-direction: column;
+    margin-bottom: 16px;
+}
+
+.formGroup label {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 6px;
+}
+
+.modalSelect,
+.modalInput {
+    background: var(--bg-card-hover);
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    padding: 10px 14px;
+    color: var(--text-primary);
+    font-size: 14px;
+    outline: none;
+    transition: all var(--transition-fast);
+}
+
+.modalSelect:focus,
+.modalInput:focus {
+    border-color: var(--accent);
+    background: var(--bg-card);
+}
+
+.modalActions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 12px;
+    margin-top: 8px;
+}
+
+.btnSubmit {
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 10px;
+    background: var(--accent);
+    color: #ffffff;
+    border: none;
+    cursor: pointer;
+}
+
+.btnCancel {
+    padding: 10px 18px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 10px;
+    background: transparent;
+    border: 1px solid var(--border-subtle);
+    color: var(--text-secondary);
+    cursor: pointer;
+}
+
+/* Loading / Empty States */
+.loading,
+.emptyState {
+    text-align: center;
+    padding: 64px 32px;
+    background: var(--bg-card);
+    border-radius: 20px;
+    border: 1px solid var(--border-subtle);
+    box-shadow: var(--shadow-card);
+    color: var(--text-secondary);
+    font-size: 15px;
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-8px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleUp {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@media (max-width: 768px) {
+    .headerRow {
+        flex-direction: column;
+        align-items: stretch;
+        gap: 12px;
+    }
+
+    .filterPills {
+        justify-content: center;
+        width: 100%;
+        display: flex;
+    }
+
+    .filterPill {
+        flex: 1;
+        text-align: center;
+        padding: 8px 4px;
+        font-size: 12px;
+    }
+
+    .btnNewAdvance {
+        justify-content: center;
+        width: 100%;
+    }
+
+    .cardsGrid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+
+    .advanceCard {
+        padding: 14px !important;
+        border-radius: 12px !important;
+    }
+
+    .cardHeader {
+        margin-bottom: 12px !important;
+    }
+
+    .avatar {
+        width: 36px !important;
+        height: 36px !important;
+        font-size: 14px !important;
+    }
+
+    .employeeName {
+        font-size: 14px !important;
+    }
+
+    .amountSection {
+        margin-bottom: 12px !important;
+    }
+
+    .amountValue {
+        font-size: 18px !important;
+    }
+
+    .progressSection {
+        margin-bottom: 14px !important;
+    }
+
+    .progressBarTrack {
+        height: 6px !important;
+    }
+
+    .instalmentsSection {
+        padding-top: 12px !important;
+        margin-bottom: 10px !important;
+    }
+
+    .inlineForm {
+        padding: 12px !important;
+        border-radius: 10px !important;
+    }
+}
+
+.infoBanner {
+    background-color: #FEF3C7;
+    border: 1px solid #F59E0B;
+    color: #D97706;
+    padding: 10px 14px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.statSubText {
+    font-size: 10px;
+    color: var(--text-secondary);
+    margin-top: 2px;
+    font-weight: 400;
+}
+
+.historyList {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: 10px;
+    max-height: 250px;
+    overflow-y: auto;
+    padding-right: 4px;
+}
+
+.historyRow {
+    display: flex;
+    align-items: center;
+    background: var(--bg-card-hover);
+    border: 1px solid var(--border-subtle);
+    padding: 8px 12px;
+    border-radius: 8px;
+    font-size: 12px;
+    gap: 10px;
+}
+
+.historyBadge {
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 9px;
+    font-weight: 700;
+    text-transform: uppercase;
+    white-space: nowrap;
+}
+
+.badgeTopup {
+    background: rgba(16, 185, 129, 0.1);
+    color: #10B981;
+}
+
+.badgeRepayment {
+    background: rgba(239, 68, 68, 0.1);
+    color: #EF4444;
+}
+
+.historyText {
+    font-size: 12px;
+    color: var(--text-primary);
+}
+
+.textGreen {
+    color: #10B981;
+    font-weight: 600;
+}
+
+.textRed {
+    color: #EF4444;
+    font-weight: 600;
+}
+
+.historyDetails {
+    color: var(--text-secondary);
+}

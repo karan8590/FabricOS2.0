@@ -1,0 +1,638 @@
+.invoicesPage {
+    animation: fadeIn 400ms ease-out;
+}
+
+.header {
+    margin-bottom: 32px;
+}
+
+.title {
+    font-size: 32px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.5px;
+    margin: 0;
+}
+
+.subtitle {
+    font-size: 14px;
+    color: var(--text-secondary);
+    margin-top: 4px;
+}
+
+/* Stat Widgets */
+.widgetRow {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+    flex-wrap: wrap;
+}
+
+/* Showing Filter Pill */
+.activeWidgetPill {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-grouped);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 13px;
+    color: var(--text-primary);
+    margin-bottom: 24px;
+    animation: fadeIn 0.2s ease-out;
+}
+
+.closePill {
+    background: none;
+    border: none;
+    padding: 2px;
+    cursor: pointer;
+    color: var(--text-tertiary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+
+.closePill:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.controls {
+    display: flex;
+    gap: 16px;
+    margin-bottom: 24px;
+    align-items: center;
+}
+
+.searchWrapper {
+    width: 260px;
+}
+
+.searchWrapper :global(.input-wrapper) {
+    background: var(--bg-card);
+    border: 1px solid var(--border-primary);
+    border-radius: 10px;
+}
+
+.activeFilters {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 24px;
+    animation: fadeIn 200ms ease-out;
+}
+
+.filterChip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-primary);
+    padding: 6px 12px;
+    border-radius: 10px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    transition: all 150ms ease;
+}
+
+.filterChip:hover {
+    background: var(--bg-hover);
+}
+
+.chipLabel {
+    color: var(--text-tertiary);
+    margin-right: 4px;
+}
+
+.clearFilterBtn {
+    background: none;
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px;
+    cursor: pointer;
+    color: var(--text-tertiary);
+    border-radius: 50%;
+    transition: all 150ms ease;
+}
+
+.clearFilterBtn:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+}
+
+.clearAllBtn {
+    background: transparent;
+    border: none;
+    color: #FF3B30;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    padding: 6px 12px;
+    border-radius: 8px;
+    transition: all 150ms ease;
+}
+
+.clearAllBtn:hover {
+    background: rgba(255, 59, 48, 0.08);
+}
+
+.loading {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 400px;
+    color: var(--text-tertiary);
+    font-size: 15px;
+}
+
+/* Progress Bar Styles */
+.progressContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 140px;
+}
+
+.progressText {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    font-weight: 500;
+    color: var(--text-tertiary);
+}
+
+.progressTotal {
+    color: var(--text-disabled);
+}
+
+.progressBar {
+    height: 6px;
+    width: 100%;
+    background: #E5E7EB;
+    border: 1px solid #D1D5DB;
+    border-radius: 999px;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.progressFill {
+    height: 100%;
+    background: #16A34A;
+    border-radius: 999px;
+    transition: width 300ms ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 768px) {
+    .controls {
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 10px !important;
+        align-items: stretch !important;
+    }
+    
+    .leftControls {
+        display: grid !important;
+        grid-template-columns: 1fr 1fr !important;
+        gap: 12px !important;
+        width: 100% !important;
+    }
+    
+    .searchWrapper {
+        grid-column: span 2 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+    }
+    
+    .leftControls > :nth-child(2) {
+        grid-column: span 1 !important;
+        width: 100% !important;
+    }
+    
+    .leftControls > :nth-child(3) {
+        grid-column: span 1 !important;
+        width: 100% !important;
+    }
+    
+    .rightControls {
+        margin-left: 0 !important;
+        margin-top: 4px !important;
+        width: 100% !important;
+    }
+}
+
+/* Period Selector */
+.periodSelectorRow {
+    display: flex;
+    justify-content: flex-start;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+.selectorGroup {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    background: var(--bg-grouped);
+    backdrop-filter: blur(20px);
+    padding: 8px 16px;
+    border-radius: 14px;
+    border: 1px solid var(--border-primary);
+    box-shadow: var(--shadow-card);
+}
+
+.selectorLabel {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+}
+
+.periodControls {
+    display: flex;
+    gap: 8px;
+}
+
+.periodSelect {
+    background: var(--bg-input);
+    border: 1px solid var(--border-primary);
+    border-radius: 8px;
+    padding: 4px 10px;
+    font-size: 13px;
+    font-weight: 500;
+    color: var(--text-primary);
+    outline: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.periodSelect:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent);
+}
+
+.periodSelect:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-bg);
+}
+
+/* Split Controls row */
+.leftControls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.rightControls {
+    display: flex;
+    align-items: center;
+    margin-left: auto;
+}
+
+/* View Toggle styles */
+.viewToggleGroup {
+    display: flex;
+    align-items: center;
+    background: var(--bg-grouped);
+    border: 1px solid var(--border-primary);
+    border-radius: 10px;
+    padding: 2px;
+}
+
+.viewToggleBtn {
+    display: inline-flex;
+    align-items: center;
+    background: transparent;
+    border: none;
+    border-radius: 8px;
+    padding: 6px 12px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 150ms ease;
+}
+
+.viewToggleBtn:hover {
+    color: var(--text-primary);
+}
+
+.viewToggleBtnActive {
+    background: var(--bg-card);
+    color: var(--text-primary);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Quick Month Chips Row */
+.quickMonthTabs {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding: 4px 0 16px 0;
+    margin-bottom: 8px;
+    scrollbar-width: none;
+}
+
+.quickMonthTabs::-webkit-scrollbar {
+    display: none;
+}
+
+.quickMonthTab {
+    background: var(--bg-card);
+    border: 1px solid var(--border-primary);
+    border-radius: 10px;
+    padding: 6px 14px;
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 150ms ease;
+}
+
+.quickMonthTab:hover {
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    border-color: var(--border-secondary);
+}
+
+.quickMonthTabActive {
+    background: #0071E3;
+    border-color: #0071E3;
+    color: #FFFFFF;
+}
+
+/* Collapsible Month Section Header */
+.groupedContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    animation: fadeIn 250ms ease-out;
+}
+
+.monthGroup {
+    background: var(--bg-card);
+    border: 1px solid rgba(0, 0, 0, 0.04);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: all 160ms ease-out;
+}
+
+.monthGroup:hover {
+    border-color: rgba(0, 0, 0, 0.07);
+    background: var(--bg-hover);
+}
+
+:global([data-theme="dark"]) .monthGroup {
+    border: 1px solid rgba(255, 255, 255, 0.04);
+}
+
+:global([data-theme="dark"]) .monthGroup:hover {
+    border-color: rgba(255, 255, 255, 0.07);
+    background: #1C212B;
+}
+
+.monthGroupHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg-grouped);
+    padding: 14px 20px;
+    cursor: pointer;
+    user-select: none;
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.monthGroupTitleGroup {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.collapseArrow {
+    color: var(--text-secondary);
+    transition: transform 120ms ease-out;
+    transform: rotate(-90deg);
+}
+
+.collapseArrowExpanded {
+    transform: rotate(0deg) !important;
+}
+
+.monthGroupTitle {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: 0.5px;
+}
+
+.monthGroupSummaryPills {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.summaryPill {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 4px;
+    background: var(--bg-card);
+    border: 1px solid var(--border-primary);
+    padding: 4px 10px;
+    border-radius: 8px;
+}
+
+.pillValue {
+    font-size: 12px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.pillLabel {
+    font-size: 10px;
+    font-weight: 500;
+    color: var(--text-tertiary);
+    text-transform: lowercase;
+}
+
+.pillWarning {
+    background: rgba(255, 149, 0, 0.06);
+    border-color: rgba(255, 149, 0, 0.2);
+}
+
+.pillWarning .pillValue {
+    color: #FF9500;
+}
+
+.pillUrgent {
+    background: rgba(255, 59, 48, 0.06);
+    border-color: rgba(255, 59, 48, 0.2);
+}
+
+.pillUrgent .pillValue {
+    color: #FF3B30;
+}
+
+/* Collapsible Content Area */
+.monthGroupContent {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 120ms ease-out, padding 120ms ease-out;
+    padding: 0 20px;
+    background: var(--bg-card);
+}
+
+.monthGroupContentExpanded {
+    max-height: 2500px; /* high enough to cover long lists */
+    padding: 16px 20px;
+    transition: max-height 120ms ease-in, padding 120ms ease-in;
+}
+
+.resultsWrapper {
+    animation: fadeIn 300ms ease-out;
+}
+
+.mobileCardsList {
+    display: none;
+}
+
+@media (max-width: 768px) {
+    .mobileCardsList {
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        padding: 0;
+    }
+    
+    .mobileCard {
+        background: var(--bg-card);
+        border: 1px solid var(--border-primary);
+        border-radius: 12px;
+        padding: 14px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        transition: transform 120ms ease, box-shadow 120ms ease;
+        box-shadow: var(--shadow-card);
+    }
+    
+    .mobileCard:active {
+        transform: scale(0.995);
+    }
+    
+    .mobileCardHeader {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .mobilePrice {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text-primary);
+    }
+    
+    .mobileCardBody {
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+    }
+    
+    .mobileCustomerName {
+        font-size: 13.5px;
+        font-weight: 600;
+        color: var(--text-primary);
+        line-height: 1.2;
+    }
+    
+    .mobileMetaGroup {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        font-size: 11px;
+        color: var(--text-secondary);
+    }
+    
+    .mobileMetaRow {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .mobileProgressContainer {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+        margin-top: 2px;
+    }
+    
+    .mobileProgressText {
+        display: flex;
+        justify-content: space-between;
+        font-size: 10.5px;
+        font-weight: 600;
+        color: var(--text-secondary);
+    }
+    
+    .mobileProgressBar {
+        height: 4px;
+        background: var(--border-primary);
+        border-radius: 2px;
+        overflow: hidden;
+        width: 100%;
+    }
+    
+    .mobileProgressFill {
+        height: 100%;
+        border-radius: 2px;
+        transition: width 0.3s ease;
+    }
+    
+    .mobileCardActions {
+        display: flex;
+        justify-content: flex-end;
+        align-items: center;
+        gap: 6px;
+        margin-top: 4px;
+        border-top: 1px solid var(--border-primary);
+        padding-top: 8px;
+    }
+    
+    /* Compact buttons on mobile */
+    .mobileCardActions button,
+    .mobileCardActions :global(.btn) {
+        height: 32px !important;
+        padding: 4px 10px !important;
+        font-size: 11px !important;
+        border-radius: 6px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        min-height: auto !important;
+        min-width: auto !important;
+    }
+    
+    .mobileCardActions svg {
+        width: 13px !important;
+        height: 13px !important;
+    }
+    
+    .monthGroupContentExpanded {
+        padding: 12px 12px;
+    }
+}

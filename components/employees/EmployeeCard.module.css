@@ -1,0 +1,191 @@
+.card {
+    background: var(--bg-card);
+    border: none;
+    box-shadow: var(--shadow-card);
+    border-radius: 22px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    transition: all var(--transition-fast);
+    min-height: 100px;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+}
+
+.card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.inactive {
+    opacity: 0.6;
+    background: var(--bg-grouped);
+    filter: grayscale(0.5);
+}
+
+.leftSection {
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    width: 100%;
+}
+
+.avatar {
+    width: 48px;
+    height: 48px;
+    border-radius: 50%;
+    background: var(--bg-grouped);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 600;
+    color: var(--accent);
+    flex-shrink: 0;
+}
+
+.info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+}
+
+.name {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--text-primary);
+    margin: 0;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    padding-right: 30px;
+}
+
+.metaRow {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 2px;
+}
+
+.roleBadge {
+    display: inline-flex;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+}
+
+.statusBadgeWarning,
+.statusBadgeInactive {
+    display: inline-flex;
+    align-items: center;
+    padding: 2px 8px;
+    border-radius: 20px;
+    font-size: 10px;
+    font-weight: 600;
+}
+
+.statusBadgeWarning {
+    background: rgba(255, 149, 0, 0.15);
+    color: #FF9500;
+}
+
+.statusBadgeInactive {
+    background: rgba(255, 59, 48, 0.15);
+    color: #FF3B30;
+}
+
+.roleAdmin {
+    background: var(--accent-bg);
+    color: var(--accent);
+}
+
+.roleManager {
+    background: rgba(175, 82, 222, 0.15);
+    color: #AF52DE;
+}
+
+.roleStaff {
+    background: var(--bg-grouped);
+    color: var(--text-secondary);
+}
+
+.centerSection {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 16px;
+    border-top: 1px solid var(--separator);
+}
+
+.activityRow {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.label {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+}
+
+.value {
+    font-size: 13px;
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.rightSection {
+    position: absolute;
+    top: 20px;
+    right: 20px;
+}
+
+.editBtn {
+    background: var(--bg-grouped);
+    border: none;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--accent);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-size: 12px;
+}
+
+.editBtn:hover {
+    background: var(--bg-hover);
+    transform: scale(1.05);
+}
+
+@media (max-width: 768px) {
+    .card {
+        padding: 14px !important;
+        border-radius: 12px !important;
+        gap: 10px !important;
+    }
+    .avatar {
+        width: 36px !important;
+        height: 36px !important;
+        font-size: 14px !important;
+    }
+    .name {
+        font-size: 14px !important;
+    }
+    .editBtn {
+        width: auto !important;
+        height: 26px !important;
+        padding: 0 10px !important;
+        border-radius: 6px !important;
+    }
+}

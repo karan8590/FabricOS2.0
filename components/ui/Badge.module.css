@@ -1,0 +1,41 @@
+.badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 9999px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-width: 1px;
+    border-style: solid;
+}
+
+/* 1. PAID / Present / Active / Completed / Invoiced (Green) */
+.paid, .completed, .invoiced, .present, .active {
+    background: #F0FDF4;
+    color: #15803D;
+    border-color: #BBF7D0;
+}
+
+/* 2. UNPAID / Absent / Overdue (Red) */
+.unpaid, .absent, .overdue {
+    background: #FEF2F2;
+    color: #DC2626;
+    border-color: #FECACA;
+}
+
+/* 3. PARTIAL / Pending / Unpaid fallback (Yellow) */
+.pending, .partial {
+    background: #FFFBEB;
+    color: #D97706;
+    border-color: #FDE68A;
+}
+
+/* 4. IN PRODUCTION / Processing / Approved / Ready (Indigo) */
+.approved, .inproduction, .ready, .processing {
+    background: #EEF2FF;
+    color: #4F46E5;
+    border-color: #C7D2FE;
+}
