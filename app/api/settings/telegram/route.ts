@@ -49,7 +49,7 @@ export async function POST(request: Request) {
             const tgData = await tgRes.json();
             
             if (tgData.ok) {
-                db.prepare("INSERT INTO settings (key, value) VALUES ('telegram_bot_token', ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value")
+                await db.prepare("INSERT INTO settings (key, value) VALUES ('telegram_bot_token', ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value")
                   .run(token);
                 return NextResponse.json({ success: true, bot: tgData.result });
             } else {
