@@ -39,6 +39,10 @@ export async function POST(
         const todayDate = new Date().toISOString().split('T')[0];
 
         try {
+            console.log("Approve API hit");
+            console.log("Order ID:", orderId);
+            console.log("User business_id:", businessId);
+
             if (action === 'approve') {
                 newStatus = ORDER_STATUSES.APPROVED;
                 activityTitle = 'Order Approved';
@@ -142,7 +146,18 @@ export async function POST(
                 throw new Error('Invalid action');
             }
 
-            (await db.prepare('UPDATE orders SET status = ? WHERE id = ?').run(newStatus, orderId));
+            console.log("Updating order status...");
+            const query = action === 'approve' 
+                ? 'UPDATE orders SET status = ?, approved_at = EXTRACT(EPOCH FROM NOW())::integer WHERE id = ? AND business_id = ?'
+                : 'UPDATE orders SET status = ? WHERE id = ? AND business_id = ?';
+                
+            const updateResult = await db.prepare(query).run(newStatus, orderId, businessId);
+            console.log("DB update result:", updateResult);
+
+            if (updateResult.changes === 0) {
+                console.error("No order updated");
+                return NextResponse.json({ success: false, error: 'Order not found or business mismatch' }, { status: 400 });
+            }
 
             (await db.prepare(`
                 INSERT INTO activity (business_id, customer_id, type, title, description, meta, created_at)

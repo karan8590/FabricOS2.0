@@ -704,6 +704,7 @@ function OrderActionButton({
 
     const handleAction = async () => {
         if (status === ORDER_STATUSES.CREATED || status === 'pending' || status === 'waiting_approval') {
+            console.log("Approving order:", order.id);
             setIsProcessing(true);
             try {
                 const res = await fetch(`/api/orders/${order.id}/workflow`, {
@@ -711,17 +712,21 @@ function OrderActionButton({
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: 'approve' })
                 });
+                console.log("Approve response:", res);
+
                 if (res.ok) {
+                    const data = await res.json();
+                    console.log("Approve data:", data);
                     alert('✅ Order approved successfully');
-                    onUpdate();
+                    if (onUpdate) onUpdate();
                 } else {
                     const data = await res.json();
                     console.error('Approve failed:', data);
-                    alert(`❌ Failed to approve order`);
+                    alert(`❌ Failed to approve order: ${data.error || 'Unknown error'}`);
                 }
             } catch (error: any) {
-                console.error('Order approval error:', error);
-                alert(`❌ Failed to approve order`);
+                console.error("Approve failed:", error);
+                alert(`❌ Failed to approve order: ${error.message || error}`);
             } finally {
                 setIsProcessing(false);
             }
