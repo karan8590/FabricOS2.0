@@ -147,6 +147,29 @@ export async function GET(request: Request) {
             console.error('Telegram dispatch failed or no recipients configured');
         }
 
+        // --- FETCH INVENTORY LOW STOCK ALERTS ---
+        const lowStockInk = (await db.prepare(`SELECT ink_colour, current_balance, unit, min_stock FROM inventory_ink WHERE min_stock IS NOT NULL AND current_balance <= min_stock`).all()) as any[];
+        const lowStockPackaging = (await db.prepare(`SELECT item_name, current_stock, min_stock FROM inventory_packaging WHERE min_stock IS NOT NULL AND current_stock <= min_stock`).all()) as any[];
+
+        if (lowStockInk.length > 0 || lowStockPackaging.length > 0) {
+            let inventoryPayload = `🚨 *Daily Inventory Alert*\n\n`;
+            if (lowStockInk.length > 0) {
+                inventoryPayload += `*Printing Ink*\n`;
+                lowStockInk.forEach(i => {
+                    inventoryPayload += `• ${i.ink_colour}: ${i.current_balance}${i.unit} (Min: ${i.min_stock}${i.unit})\n`;
+                });
+                inventoryPayload += `\n`;
+            }
+            if (lowStockPackaging.length > 0) {
+                inventoryPayload += `*Packaging*\n`;
+                lowStockPackaging.forEach(p => {
+                    inventoryPayload += `• ${p.item_name}: ${p.current_stock} units (Min: ${p.min_stock})\n`;
+                });
+            }
+            inventoryPayload += `\nPlease reorder soon to avoid production delays.`;
+            await sendTelegramMessage(inventoryPayload, 'inventory_alerts');
+        }
+
         const apiStatus = telegramSent ? 200 : 500;
 
         // Log to reminder_logs table for audit

@@ -344,9 +344,8 @@ export function SetupWizard(props: SetupWizardProps) {
                         className="action-btn-primary" 
                         onClick={handleFinalActivate}
                         disabled={props.activating}
-                        style={{ width: '100%', height: '54px', fontSize: '18px', background: 'var(--accent)' }}
                     >
-                        {props.activating ? <><Loader2 className="animate-spin" /> Activating...</> : <><i className="ti ti-confetti" style={{ color: '#fff' }} /> Activate Telegram Automation</>}
+                        {props.activating ? <><Loader2 size={16} className="animate-spin" /> Activating...</> : <><i className="ti ti-confetti" style={{ fontSize: '16px' }} /> Activate Telegram Automation</>}
                     </button>
                 </div>
             </StepRow>

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import getDatabase from '@/lib/db';
 import { checkPermission } from '@/lib/auth/permissions';
+import { sendTelegramMessage } from '@/lib/telegram';
 
 export async function GET(request: Request) {
     try {
@@ -37,7 +38,7 @@ export async function GET(request: Request) {
             data = (await db.prepare(`
                 SELECT id, ink_colour as inkColour, quantity, unit, supplier, 
                        purchase_date as purchaseDate, cost_per_unit as costPerUnit, 
-                       current_balance as currentBalance
+                       current_balance as currentBalance, min_stock as minStock, last_alert_sent as lastAlertSent
                 FROM inventory_ink
                 WHERE business_id = ?
                 ORDER BY purchase_date DESC, id DESC
@@ -45,7 +46,7 @@ export async function GET(request: Request) {
         } else if (tab === 'packaging') {
             data = (await db.prepare(`
                 SELECT id, item_name as itemName, type, quantity, supplier, 
-                       purchase_date as purchaseDate, cost, current_stock as currentStock
+                       purchase_date as purchaseDate, cost, current_stock as currentStock, min_stock as minStock, last_alert_sent as lastAlertSent
                 FROM inventory_packaging
                 WHERE business_id = ?
                 ORDER BY purchase_date DESC, id DESC
@@ -164,11 +165,28 @@ export async function POST(request: Request) {
                 return NextResponse.json({ error: 'Missing required ink fields for edit' }, { status: 400 });
             }
 
+            const existingInk = (await db.prepare(`SELECT min_stock, last_alert_sent, current_balance FROM inventory_ink WHERE id = ? AND business_id = ?`).get(id, businessId)) as any;
+
             (await db.prepare(`
                 UPDATE inventory_ink
                 SET ink_colour = ?, quantity = ?, unit = ?, supplier = ?, purchase_date = ?, cost_per_unit = ?, current_balance = ?
                 WHERE id = ? AND business_id = ?
             `).run(inkColour, Number(quantity), unit, supplier, purchaseDate, Number(costPerUnit), Number(currentBalance), id, businessId));
+
+            if (existingInk && existingInk.min_stock !== null && existingInk.min_stock !== undefined) {
+                const min = Number(existingInk.min_stock);
+                const cur = Number(currentBalance);
+                const prev = Number(existingInk.current_balance);
+                
+                if (cur <= min && prev > min) {
+                    const lastAlert = existingInk.last_alert_sent ? Number(existingInk.last_alert_sent) : 0;
+                    const now = Math.floor(Date.now() / 1000);
+                    if (now - lastAlert > 86400) { // 24 hours
+                        sendTelegramMessage(`🚨 Stock Alert — FabricOS\n\n${inkColour} ink has dropped to ${cur}${unit}\nMinimum level: ${min}${unit}\n\nReorder soon to avoid production delays.`, 'inventory_alerts').catch(console.error);
+                        await db.prepare(`UPDATE inventory_ink SET last_alert_sent = ? WHERE id = ? AND business_id = ?`).run(now, id, businessId);
+                    }
+                }
+            }
 
             return NextResponse.json({ message: 'Ink stock updated successfully' });
         }
@@ -179,6 +197,14 @@ export async function POST(request: Request) {
 
             (await db.prepare(`DELETE FROM inventory_ink WHERE id = ? AND business_id = ?`).run(id, businessId));
             return NextResponse.json({ message: 'Ink stock deleted successfully' });
+        }
+
+        if (action === 'update_min_stock_ink') {
+            const { id, minStock } = body;
+            if (!id || minStock === undefined) return NextResponse.json({ error: 'ID and minStock required' }, { status: 400 });
+
+            await db.prepare(`UPDATE inventory_ink SET min_stock = ? WHERE id = ? AND business_id = ?`).run(Number(minStock), id, businessId);
+            return NextResponse.json({ message: 'Minimum stock updated' });
         }
 
         // --- PACKAGING TAB ACTIONS ---
@@ -204,11 +230,28 @@ export async function POST(request: Request) {
                 return NextResponse.json({ error: 'Missing required packaging fields for edit' }, { status: 400 });
             }
 
+            const existingPkg = (await db.prepare(`SELECT min_stock, last_alert_sent, current_stock FROM inventory_packaging WHERE id = ? AND business_id = ?`).get(id, businessId)) as any;
+
             (await db.prepare(`
                 UPDATE inventory_packaging
                 SET item_name = ?, type = ?, quantity = ?, supplier = ?, purchase_date = ?, cost = ?, current_stock = ?
                 WHERE id = ? AND business_id = ?
             `).run(itemName, type, Number(quantity), supplier, purchaseDate, Number(cost), Number(currentStock), id, businessId));
+
+            if (existingPkg && existingPkg.min_stock !== null && existingPkg.min_stock !== undefined) {
+                const min = Number(existingPkg.min_stock);
+                const cur = Number(currentStock);
+                const prev = Number(existingPkg.current_stock);
+                
+                if (cur <= min && prev > min) {
+                    const lastAlert = existingPkg.last_alert_sent ? Number(existingPkg.last_alert_sent) : 0;
+                    const now = Math.floor(Date.now() / 1000);
+                    if (now - lastAlert > 86400) {
+                        sendTelegramMessage(`🚨 Stock Alert — FabricOS\n\nPackaging item '${itemName}' has dropped to ${cur} units\nMinimum level: ${min} units\n\nReorder soon to avoid production delays.`, 'inventory_alerts').catch(console.error);
+                        await db.prepare(`UPDATE inventory_packaging SET last_alert_sent = ? WHERE id = ? AND business_id = ?`).run(now, id, businessId);
+                    }
+                }
+            }
 
             return NextResponse.json({ message: 'Packaging stock updated successfully' });
         }
@@ -219,6 +262,14 @@ export async function POST(request: Request) {
 
             (await db.prepare(`DELETE FROM inventory_packaging WHERE id = ? AND business_id = ?`).run(id, businessId));
             return NextResponse.json({ message: 'Packaging stock deleted successfully' });
+        }
+
+        if (action === 'update_min_stock_packaging') {
+            const { id, minStock } = body;
+            if (!id || minStock === undefined) return NextResponse.json({ error: 'ID and minStock required' }, { status: 400 });
+
+            await db.prepare(`UPDATE inventory_packaging SET min_stock = ? WHERE id = ? AND business_id = ?`).run(Number(minStock), id, businessId);
+            return NextResponse.json({ message: 'Minimum stock updated' });
         }
 
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });

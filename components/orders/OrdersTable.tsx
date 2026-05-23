@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
     MoreHorizontal, Eye, Edit2, Copy, FileText, 
-    CheckCircle2, Trash2, AlertTriangle, Truck, X
+    CheckCircle2, Trash2, AlertTriangle, Truck, X, QrCode
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './OrdersTable.module.css';
@@ -534,6 +534,7 @@ function OrderActionMenu({ order, onUpdate, onGenerateInvoice, onEdit }: { order
         { label: 'View Details', icon: <Eye size={16} />, onClick: () => router.push(`/orders/${order.id}`) },
         { label: 'Edit Order', icon: <Edit2 size={16} />, onClick: () => onEdit?.(order) },
         { label: 'Duplicate Order', icon: <Copy size={16} />, onClick: () => {} },
+        { label: 'Print QR Label', icon: <QrCode size={16} />, onClick: () => window.open(`/orders/${order.id}/qr`, '_blank') },
         
         { type: 'separator' },
         { 

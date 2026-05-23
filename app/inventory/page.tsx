@@ -1,7 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import styles from './Inventory.module.css';
+import ReorderSuggestions from './ReorderSuggestions';
+import { AlertTriangle } from 'lucide-react';
 
 interface Vendor {
     id: number;
@@ -42,6 +44,8 @@ interface InkRecord {
     purchaseDate: string;
     costPerUnit: number;
     currentBalance: number;
+    minStock?: number;
+    lastAlertSent?: number;
 }
 
 interface PackagingRecord {
@@ -53,10 +57,12 @@ interface PackagingRecord {
     purchaseDate: string;
     cost: number;
     currentStock: number;
+    minStock?: number;
+    lastAlertSent?: number;
 }
 
 export default function InventoryPage() {
-    const [activeTab, setActiveTab] = useState<'fabric' | 'ink' | 'packaging'>('fabric');
+    const [activeTab, setActiveTab] = useState<'fabric' | 'ink' | 'packaging' | 'reorder'>('fabric');
     const [data, setData] = useState<any[]>([]);
     const [vendors, setVendors] = useState<Vendor[]>([]);
     const [designs, setDesigns] = useState<Design[]>([]);
@@ -142,6 +148,37 @@ export default function InventoryPage() {
             setLoading(false);
         }
     };
+
+    const handleUpdateMinStock = async (id: number, type: 'ink' | 'packaging', minStock: number) => {
+        try {
+            const res = await fetch('/api/inventory', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ action: `update_min_stock_${type}`, id, minStock })
+            });
+            if (res.ok) {
+                fetchInventory();
+            }
+        } catch (e) { console.error('Failed to update min stock', e); }
+    };
+
+    const lowStockItems = useMemo(() => {
+        const items: string[] = [];
+        if (activeTab === 'ink' || activeTab === 'packaging') {
+            data.forEach(d => {
+                if (d.minStock !== undefined) {
+                    if (d.inkColour && d.currentBalance <= d.minStock) {
+                        items.push(`${d.inkColour} ink (${d.currentBalance}${d.unit} remaining)`);
+                    } else if (d.itemName && d.currentStock <= d.minStock) {
+                        items.push(`${d.itemName} (${d.currentStock} units)`);
+                    }
+                }
+            });
+        }
+        return items;
+    }, [data, activeTab]);
+
+    const [dismissedAlerts, setDismissedAlerts] = useState(false);
 
     // --- OPEN ADD MODALS ---
     const handleOpenAddFabric = () => {
@@ -477,6 +514,18 @@ export default function InventoryPage() {
                 </div>
             </div>
 
+            {/* Low Stock Banner */}
+            {lowStockItems.length > 0 && !dismissedAlerts && (
+                <div style={{ background: '#FEF2F2', border: '1px solid #FECACA', borderRadius: 'var(--radius-md)', padding: '12px 16px', marginBottom: '24px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#B91C1C' }}>
+                        <AlertTriangle size={16} />
+                        <span style={{ fontWeight: 600, fontSize: '14px' }}>Stock alert: {lowStockItems.length} items are running low.</span>
+                        <span style={{ fontSize: '13px', marginLeft: '8px' }}>{lowStockItems.join(', ')}</span>
+                    </div>
+                    <button onClick={() => setDismissedAlerts(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#B91C1C', fontSize: '18px', fontWeight: 'bold' }}>×</button>
+                </div>
+            )}
+
             {/* Sub-tabs */}
             <div className={styles.tabsContainer}>
                 <button
@@ -488,14 +537,29 @@ export default function InventoryPage() {
                 <button
                     className={`${styles.tabButton} ${activeTab === 'ink' ? styles.tabButtonActive : ''}`}
                     onClick={() => setActiveTab('ink')}
+                    style={{ position: 'relative' }}
                 >
                     Printing Ink
+                    {lowStockItems.length > 0 && activeTab === 'ink' && <span style={{ position: 'absolute', top: '10px', right: '12px', width: '8px', height: '8px', background: '#ff3b30', borderRadius: '50%' }}></span>}
                 </button>
                 <button
                     className={`${styles.tabButton} ${activeTab === 'packaging' ? styles.tabButtonActive : ''}`}
                     onClick={() => setActiveTab('packaging')}
+                    style={{ position: 'relative' }}
                 >
                     Packaging
+                    {lowStockItems.length > 0 && activeTab === 'packaging' && <span style={{ position: 'absolute', top: '10px', right: '12px', width: '8px', height: '8px', background: '#ff3b30', borderRadius: '50%' }}></span>}
+                </button>
+                <button
+                    className={`${styles.tabButton} ${activeTab === 'reorder' ? styles.tabButtonActive : ''}`}
+                    onClick={() => setActiveTab('reorder')}
+                >
+                    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ marginRight: '6px' }}>
+                        <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                        <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                        <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                    </svg>
+                    Reorder Suggestions
                 </button>
             </div>
 
@@ -597,8 +661,18 @@ export default function InventoryPage() {
                                                 <td>{item.quantity} {item.unit}</td>
                                                 <td>{item.supplier}</td>
                                                 <td>₹{item.costPerUnit.toLocaleString('en-IN')}/{item.unit}</td>
-                                                <td style={{ fontWeight: 700, color: item.currentBalance > 2 ? '#34C759' : '#ff3b30' }}>
-                                                    {item.currentBalance} {item.unit}
+                                                <td style={{ fontWeight: 700, color: item.minStock && item.currentBalance <= item.minStock ? '#ff3b30' : (item.currentBalance > 2 ? '#34C759' : '#ff3b30') }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        {item.currentBalance} {item.unit}
+                                                        {item.minStock && item.currentBalance <= item.minStock && (
+                                                            <span style={{ background: item.currentBalance === 0 ? '#FEE2E2' : '#FFF3E0', color: item.currentBalance === 0 ? '#B91C1C' : '#E65100', padding: '2px 6px', borderRadius: '4px', fontSize: '11px' }}>
+                                                                {item.currentBalance === 0 ? 'Out of stock' : 'Low stock'}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                        Min: <input type="number" defaultValue={item.minStock || ''} placeholder="-" onBlur={(e) => handleUpdateMinStock(item.id, 'ink', Number(e.target.value))} style={{ width: '40px', padding: '2px 4px', border: '1px solid var(--border-primary)', borderRadius: '4px', fontSize: '11px', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }} />
+                                                    </div>
                                                 </td>
                                                 <td>{item.purchaseDate}</td>
                                                 <td>
@@ -634,8 +708,18 @@ export default function InventoryPage() {
                                                 <td>{item.quantity} units</td>
                                                 <td>{item.supplier}</td>
                                                 <td>₹{item.cost.toLocaleString('en-IN')}</td>
-                                                <td style={{ fontWeight: 700, color: item.currentStock > 20 ? '#34C759' : '#ff3b30' }}>
-                                                    {item.currentStock} units
+                                                <td style={{ fontWeight: 700, color: item.minStock && item.currentStock <= item.minStock ? '#ff3b30' : (item.currentStock > 20 ? '#34C759' : '#ff3b30') }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        {item.currentStock} units
+                                                        {item.minStock && item.currentStock <= item.minStock && (
+                                                            <span style={{ background: item.currentStock === 0 ? '#FEE2E2' : '#FFF3E0', color: item.currentStock === 0 ? '#B91C1C' : '#E65100', padding: '2px 6px', borderRadius: '4px', fontSize: '11px' }}>
+                                                                {item.currentStock === 0 ? 'Out of stock' : 'Low stock'}
+                                                            </span>
+                                                        )}
+                                                    </div>
+                                                    <div style={{ fontSize: '11px', color: 'var(--text-tertiary)', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                                        Min: <input type="number" defaultValue={item.minStock || ''} placeholder="-" onBlur={(e) => handleUpdateMinStock(item.id, 'packaging', Number(e.target.value))} style={{ width: '40px', padding: '2px 4px', border: '1px solid var(--border-primary)', borderRadius: '4px', fontSize: '11px', background: 'var(--bg-secondary)', color: 'var(--text-primary)' }} />
+                                                    </div>
                                                 </td>
                                                 <td>{item.purchaseDate}</td>
                                                 <td>
@@ -772,6 +856,8 @@ export default function InventoryPage() {
                     </div>
                 </div>
             )}
+
+            {activeTab === 'reorder' && <ReorderSuggestions />}
 
             {/* Fabric Vendor summary cards (Below Table) */}
             {activeTab === 'fabric' && !loading && vendorStats.length > 0 && (

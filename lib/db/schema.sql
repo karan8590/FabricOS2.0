@@ -84,6 +84,7 @@ CREATE TABLE IF NOT EXISTS orders (
   recurring_active INTEGER DEFAULT 0,
   is_draft_from_recurring INTEGER DEFAULT 0,
   notes TEXT,
+  qr_code TEXT,
   FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
   FOREIGN KEY (design_id) REFERENCES designs(id) ON DELETE RESTRICT
 );
@@ -326,6 +327,8 @@ CREATE TABLE IF NOT EXISTS inventory_ink (
   purchase_date TEXT NOT NULL, -- Format: YYYY-MM-DD
   cost_per_unit NUMERIC NOT NULL,
   current_balance NUMERIC NOT NULL,
+  min_stock NUMERIC DEFAULT 0,
+  last_alert_sent INTEGER,
   created_at INTEGER NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()))::integer
 );
 
@@ -342,6 +345,8 @@ CREATE TABLE IF NOT EXISTS inventory_packaging (
   purchase_date TEXT NOT NULL, -- Format: YYYY-MM-DD
   cost NUMERIC NOT NULL,
   current_stock NUMERIC NOT NULL,
+  min_stock NUMERIC DEFAULT 0,
+  last_alert_sent INTEGER,
   created_at INTEGER NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()))::integer
 );
 
@@ -502,6 +507,28 @@ CREATE TABLE IF NOT EXISTS telegram_logs (
   command TEXT,
   status TEXT
 );
+
+-- Samples Table
+CREATE TABLE IF NOT EXISTS samples (
+  business_id TEXT DEFAULT 'business_001',
+  id SERIAL PRIMARY KEY,
+  sample_number TEXT UNIQUE,
+  customer_id INTEGER,
+  design_id INTEGER,
+  shade TEXT,
+  metres NUMERIC,
+  status TEXT DEFAULT 'pending' CHECK(status IN ('pending', 'converted', 'rejected', 'expired')),
+  date_sent INTEGER,
+  follow_up_date INTEGER,
+  delivery_method TEXT,
+  tracking_number TEXT,
+  notes TEXT,
+  linked_challan_id INTEGER,
+  linked_order_id INTEGER,
+  conversion_date INTEGER,
+  created_at INTEGER NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()))::integer
+);
+CREATE INDEX IF NOT EXISTS idx_samples_customer ON samples(customer_id);
 
 -- Postgres Optimization Indexes for Multi-Tenant Scalability
 CREATE INDEX IF NOT EXISTS idx_orders_business ON orders(business_id);

@@ -15,6 +15,7 @@ import EditOrderModal from '@/components/orders/EditOrderModal';
 import ViewingPeriodSelector from '@/components/ui/ViewingPeriodSelector';
 import GroupedPeriodSection from '@/components/ui/GroupedPeriodSection';
 import GenerateChallanModal from '@/components/challans/GenerateChallanModal';
+import QRScannerModal from '@/components/ui/QRScannerModal';
 import { ORDER_STATUSES, ORDER_STATUS_LABELS } from '@/lib/constants';
 
 export default function OrdersPage() {
@@ -37,6 +38,7 @@ export default function OrdersPage() {
     const [isCreatePanelOpen, setIsCreatePanelOpen] = useState(false);
     const [isChallanModalOpen, setIsChallanModalOpen] = useState(false);
     const [challanOrderData, setChallanOrderData] = useState<any>(null);
+    const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
 
     const [availableFilters, setAvailableFilters] = useState<FilterDefinition[]>([
         { id: 'date_range', label: 'Date Range', type: 'dateRange' },
@@ -139,6 +141,20 @@ export default function OrdersPage() {
 
     const handleRemoveFilter = (id: string) => {
         setActiveFilters(activeFilters.filter(f => f.id !== id));
+    };
+
+    const handleQRScan = (decodedText: string) => {
+        setIsQRScannerOpen(false);
+        // Navigate to the order details page or just filter for it.
+        // Assuming the QR contains the internal URL: http://localhost:3000/orders/123 or just order-123
+        const orderIdMatch = decodedText.match(/\/orders\/(\d+)/);
+        if (orderIdMatch) {
+            router.push(decodedText);
+        } else if (!isNaN(Number(decodedText))) {
+            router.push(`/orders/${decodedText}`);
+        } else {
+            alert(`Scanned: ${decodedText}`);
+        }
     };
 
     const clearAll = () => {
@@ -517,7 +533,15 @@ export default function OrdersPage() {
                     compact={true}
                 />
                 
-                <div style={{ marginLeft: 'auto' }}>
+                <div style={{ marginLeft: 'auto', display: 'flex', gap: '8px' }}>
+                    <button 
+                        className="action-btn-secondary"
+                        onClick={() => setIsQRScannerOpen(true)}
+                        style={{ background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)', padding: '8px 16px', borderRadius: '12px', display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer', fontWeight: 600, color: 'var(--text-primary)' }}
+                    >
+                        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3h6v6H3z"></path><path d="M15 3h6v6h-6z"></path><path d="M3 15h6v6H3z"></path><path d="M15 15h6v6h-6z"></path><path d="M15 15v.01"></path><path d="M15 21v.01"></path><path d="M21 15v.01"></path><path d="M21 21v.01"></path><path d="M18 18v.01"></path></svg>
+                        <span>Scan</span>
+                    </button>
                     <button 
                         className="action-btn-primary"
                         onClick={() => setIsCreatePanelOpen(true)}
@@ -648,11 +672,18 @@ export default function OrdersPage() {
             {isChallanModalOpen && (
                 <GenerateChallanModal
                     isOpen={isChallanModalOpen}
-                    onClose={() => setIsChallanModalOpen(false)}
-                    defaultType="sample"
-                    linkedOrderData={challanOrderData}
+                    onClose={() => {
+                        setIsChallanModalOpen(false);
+                        setChallanOrderData(null);
+                    }}
+                    orderData={challanOrderData}
                 />
             )}
+            <QRScannerModal 
+                isOpen={isQRScannerOpen}
+                onClose={() => setIsQRScannerOpen(false)}
+                onScan={handleQRScan}
+            />
         </div>
     );
 }

@@ -918,10 +918,6 @@ export default function TelegramCenterPage() {
                             <RefreshCw size={16} className={refreshing ? 'animate-spin' : ''} />
                             <span>Refresh</span>
                         </button>
-                        <button onClick={() => setShowAddModal(true)} className="action-btn-primary">
-                            <Plus size={16} />
-                            <span>Add Recipient</span>
-                        </button>
                     </div>
                 )}
             </div>
