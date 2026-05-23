@@ -74,11 +74,11 @@ export default function DesignPickerModal({ isOpen, onClose, onSelect, selectedD
 
     const filteredDesigns = useMemo(() => {
         return designs.filter(design => {
-            const matchesSearch = 
-                design.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                design.category?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                design.code?.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                design.tags?.toLowerCase().includes(searchQuery.toLowerCase());
+            const matchesSearch = !searchQuery || 
+                (design.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (design.category || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (design.code || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                (design.tags || '').toLowerCase().includes(searchQuery.toLowerCase());
 
             const matchesCategory = 
                 activeCategory === 'all' ||

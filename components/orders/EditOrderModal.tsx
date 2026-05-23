@@ -141,14 +141,14 @@ export default function EditOrderModal({ order, isOpen, onClose, onSuccess }: Ed
 
     const filteredCustomers = useMemo(() => {
         return customers.filter(c => 
-            c.name.toLowerCase().includes(customerSearch.toLowerCase()) || 
-            c.phone.includes(customerSearch)
+            (c.name || '').toLowerCase().includes(customerSearch.toLowerCase()) || 
+            (c.phone || '').includes(customerSearch)
         );
     }, [customers, customerSearch]);
 
     const filteredDesigns = useMemo(() => {
         return designs.filter(d => 
-            d.name.toLowerCase().includes(designSearch.toLowerCase())
+            (d.name || '').toLowerCase().includes(designSearch.toLowerCase())
         );
     }, [designs, designSearch]);
 
