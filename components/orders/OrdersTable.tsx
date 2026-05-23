@@ -711,9 +711,17 @@ function OrderActionButton({
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ action: 'approve' })
                 });
-                if (res.ok) onUpdate();
-            } catch (error) {
-                console.error(error);
+                if (res.ok) {
+                    alert('✅ Order approved successfully');
+                    onUpdate();
+                } else {
+                    const data = await res.json();
+                    console.error('Approve failed:', data);
+                    alert(`❌ Failed to approve order`);
+                }
+            } catch (error: any) {
+                console.error('Order approval error:', error);
+                alert(`❌ Failed to approve order`);
             } finally {
                 setIsProcessing(false);
             }
