@@ -27,6 +27,7 @@ import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import ActivityTimeline from '@/components/ui/ActivityTimeline';
 import Input from '@/components/ui/Input';
+import { celebrateSmall } from '@/lib/confetti';
 
 interface Instalment {
     id: number;
@@ -267,6 +268,9 @@ export default function VendorPaymentsPage() {
             });
 
             if (res.ok) {
+                if (selectedPayment.balance - payingAmount <= 0) {
+                    celebrateSmall(`confetti_vendorpay_${selectedPayment.id}`);
+                }
                 alert(`Payment of ₹${payingAmount.toLocaleString('en-IN')} successfully recorded!`);
                 setIsPayModalOpen(false);
                 fetchPaymentsData();

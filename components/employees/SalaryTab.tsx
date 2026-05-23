@@ -6,6 +6,7 @@ import { jsPDF } from 'jspdf';
 import * as XLSX from 'xlsx';
 import ViewingPeriodSelector from '@/components/ui/ViewingPeriodSelector';
 import GroupedPeriodSection from '@/components/ui/GroupedPeriodSection';
+import { celebrateMedium } from '@/lib/confetti';
 
 interface Employee {
     id: number;
@@ -299,6 +300,13 @@ export default function SalaryTab({ employees }: SalaryTabProps) {
             if (res.ok) {
                 setSaveStatus('success');
                 setMessage(`Salary for ${payingRecord.name} marked as paid successfully.`);
+                
+                const isAllPaid = records.filter(r => r.employeeId !== payingRecord.employeeId).every(r => r.status === 'paid');
+                if (isAllPaid) {
+                    celebrateMedium(`confetti_salaries_${selectedMonth}`);
+                    setTimeout(() => setMessage(`All salaries for this month have been paid!`), 100);
+                }
+
                 setPayModalOpen(false);
                 setPayingRecord(null);
                 setPayRecovery('0');

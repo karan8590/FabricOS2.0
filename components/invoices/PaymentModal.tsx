@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import Button from '@/components/ui/Button';
 import styles from './PaymentModal.module.css';
+import { celebrateBig } from '@/lib/confetti';
 
 interface PaymentModalProps {
     isOpen: boolean;
@@ -39,6 +40,14 @@ export default function PaymentModal({ isOpen, onClose, onSave, invoice }: Payme
                 date,
                 notes
             });
+            
+            const paid = invoice.amount_paid || 0;
+            const remaining = Math.max(0, invoice.amount - paid);
+            const newRemaining = Math.max(0, remaining - (parseFloat(amount) || 0));
+            if (newRemaining <= 0) {
+                celebrateBig(`confetti_invoice_${invoice.id}`);
+            }
+            
             onClose();
         } catch (error) {
             console.error(error);

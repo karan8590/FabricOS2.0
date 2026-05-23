@@ -18,6 +18,7 @@ import {
     Clock,
     CheckCircle2
 } from 'lucide-react';
+import { celebrateMedium } from '@/lib/confetti';
 import {
     BarChart,
     Bar,
@@ -126,6 +127,13 @@ export default function DashboardPage() {
     
     const outstandingAmount = stats?.outstandingAmount?.value || 0;
     const outstandingAmountChange = stats?.outstandingAmount?.change || 0;
+
+    useEffect(() => {
+        if (revenueCollected > 10000000) {
+            // Trigger confetti if revenue crosses 1 Crore this month
+            celebrateMedium(`confetti_monthly_target_${new Date().getFullYear()}_${new Date().getMonth()}`);
+        }
+    }, [revenueCollected]);
 
     const gstLiability = stats?.gstLiability || 0;
 

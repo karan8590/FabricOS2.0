@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { X, Search, ChevronDown, Calendar, AlertCircle, CheckCircle2, Plus, ShoppingBag, User, Settings2, Package } from 'lucide-react';
 import styles from './CreateOrderPanel.module.css';
 import DesignPickerModal from './DesignPickerModal';
+import { celebrateSmall, celebrateMilestone } from '@/lib/confetti';
 
 interface Customer {
     id: number;
@@ -164,9 +165,17 @@ export default function CreateOrderPanel({ isOpen, onClose, onSuccess, initialCu
 
             if (res.ok) {
                 const data = await res.json();
+                
+                if (data.totalOrders && data.totalOrders > 0 && data.totalOrders % 100 === 0) {
+                    celebrateMilestone(`confetti_milestone_${data.totalOrders}`);
+                    setTimeout(() => alert(`🎉 Amazing! That was order #${data.totalOrders}!`), 100);
+                } else if (data.totalCustomerOrders === 1) {
+                    celebrateSmall(`confetti_newcust_${data.orderId}`);
+                }
+                
                 onSuccess({
                     id: data.orderId,
-                    order_number: data.orderNumber, // wait, does API return orderNumber?
+                    order_number: data.orderNumber,
                     customer_name: selectedCustomer.name,
                     design_name: selectedDesign.name,
                     quantity_meters: quantity,

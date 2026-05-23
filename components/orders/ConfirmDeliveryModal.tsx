@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, CheckCircle2 } from 'lucide-react';
 import styles from './ProductionWorkflowModal.module.css';
+import { celebrateBig } from '@/lib/confetti';
 
 interface ConfirmDeliveryModalProps {
     isOpen: boolean;
@@ -60,6 +61,7 @@ export default function ConfirmDeliveryModal({ isOpen, onClose, onSuccess, order
                 throw new Error(data.error || 'Failed to update workflow');
             }
 
+            celebrateBig(`confetti_delivered_${order.id}`);
             onSuccess();
         } catch (err: any) {
             setError(err.message);

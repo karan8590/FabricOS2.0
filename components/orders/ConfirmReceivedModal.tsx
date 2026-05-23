@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, CheckCircle2 } from 'lucide-react';
 import styles from './ProductionWorkflowModal.module.css';
+import { celebrateSmall } from '@/lib/confetti';
 
 interface ConfirmReceivedModalProps {
     isOpen: boolean;
@@ -80,6 +81,10 @@ export default function ConfirmReceivedModal({ isOpen, onClose, onSuccess, order
             if (!res.ok) {
                 const data = await res.json();
                 throw new Error(data.error || 'Failed to update workflow');
+            }
+
+            if (action === 'mark_ready') {
+                celebrateSmall(`confetti_ready_${order.id}`);
             }
 
             onSuccess();

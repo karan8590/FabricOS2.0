@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import styles from './AdvancesTab.module.css';
+import { celebrateMedium } from '@/lib/confetti';
 
 interface Employee {
     id: number;
@@ -181,6 +182,14 @@ export default function AdvancesTab({ employees }: AdvancesTabProps) {
 
             if (res.ok) {
                 setActiveFormAdvanceId(null);
+                
+                const adv = advances.find(a => a.id === advanceId);
+                if (adv && adv.remainingBalance - parseFloat(inlineData.amount) <= 0) {
+                    celebrateMedium(`confetti_advance_${advanceId}`);
+                    // We can use a small delay so the alert doesn't block confetti instantly
+                    setTimeout(() => alert(`${adv.employeeName}'s advance has been fully repaid!`), 100);
+                }
+
                 setInlineData({
                     amount: '',
                     date: new Date().toISOString().split('T')[0],

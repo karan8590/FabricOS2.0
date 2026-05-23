@@ -304,10 +304,17 @@ export async function POST(request: Request) {
             businessId
         });
 
+        const updatedCustomer = (await db.prepare('SELECT total_orders FROM customers WHERE id = ? AND business_id = ?').get(customerId, businessId)) as any;
+        const totalCustomerOrders = updatedCustomer?.total_orders || 1;
+        const businessOrderCount = (await db.prepare('SELECT COUNT(*) as count FROM orders WHERE business_id = ?').get(businessId)) as any;
+        const totalOrdersCount = businessOrderCount?.count || 1;
+
         return NextResponse.json({
             success: true,
             orderId: result.lastInsertRowid,
-            orderNumber: orderNumber
+            orderNumber: orderNumber,
+            totalCustomerOrders: totalCustomerOrders,
+            totalOrders: totalOrdersCount
         });
     } catch (error) {
         console.error('Order creation error:', error);
