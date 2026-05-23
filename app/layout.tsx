@@ -3,6 +3,7 @@ import './globals.css';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { BusinessProvider } from '@/contexts/BusinessContext';
 import { ToastProvider } from '@/contexts/ToastContext';
+import { Analytics } from '@vercel/analytics/next';
 
 export const metadata: Metadata = {
     title: 'FabricOS - Textile Manufacturing ERP',
@@ -39,6 +40,7 @@ export default function RootLayout({
                         </BusinessProvider>
                     </AuthProvider>
                 </ToastProvider>
+                <Analytics />
             </body>
         </html>
     );
