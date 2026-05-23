@@ -392,12 +392,31 @@ export default function CatalogPage() {
                             onChange={(e) => setDesignForm({ ...designForm, name: e.target.value })}
                             required
                         />
-                        <Input
-                            label="Image URL"
-                            value={designForm.imageUrl}
-                            onChange={(e) => setDesignForm({ ...designForm, imageUrl: e.target.value })}
-                            helperText="Optional: Paste a URL to an image"
-                        />
+                        <div>
+                            <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: 'var(--font-weight-medium)', marginBottom: 'var(--spacing-1)', color: 'var(--color-text-primary)' }}>
+                                Design Image
+                            </label>
+                            <input
+                                type="file"
+                                accept="image/*"
+                                onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (file) {
+                                        const reader = new FileReader();
+                                        reader.onloadend = () => {
+                                            setDesignForm({ ...designForm, imageUrl: reader.result as string });
+                                        };
+                                        reader.readAsDataURL(file);
+                                    }
+                                }}
+                                style={{ display: 'block', width: '100%', padding: 'var(--spacing-2)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', background: 'var(--color-bg-primary)' }}
+                            />
+                            {designForm.imageUrl && (
+                                <div style={{ marginTop: 'var(--spacing-2)' }}>
+                                    <img src={designForm.imageUrl} alt="Preview" style={{ maxHeight: '100px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }} />
+                                </div>
+                            )}
+                        </div>
                         <Input
                             label="Price per Meter (₹)"
                             type="number"
