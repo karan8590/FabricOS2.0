@@ -779,61 +779,32 @@ function OrderActionButton({
 
         {showApproveModal && createPortal(
             <div className="global-modal-overlay" onClick={() => setShowApproveModal(false)}>
-                <div style={{
-                    background: '#fff',
-                    padding: '24px',
-                    borderRadius: '16px',
-                    width: '100%',
-                    maxWidth: '400px',
-                    boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
-                    border: '1px solid #E5E7EB',
-                }} onClick={e => e.stopPropagation()}>
-                    <div style={{
-                        width: '48px',
-                        height: '48px',
-                        borderRadius: '50%',
-                        background: '#EFF6FF',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        marginBottom: '16px'
-                    }}>
-                        <i className="ti ti-check" style={{ fontSize: '24px', color: '#2563EB' }}></i>
+                <div className={styles.modal} onClick={e => e.stopPropagation()}>
+                    <div className={styles.modalIcon} style={{ background: 'rgba(37, 99, 235, 0.1)' }}>
+                        <i className="ti ti-check" style={{ fontSize: '28px', color: '#2563EB' }}></i>
                     </div>
-                    <h3 style={{ fontSize: '18px', fontWeight: 600, color: '#111827', margin: '0 0 8px 0' }}>Approve Order?</h3>
-                    <p style={{ fontSize: '14px', color: '#4B5563', margin: '0 0 24px 0', lineHeight: 1.5 }}>
+                    <h3 className={styles.modalTitle}>Approve Order?</h3>
+                    <p className={styles.modalText}>
                         Are you sure you want to approve Order <strong>#{order.order_number || order.id}</strong> for production? This will move it to the next workflow stage.
                     </p>
-                    <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
-                        <button 
-                            onClick={() => setShowApproveModal(false)}
-                            disabled={isProcessing}
-                            style={{
-                                padding: '8px 16px',
-                                background: '#F3F4F6',
-                                color: '#374151',
-                                border: 'none',
-                                borderRadius: '8px',
-                                fontWeight: 500,
-                                cursor: 'pointer'
-                            }}
-                        >
+                    <div className={styles.modalActions}>
+                        <button className={styles.cancelBtn} onClick={() => setShowApproveModal(false)} disabled={isProcessing}>
                             Cancel
                         </button>
                         <button 
+                            className={styles.primaryActionBtn}
                             onClick={confirmApprove}
                             disabled={isProcessing}
                             style={{
-                                padding: '8px 16px',
+                                flex: 1,
                                 background: '#2563EB',
-                                color: '#fff',
+                                color: '#ffffff',
                                 border: 'none',
-                                borderRadius: '8px',
-                                fontWeight: 500,
-                                cursor: 'pointer',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: '6px'
+                                justifyContent: 'center',
+                                padding: '12px',
+                                fontSize: '14px',
+                                borderRadius: '12px',
+                                opacity: isProcessing ? 0.7 : 1
                             }}
                         >
                             {isProcessing ? <i className="ti ti-loader ti-spin"></i> : <i className="ti ti-check"></i>}

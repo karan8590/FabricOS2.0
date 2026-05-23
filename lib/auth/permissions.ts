@@ -17,6 +17,11 @@ export async function checkPermission(permission: string) {
         return { authorized: false, error: 'Invalid session', status: 401 };
     }
 
+    // Admins and Super Admins bypass permission checks
+    if (user.role === 'admin' || user.role === 'owner' || user.role === 'manager' || user.isSuperAdmin) {
+        return { authorized: true, user };
+    }
+
     try {
         const db = getDatabase();
         const freshPermissions = (await db
