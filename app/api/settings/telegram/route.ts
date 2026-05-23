@@ -39,22 +39,36 @@ export async function POST(request: Request) {
         if (!authorized) return NextResponse.json({ error }, { status });
 
         const body = await request.json();
-        const { roleDefaults } = body;
-
-        if (!roleDefaults || typeof roleDefaults !== 'object') {
-            return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
-        }
+        const { roleDefaults, token } = body;
 
         const db = getDatabase();
-        const saveTx = db.transaction(async () => {
-            for (const [role, lang] of Object.entries(roleDefaults)) {
-                (await db.prepare("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value")
-                                  .run(`role_lang_default_${role}`, String(lang)));
-            }
-        });
-        saveTx();
 
-        return NextResponse.json({ success: true });
+        if (token) {
+            // Validate the token with Telegram API
+            const tgRes = await fetch(`https://api.telegram.org/bot${token}/getMe`);
+            const tgData = await tgRes.json();
+            
+            if (tgData.ok) {
+                db.prepare("INSERT INTO settings (key, value) VALUES ('telegram_bot_token', ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value")
+                  .run(token);
+                return NextResponse.json({ success: true, bot: tgData.result });
+            } else {
+                return NextResponse.json({ error: 'Invalid Bot Token from Telegram' }, { status: 400 });
+            }
+        }
+
+        if (roleDefaults && typeof roleDefaults === 'object') {
+            const saveTx = db.transaction(async () => {
+                for (const [role, lang] of Object.entries(roleDefaults)) {
+                    (await db.prepare("INSERT INTO settings (key, value) VALUES (?, ?) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value")
+                                      .run(`role_lang_default_${role}`, String(lang)));
+                }
+            });
+            saveTx();
+            return NextResponse.json({ success: true });
+        }
+
+        return NextResponse.json({ error: 'Invalid payload' }, { status: 400 });
     } catch (err: any) {
         console.error('API Error:', err);
         return NextResponse.json({ error: err.message }, { status: 500 });
