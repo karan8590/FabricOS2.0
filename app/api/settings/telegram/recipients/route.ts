@@ -53,24 +53,23 @@ export async function POST(request: Request) {
         }
 
         const db = getDatabase();
-        
-        let recipientId;
-        db.transaction(async () => {
-            const result = (await db.prepare(`
-                INSERT INTO telegram_recipients (
-                    recipient_name, telegram_chat_id, telegram_username, role, notifications_enabled, preferred_language
-                ) VALUES (?, ?, ?, ?, ?, ?)
-            `).run(recipient_name, telegram_chat_id, telegram_username || null, role || 'Staff', notifications_enabled, preferred_language));
-            
-            recipientId = result.lastInsertRowid;
 
-            (await db.prepare(`
-                INSERT INTO telegram_notification_preferences (
-                    recipient_id, daily_payments, attendance_reminder, weekly_summary, 
-                    monthly_summary, instant_order_alerts, vendor_alerts, salary_alerts, expense_alerts
-                ) VALUES (?, 1, 1, 1, 1, 1, 1, 1, 1)
-            `).run(recipientId));
-        })();
+        // Insert recipient
+        const result = db.prepare(`
+            INSERT INTO telegram_recipients (
+                recipient_name, telegram_chat_id, telegram_username, role, notifications_enabled, preferred_language
+            ) VALUES (?, ?, ?, ?, ?, ?)
+        `).run(recipient_name, telegram_chat_id, telegram_username || null, role || 'Staff', notifications_enabled, preferred_language);
+
+        const recipientId = result.lastInsertRowid;
+
+        // Insert default notification preferences
+        db.prepare(`
+            INSERT INTO telegram_notification_preferences (
+                recipient_id, daily_payments, attendance_reminder, weekly_summary,
+                monthly_summary, instant_order_alerts, vendor_alerts, salary_alerts, expense_alerts
+            ) VALUES (?, 1, 1, 1, 1, 1, 1, 1, 1)
+        `).run(recipientId);
 
         return NextResponse.json({ success: true, id: recipientId });
     } catch (err: any) {
