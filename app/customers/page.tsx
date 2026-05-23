@@ -303,7 +303,7 @@ export default function CustomersPage() {
                             <div key={customer.id} onClick={() => handleCustomerClick(customer.id)} className={`${styles.customerCard} ${activeWidget === 'top' && customer.id === stats.topCustomer?.id ? styles.topCustomerCard : ''}`}>
                                 <div className={styles.cardHeader}>
                                     <div className={styles.cardMain}>
-                                        <div className={styles.avatarZone}><div className={styles.customerAvatar}>{customer.name.charAt(0).toUpperCase()}</div></div>
+                                        <div className={styles.avatarZone}><div className={styles.customerAvatar}>{(customer.name || customer.company_name || 'U').charAt(0).toUpperCase()}</div></div>
                                         <div className={styles.infoZone}>
                                             <h3 className={styles.customerName}>{customer.name}</h3>
                                             <p className={styles.customerPhone}>{customer.phone}</p>
