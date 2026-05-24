@@ -581,3 +581,13 @@ CREATE INDEX IF NOT EXISTS idx_vendor_payments_status ON vendor_payments(status)
 CREATE INDEX IF NOT EXISTS idx_vendor_payments_due_date ON vendor_payments(due_date);
 CREATE INDEX IF NOT EXISTS idx_vendor_payment_instalments_date ON vendor_payment_instalments(date);
 CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone);
+
+-- Schema Migrations
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS base_amount NUMERIC DEFAULT 0;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS printing_cost NUMERIC DEFAULT 0;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS embroidery_cost_charged NUMERIC DEFAULT 0;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS dyeing_cost_charged NUMERIC DEFAULT 0;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS additional_charges NUMERIC DEFAULT 0;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount NUMERIC DEFAULT 0;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS gst_rate NUMERIC DEFAULT 0;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS gst_amount NUMERIC DEFAULT 0;

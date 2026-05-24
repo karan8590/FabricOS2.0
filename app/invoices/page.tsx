@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import Badge from '@/components/ui/Badge';
 import Button from '@/components/ui/Button';
 import Can from '@/components/auth/Can';
@@ -12,8 +12,10 @@ import StatWidget from '@/components/ui/StatWidget';
 import ViewingPeriodSelector from '@/components/ui/ViewingPeriodSelector';
 import styles from './Invoices.module.css';
 import tableStyles from '@/components/ui/Table.module.css';
-import { Calendar, ChevronRight, ChevronDown, Layers, Grid, FileText, CheckCircle, AlertTriangle, FileSearch, Eye, Download, Send, RefreshCw, Loader2 } from 'lucide-react';
+import { Calendar, ChevronRight, ChevronDown, Layers, Grid, FileText, CheckCircle, AlertTriangle, FileSearch, Eye, Download, Send, RefreshCw, Loader2, MoreHorizontal } from 'lucide-react';
 import { formatCurrencySafe } from '@/lib/utils';
+import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
 
 interface Invoice {
     id: number;
@@ -464,47 +466,16 @@ export default function InvoicesPage() {
 
                 {/* Actions Footer */}
                 <div className={styles.mobileCardActions} style={{ flexWrap: 'wrap', gap: '6px' }}>
-                    {invoice.status !== 'paid' && (
-                        <Can permission="invoices.pay">
-                            <Button 
-                                variant="ghost" 
-                                size="small" 
-                                onClick={() => handleRecordPayment(invoice)}
-                            >
-                                Pay
-                            </Button>
-                        </Can>
-                    )}
-                    {invoice.pdf_url && (
-                        <Button variant="ghost" size="small" onClick={() => handlePreviewPDF(invoice)}>
-                            <Eye size={13} />
-                        </Button>
-                    )}
-                    <Button variant="ghost" size="small" onClick={() => handleDownloadPDF(invoice)}>
-                        <Download size={13} />
-                    </Button>
-                    <Button 
-                        variant="ghost" 
-                        size="small" 
-                        onClick={() => handleResendTelegram(invoice)} 
-                        disabled={sendingTelegramId === invoice.id}
-                    >
-                        <Send size={13} style={{ opacity: sendingTelegramId === invoice.id ? 0.5 : 1 }} />
-                    </Button>
-                    <Button 
-                        variant="ghost" 
-                        size="small" 
-                        onClick={() => handleRegenerateInvoice(invoice)} 
-                        disabled={regeneratingId === invoice.id}
-                    >
-                        <RefreshCw 
-                            size={13} 
-                            style={{ 
-                                animation: regeneratingId === invoice.id ? 'spin 1s linear infinite' : 'none', 
-                                opacity: regeneratingId === invoice.id ? 0.5 : 1 
-                            }} 
-                        />
-                    </Button>
+                    <InvoiceActionButton invoice={invoice} onPay={() => handleRecordPayment(invoice)} />
+                    <InvoiceActionMenu 
+                        invoice={invoice} 
+                        onPreview={() => handlePreviewPDF(invoice)}
+                        onDownload={() => handleDownloadPDF(invoice)}
+                        onResendTelegram={() => handleResendTelegram(invoice)}
+                        onRegenerate={() => handleRegenerateInvoice(invoice)}
+                        sendingTelegramId={sendingTelegramId}
+                        regeneratingId={regeneratingId}
+                    />
                 </div>
             </div>
         );
@@ -829,43 +800,16 @@ export default function InvoicesPage() {
                                                                     <td className={tableStyles.td}><span style={{ color: remaining.color, fontWeight: 500 }}>{remaining.text}</span></td>
                                                                     <td className={tableStyles.td}>
                                                                         <div className={tableStyles.actions} style={{ gap: '6px' }}>
-                                                                            {invoice.status !== 'paid' && (
-                                                                                <Can permission="invoices.pay">
-                                                                                    <Button variant="ghost" size="small" onClick={() => handleRecordPayment(invoice)} title="Record Payment">Pay</Button>
-                                                                                </Can>
-                                                                            )}
-                                                                            {invoice.pdf_url && (
-                                                                                <Button variant="ghost" size="small" onClick={() => handlePreviewPDF(invoice)} title="Preview Invoice">
-                                                                                    <Eye size={15} />
-                                                                                </Button>
-                                                                            )}
-                                                                            <Button variant="ghost" size="small" onClick={() => handleDownloadPDF(invoice)} title="Download PDF">
-                                                                                <Download size={15} />
-                                                                            </Button>
-                                                                            <Button 
-                                                                                variant="ghost" 
-                                                                                size="small" 
-                                                                                onClick={() => handleResendTelegram(invoice)} 
-                                                                                disabled={sendingTelegramId === invoice.id}
-                                                                                title="Resend to Telegram"
-                                                                            >
-                                                                                <Send size={15} style={{ opacity: sendingTelegramId === invoice.id ? 0.5 : 1 }} />
-                                                                            </Button>
-                                                                            <Button 
-                                                                                variant="ghost" 
-                                                                                size="small" 
-                                                                                onClick={() => handleRegenerateInvoice(invoice)} 
-                                                                                disabled={regeneratingId === invoice.id}
-                                                                                title="Regenerate Invoice PDF"
-                                                                            >
-                                                                                <RefreshCw 
-                                                                                    size={15} 
-                                                                                    style={{ 
-                                                                                        animation: regeneratingId === invoice.id ? 'spin 1.5s linear infinite' : 'none',
-                                                                                        opacity: regeneratingId === invoice.id ? 0.5 : 1 
-                                                                                    }} 
-                                                                                />
-                                                                            </Button>
+                                                                            <InvoiceActionButton invoice={invoice} onPay={() => handleRecordPayment(invoice)} />
+                                                                            <InvoiceActionMenu 
+                                                                                invoice={invoice} 
+                                                                                onPreview={() => handlePreviewPDF(invoice)}
+                                                                                onDownload={() => handleDownloadPDF(invoice)}
+                                                                                onResendTelegram={() => handleResendTelegram(invoice)}
+                                                                                onRegenerate={() => handleRegenerateInvoice(invoice)}
+                                                                                sendingTelegramId={sendingTelegramId}
+                                                                                regeneratingId={regeneratingId}
+                                                                            />
                                                                         </div>
                                                                     </td>
                                                                 </tr>
@@ -948,43 +892,16 @@ export default function InvoicesPage() {
                                                     <td className={tableStyles.td}><span style={{ color: remaining.color, fontWeight: 500 }}>{remaining.text}</span></td>
                                                     <td className={tableStyles.td}>
                                                         <div className={tableStyles.actions} style={{ gap: '6px' }}>
-                                                            {invoice.status !== 'paid' && (
-                                                                <Can permission="invoices.pay">
-                                                                    <Button variant="ghost" size="small" onClick={() => handleRecordPayment(invoice)} title="Record Payment">Pay</Button>
-                                                                </Can>
-                                                            )}
-                                                            {invoice.pdf_url && (
-                                                                <Button variant="ghost" size="small" onClick={() => handlePreviewPDF(invoice)} title="Preview Invoice">
-                                                                    <Eye size={15} />
-                                                                </Button>
-                                                            )}
-                                                            <Button variant="ghost" size="small" onClick={() => handleDownloadPDF(invoice)} title="Download PDF">
-                                                                <Download size={15} />
-                                                            </Button>
-                                                            <Button 
-                                                                variant="ghost" 
-                                                                size="small" 
-                                                                onClick={() => handleResendTelegram(invoice)} 
-                                                                disabled={sendingTelegramId === invoice.id}
-                                                                title="Resend to Telegram"
-                                                            >
-                                                                <Send size={15} style={{ opacity: sendingTelegramId === invoice.id ? 0.5 : 1 }} />
-                                                            </Button>
-                                                            <Button 
-                                                                variant="ghost" 
-                                                                size="small" 
-                                                                onClick={() => handleRegenerateInvoice(invoice)} 
-                                                                disabled={regeneratingId === invoice.id}
-                                                                title="Regenerate Invoice PDF"
-                                                            >
-                                                                <RefreshCw 
-                                                                    size={15} 
-                                                                    style={{ 
-                                                                        animation: regeneratingId === invoice.id ? 'spin 1.5s linear infinite' : 'none',
-                                                                        opacity: regeneratingId === invoice.id ? 0.5 : 1 
-                                                                    }} 
-                                                                />
-                                                            </Button>
+                                                                            <InvoiceActionButton invoice={invoice} onPay={() => handleRecordPayment(invoice)} />
+                                                                            <InvoiceActionMenu 
+                                                                                invoice={invoice} 
+                                                                                onPreview={() => handlePreviewPDF(invoice)}
+                                                                                onDownload={() => handleDownloadPDF(invoice)}
+                                                                                onResendTelegram={() => handleResendTelegram(invoice)}
+                                                                                onRegenerate={() => handleRegenerateInvoice(invoice)}
+                                                                                sendingTelegramId={sendingTelegramId}
+                                                                                regeneratingId={regeneratingId}
+                                                                            />
                                                         </div>
                                                     </td>
                                                 </tr>
@@ -1084,6 +1001,191 @@ export default function InvoicesPage() {
                     to { transform: rotate(360deg); }
                 }
             `}</style>
+        </div>
+    );
+}
+
+function InvoiceActionButton({ invoice, onPay }: { invoice: Invoice, onPay: () => void }) {
+    const isPaid = invoice.status === 'paid';
+    const [isHovered, setIsHovered] = useState(false);
+    
+    if (isPaid) {
+        return (
+            <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: 'rgba(22, 163, 74, 0.08)',
+                color: '#16A34A',
+                border: '1px solid rgba(22, 163, 74, 0.2)',
+                borderRadius: '12px',
+                padding: '6px 14px',
+                fontSize: '13px',
+                fontWeight: 600,
+            }}>
+                <CheckCircle size={14} /> Paid
+            </div>
+        );
+    }
+    
+    const config = { label: '✓ Record Payment', icon: 'ti ti-cash', color: '#16A34A', bg: 'rgba(22, 163, 74, 0.05)', border: 'rgba(22, 163, 74, 0.15)', hoverBg: 'rgba(22, 163, 74, 0.1)', hoverBorder: 'rgba(22, 163, 74, 0.3)' };
+
+    return (
+        <Can permission="invoices.pay">
+            <button 
+                onClick={(e) => {
+                    e.stopPropagation();
+                    onPay();
+                }}
+                onMouseEnter={() => setIsHovered(true)}
+                onMouseLeave={() => setIsHovered(false)}
+                style={{
+                    border: `1px solid ${isHovered ? config.hoverBorder : config.border}`,
+                    color: config.color,
+                    background: isHovered ? config.hoverBg : config.bg,
+                    padding: '8px 16px',
+                    borderRadius: '12px',
+                    fontSize: '13px',
+                    fontWeight: 600,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    transition: 'all 0.2s cubic-bezier(0.4, 0, 0.2, 1)',
+                    width: '100%',
+                    justifyContent: 'center',
+                    boxShadow: isHovered ? `0 4px 12px ${config.bg.replace('0.05', '0.2').replace('0.08', '0.2')}` : '0 2px 4px rgba(0,0,0,0.02)',
+                    transform: isHovered ? 'translateY(-1px)' : 'none'
+                }}
+            >
+                {config.label}
+            </button>
+        </Can>
+    );
+}
+
+function InvoiceActionMenu({ invoice, onPreview, onDownload, onResendTelegram, onRegenerate, sendingTelegramId, regeneratingId }: any) {
+    const [isOpen, setIsOpen] = useState(false);
+    const menuRef = useRef<HTMLDivElement>(null);
+    const [mounted, setMounted] = useState(false);
+    const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0, upward: false });
+
+    useEffect(() => {
+        setMounted(true);
+    }, []);
+
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+                setIsOpen(false);
+            }
+        };
+        if (isOpen) {
+            document.addEventListener('mousedown', handleClickOutside);
+        }
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, [isOpen]);
+
+    const toggleMenu = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        if (!isOpen) {
+            const rect = e.currentTarget.getBoundingClientRect();
+            const spaceBelow = window.innerHeight - rect.bottom;
+            const spaceAbove = rect.top;
+            const upward = spaceBelow < 250 && spaceAbove > spaceBelow;
+            
+            setMenuPosition({ 
+                top: upward ? rect.top : rect.bottom, 
+                left: rect.right, 
+                upward 
+            });
+        }
+        setIsOpen(!isOpen);
+    };
+
+    const menuItems = [
+        { type: 'section', label: 'Documents & Delivery' },
+        { label: 'View PDF', icon: <Eye size={16} />, onClick: onPreview, show: !!invoice.pdf_url },
+        { label: 'Download PDF', icon: <Download size={16} />, onClick: onDownload },
+        { type: 'separator' },
+        { type: 'section', label: 'Actions' },
+        { 
+            label: sendingTelegramId === invoice.id ? 'Sending...' : 'Resend Telegram', 
+            icon: <Send size={16} style={{ opacity: sendingTelegramId === invoice.id ? 0.5 : 1 }} />, 
+            onClick: onResendTelegram,
+            disabled: sendingTelegramId === invoice.id
+        },
+        { 
+            label: regeneratingId === invoice.id ? 'Regenerating...' : 'Regenerate PDF', 
+            icon: <RefreshCw size={16} style={{ animation: regeneratingId === invoice.id ? 'spin 1.5s linear infinite' : 'none', opacity: regeneratingId === invoice.id ? 0.5 : 1 }} />, 
+            onClick: onRegenerate,
+            disabled: regeneratingId === invoice.id
+        },
+    ];
+
+    return (
+        <div className={styles.menuContainer} ref={menuRef}>
+            <button 
+                className={styles.moreBtn} 
+                onClick={toggleMenu}
+            >
+                <MoreHorizontal size={18} />
+            </button>
+
+            {mounted && createPortal(
+                <AnimatePresence>
+                    {isOpen && (
+                        <motion.div 
+                            key="action-menu"
+                            className={styles.dropdown}
+                            initial={{ opacity: 0, scale: 0.95, y: menuPosition.upward ? 10 : -10 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.95, y: menuPosition.upward ? 10 : -10 }}
+                            transition={{ duration: 0.15, ease: 'easeOut' }}
+                            style={{ 
+                                position: 'fixed',
+                                top: menuPosition.upward ? 'auto' : `${menuPosition.top + 8}px`,
+                                bottom: menuPosition.upward ? `${window.innerHeight - menuPosition.top + 8}px` : 'auto',
+                                left: `${menuPosition.left - 220}px`,
+                                zIndex: 9999,
+                                transformOrigin: menuPosition.upward ? 'bottom right' : 'top right',
+                                padding: '8px 0',
+                                boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                                border: '1px solid rgba(0,0,0,0.05)',
+                                borderRadius: '12px'
+                            }}
+                        >
+                            {menuItems.filter(item => item.show !== false).map((item, idx) => (
+                                item.type === 'separator' ? (
+                                    <div key={idx} className={styles.separator} style={{ margin: '4px 0', borderTop: '1px solid #F3F4F6' }} />
+                                ) : item.type === 'section' ? (
+                                    <div key={idx} style={{ padding: '6px 16px', fontSize: '11px', fontWeight: 600, color: '#9CA3AF', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                                        {item.label}
+                                    </div>
+                                ) : (
+                                    <button 
+                                        key={idx} 
+                                        className={styles.menuItem} 
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            if (!item.disabled) {
+                                                item.onClick?.();
+                                                setIsOpen(false);
+                                            }
+                                        }}
+                                        disabled={item.disabled}
+                                        style={{ color: item.color, padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px', width: '100%', border: 'none', background: 'transparent', cursor: item.disabled ? 'not-allowed' : 'pointer', fontSize: '13px', textAlign: 'left', fontWeight: 500, opacity: item.disabled ? 0.6 : 1 }}
+                                    >
+                                        {item.icon}
+                                        <span>{item.label}</span>
+                                    </button>
+                                )
+                            ))}
+                        </motion.div>
+                    )}
+                </AnimatePresence>,
+                document.body
+            )}
         </div>
     );
 }

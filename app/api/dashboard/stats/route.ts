@@ -63,8 +63,8 @@ export async function GET(req: Request) {
             db.prepare('SELECT COUNT(*) as count FROM orders WHERE business_id = ? AND COALESCE(order_date, created_at) >= ? AND COALESCE(order_date, created_at) <= ?').get(businessId, prevStartTs, prevEndTs) as Promise<{ count: number }>,
             db.prepare("SELECT COUNT(*) as count FROM orders WHERE business_id = ? AND status IN ('completed', 'invoiced') AND completed_at >= ? AND completed_at <= ?").get(businessId, startTs, endTs) as Promise<{ count: number }>,
             db.prepare("SELECT COUNT(*) as count FROM orders WHERE business_id = ? AND status IN ('completed', 'invoiced') AND completed_at >= ? AND completed_at <= ?").get(businessId, prevStartTs, prevEndTs) as Promise<{ count: number }>,
-            db.prepare("SELECT COALESCE(SUM(amount), 0) as revenue FROM invoices WHERE business_id = ? AND status = 'paid' AND paid_at >= ? AND paid_at <= ?").get(businessId, startTs, endTs) as Promise<{ revenue: number }>,
-            db.prepare("SELECT COALESCE(SUM(amount), 0) as revenue FROM invoices WHERE business_id = ? AND status = 'paid' AND paid_at >= ? AND paid_at <= ?").get(businessId, prevStartTs, prevEndTs) as Promise<{ revenue: number }>,
+            db.prepare("SELECT COALESCE(SUM(total_price), 0) as revenue FROM orders WHERE business_id = ? AND status IN ('approved', 'in production', 'completed', 'invoiced') AND COALESCE(order_date, created_at) >= ? AND COALESCE(order_date, created_at) <= ?").get(businessId, startTs, endTs) as Promise<{ revenue: number }>,
+            db.prepare("SELECT COALESCE(SUM(total_price), 0) as revenue FROM orders WHERE business_id = ? AND status IN ('approved', 'in production', 'completed', 'invoiced') AND COALESCE(order_date, created_at) >= ? AND COALESCE(order_date, created_at) <= ?").get(businessId, prevStartTs, prevEndTs) as Promise<{ revenue: number }>,
             db.prepare("SELECT COALESCE(SUM(amount), 0) as total FROM invoices WHERE business_id = ? AND status IN ('unpaid', 'overdue') AND generated_at <= ?").get(businessId, endTs) as Promise<{ total: number }>,
             db.prepare("SELECT COALESCE(SUM(amount), 0) as total FROM invoices WHERE business_id = ? AND status IN ('unpaid', 'overdue') AND generated_at <= ?").get(businessId, prevEndTs) as Promise<{ total: number }>
         ]);
@@ -79,7 +79,7 @@ export async function GET(req: Request) {
             const yearEnd = Math.floor(new Date(selectedYear, 11, 31, 23, 59, 59).getTime() / 1000);
             
             // Fetch grouped data for the entire year in 3 fast queries
-            const revData = (await db.prepare("SELECT CAST(EXTRACT(MONTH FROM to_timestamp(paid_at)) AS INTEGER) as m, COALESCE(SUM(amount), 0) as total FROM invoices WHERE business_id = ? AND status = 'paid' AND paid_at >= ? AND paid_at <= ? GROUP BY m").all(businessId, yearStart, yearEnd)) as any[];
+            const revData = (await db.prepare("SELECT CAST(EXTRACT(MONTH FROM to_timestamp(COALESCE(order_date, created_at))) AS INTEGER) as m, COALESCE(SUM(total_price), 0) as total FROM orders WHERE business_id = ? AND status IN ('approved', 'in production', 'completed', 'invoiced') AND COALESCE(order_date, created_at) >= ? AND COALESCE(order_date, created_at) <= ? GROUP BY m").all(businessId, yearStart, yearEnd)) as any[];
             const ordsData = (await db.prepare("SELECT CAST(EXTRACT(MONTH FROM to_timestamp(COALESCE(order_date, created_at))) AS INTEGER) as m, COUNT(*) as count FROM orders WHERE business_id = ? AND COALESCE(order_date, created_at) >= ? AND COALESCE(order_date, created_at) <= ? GROUP BY m").all(businessId, yearStart, yearEnd)) as any[];
             const delvData = (await db.prepare("SELECT CAST(EXTRACT(MONTH FROM to_timestamp(completed_at)) AS INTEGER) as m, COUNT(*) as count FROM orders WHERE business_id = ? AND status IN ('completed', 'invoiced') AND completed_at >= ? AND completed_at <= ? GROUP BY m").all(businessId, yearStart, yearEnd)) as any[];
 
@@ -104,7 +104,7 @@ export async function GET(req: Request) {
             const monthEnd = Math.floor(new Date(selectedYear, m + 1, 0, 23, 59, 59).getTime() / 1000);
 
             // Group by Week (1-4, roughly 7 days each)
-            const revData = (await db.prepare("SELECT CEIL(EXTRACT(DAY FROM to_timestamp(paid_at)) / 7.0) as w, COALESCE(SUM(amount), 0) as total FROM invoices WHERE business_id = ? AND status = 'paid' AND paid_at >= ? AND paid_at <= ? GROUP BY w").all(businessId, monthStart, monthEnd)) as any[];
+            const revData = (await db.prepare("SELECT CEIL(EXTRACT(DAY FROM to_timestamp(COALESCE(order_date, created_at))) / 7.0) as w, COALESCE(SUM(total_price), 0) as total FROM orders WHERE business_id = ? AND status IN ('approved', 'in production', 'completed', 'invoiced') AND COALESCE(order_date, created_at) >= ? AND COALESCE(order_date, created_at) <= ? GROUP BY w").all(businessId, monthStart, monthEnd)) as any[];
             const ordsData = (await db.prepare("SELECT CEIL(EXTRACT(DAY FROM to_timestamp(COALESCE(order_date, created_at))) / 7.0) as w, COUNT(*) as count FROM orders WHERE business_id = ? AND COALESCE(order_date, created_at) >= ? AND COALESCE(order_date, created_at) <= ? GROUP BY w").all(businessId, monthStart, monthEnd)) as any[];
             const delvData = (await db.prepare("SELECT CEIL(EXTRACT(DAY FROM to_timestamp(completed_at)) / 7.0) as w, COUNT(*) as count FROM orders WHERE business_id = ? AND status IN ('completed', 'invoiced') AND completed_at >= ? AND completed_at <= ? GROUP BY w").all(businessId, monthStart, monthEnd)) as any[];
 
@@ -142,9 +142,9 @@ export async function GET(req: Request) {
             `).all(businessId, startTs, endTs) as Promise<any[]>,
 
             db.prepare(`
-                SELECT c.id, c.name, COALESCE(SUM(i.amount), 0) as revenue
+                SELECT c.id, c.name, COALESCE(SUM(o.total_price), 0) as revenue
                 FROM customers c
-                LEFT JOIN invoices i ON c.id = i.customer_id AND i.status = 'paid' AND i.paid_at >= ? AND i.paid_at <= ? AND i.business_id = ?
+                LEFT JOIN orders o ON c.id = o.customer_id AND o.status IN ('approved', 'in production', 'completed', 'invoiced') AND COALESCE(o.order_date, o.created_at) >= ? AND COALESCE(o.order_date, o.created_at) <= ? AND o.business_id = ?
                 WHERE c.business_id = ?
                 GROUP BY c.id
                 ORDER BY revenue DESC

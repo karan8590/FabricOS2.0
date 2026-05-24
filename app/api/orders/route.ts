@@ -5,6 +5,7 @@ import { NotificationService } from '@/lib/notifications/service';
 import { sendTelegramMessage } from '@/lib/telegram';
 import { getActiveBusinessId } from '@/lib/auth/business';
 import { logAction } from '@/lib/auditLogger';
+import { calculateOrderFinancials } from '@/lib/financialEngine';
 
 export async function GET(request: Request) {
     try {
@@ -170,7 +171,10 @@ export async function POST(request: Request) {
 
         const body = await request.json();
         let customerId = body.customerId;
-        const { designId, quantityMeters, deliveryDate, orderDate, priority, notes, pricePerUnit } = body;
+        const { 
+            designId, quantityMeters, deliveryDate, orderDate, priority, notes, pricePerUnit,
+            baseAmount, printingCost, embroideryCostCharged, dyeingCostCharged, additionalCharges, discount, gstRate, gstAmount
+        } = body;
 
         // Security: If user is customer, force customerId to their own ID
         if (user?.role === 'customer') {
@@ -199,7 +203,26 @@ export async function POST(request: Request) {
             finalPricePerUnit = design.price_per_meter;
         }
 
-        const totalPrice = finalPricePerUnit * quantityMeters;
+        const financials = calculateOrderFinancials({
+            quantity_meters: quantityMeters,
+            price_per_unit: finalPricePerUnit,
+            base_amount: baseAmount,
+            printing_cost: printingCost,
+            embroidery_cost_charged: embroideryCostCharged,
+            dyeing_cost_charged: dyeingCostCharged,
+            additional_charges: additionalCharges,
+            discount: discount,
+            gst_rate: gstRate,
+            gst_amount: gstAmount
+        });
+
+        const totalPrice = financials.finalTotal;
+
+        console.log('[DEBUG] Order creation financials:', {
+            payloadTotal: baseAmount || (quantityMeters * finalPricePerUnit),
+            calculatedTotal: totalPrice,
+            dbSavedTotal: totalPrice
+        });
 
         // --- Order Number Generation ---
         const orderDateObj = orderDate ? new Date(orderDate * 1000) : new Date();
@@ -229,8 +252,11 @@ export async function POST(request: Request) {
 
         const result = (await db
                     .prepare(
-                        `INSERT INTO orders (customer_id, design_id, quantity_meters, total_price, status, order_number, delivery_date, order_date, priority, notes, price_per_unit, business_id)
-                 VALUES (?, ?, ?, ?, 'created', ?, ?, ?, ?, ?, ?, ?)`
+                        `INSERT INTO orders (
+                            customer_id, design_id, quantity_meters, total_price, status, order_number, delivery_date, order_date, priority, notes, price_per_unit, business_id,
+                            base_amount, printing_cost, embroidery_cost_charged, dyeing_cost_charged, additional_charges, discount, gst_rate, gst_amount
+                        )
+                 VALUES (?, ?, ?, ?, 'created', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
                     )
                     .run(
                         customerId, 
@@ -243,7 +269,15 @@ export async function POST(request: Request) {
                         priority || 'Normal', 
                         notes || null,
                         finalPricePerUnit,
-                        businessId
+                        businessId,
+                        financials.baseAmount,
+                        financials.printingCost,
+                        financials.embroideryCostCharged,
+                        financials.dyeingCostCharged,
+                        financials.additionalCharges,
+                        financials.discount,
+                        financials.gstRate,
+                        financials.gstAmount
                     ));
 
         // Update customer total orders

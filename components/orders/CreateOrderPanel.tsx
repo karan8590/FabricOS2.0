@@ -47,6 +47,17 @@ export default function CreateOrderPanel({ isOpen, onClose, onSuccess, initialCu
     const [sendSampleFirst, setSendSampleFirst] = useState(false);
     const [errors, setErrors] = useState<Record<string, string>>({});
 
+    // Advanced Cost Breakdown State
+    const [baseAmount, setBaseAmount] = useState<string>('');
+    const [printingCost, setPrintingCost] = useState<string>('');
+    const [embroideryCostCharged, setEmbroideryCostCharged] = useState<string>('');
+    const [dyeingCostCharged, setDyeingCostCharged] = useState<string>('');
+    const [additionalCharges, setAdditionalCharges] = useState<string>('');
+    const [discount, setDiscount] = useState<string>('');
+    const [gstRate, setGstRate] = useState<string>('5');
+    const [gstAmount, setGstAmount] = useState<string>('');
+    const [showAdvancedCosts, setShowAdvancedCosts] = useState(false);
+
     // Dropdown States
     const [customerSearch, setCustomerSearch] = useState('');
     const [designSearch, setDesignSearch] = useState('');
@@ -141,8 +152,27 @@ export default function CreateOrderPanel({ isOpen, onClose, onSuccess, initialCu
     const totalCalculation = useMemo(() => {
         const q = parseFloat(quantity) || 0;
         const p = parseFloat(pricePerUnit) || 0;
-        return (q * p).toLocaleString('en-IN', { maximumFractionDigits: 2, minimumFractionDigits: 2 });
-    }, [quantity, pricePerUnit]);
+        
+        let b = parseFloat(baseAmount);
+        if (isNaN(b)) b = q * p;
+        
+        const pr = parseFloat(printingCost) || 0;
+        const em = parseFloat(embroideryCostCharged) || 0;
+        const dy = parseFloat(dyeingCostCharged) || 0;
+        const ad = parseFloat(additionalCharges) || 0;
+        const di = parseFloat(discount) || 0;
+        
+        const subtotal = b + pr + em + dy + ad;
+        const taxable = subtotal - di;
+        
+        const gRate = parseFloat(gstRate) || 0;
+        let gAmt = parseFloat(gstAmount);
+        if (isNaN(gAmt)) gAmt = taxable * (gRate / 100);
+        
+        const finalTotal = taxable + gAmt;
+
+        return finalTotal.toLocaleString('en-IN', { maximumFractionDigits: 2, minimumFractionDigits: 2 });
+    }, [quantity, pricePerUnit, baseAmount, printingCost, embroideryCostCharged, dyeingCostCharged, additionalCharges, discount, gstRate, gstAmount]);
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -173,7 +203,15 @@ export default function CreateOrderPanel({ isOpen, onClose, onSuccess, initialCu
                     deliveryDate: deliveryDate ? new Date(deliveryDate).getTime() / 1000 : null,
                     orderDate: orderDate ? new Date(orderDate).getTime() / 1000 : null,
                     priority,
-                    notes
+                    notes,
+                    baseAmount: baseAmount ? parseFloat(baseAmount) : null,
+                    printingCost: printingCost ? parseFloat(printingCost) : 0,
+                    embroideryCostCharged: embroideryCostCharged ? parseFloat(embroideryCostCharged) : 0,
+                    dyeingCostCharged: dyeingCostCharged ? parseFloat(dyeingCostCharged) : 0,
+                    additionalCharges: additionalCharges ? parseFloat(additionalCharges) : 0,
+                    discount: discount ? parseFloat(discount) : 0,
+                    gstRate: gstRate ? parseFloat(gstRate) : 5,
+                    gstAmount: gstAmount ? parseFloat(gstAmount) : null
                 }),
             });
 
@@ -219,6 +257,15 @@ export default function CreateOrderPanel({ isOpen, onClose, onSuccess, initialCu
         setPriority('Normal');
         setNotes('');
         setSendSampleFirst(false);
+        setBaseAmount('');
+        setPrintingCost('');
+        setEmbroideryCostCharged('');
+        setDyeingCostCharged('');
+        setAdditionalCharges('');
+        setDiscount('');
+        setGstRate('5');
+        setGstAmount('');
+        setShowAdvancedCosts(false);
         setCustomerSearch('');
         setDesignSearch('');
         setErrors({});
@@ -365,10 +412,57 @@ export default function CreateOrderPanel({ isOpen, onClose, onSuccess, initialCu
                         <div className={styles.totalBar}>
                             <div style={{ display: 'flex', flexDirection: 'column' }}>
                                 <span className={styles.totalLabel}>Auto-calculated Order Value</span>
-                                <span style={{ fontSize: '12px', color: '#666' }}>Quantity × Price per meter</span>
+                                <span style={{ fontSize: '12px', color: '#666' }}>Inclusive of all specified costs and taxes</span>
                             </div>
                             <span className={styles.totalValue}>₹{totalCalculation}</span>
                         </div>
+                    </div>
+
+                    {/* SECTION 2.5: Cost Breakdown (Optional) */}
+                    <div className={styles.section}>
+                        <div className={styles.sectionHeader} style={{ cursor: 'pointer' }} onClick={() => setShowAdvancedCosts(!showAdvancedCosts)}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                <ShoppingBag size={14} />
+                                <span className={styles.sectionTitle}>Advanced Cost Breakdown (Optional)</span>
+                            </div>
+                            <ChevronDown size={16} style={{ transform: showAdvancedCosts ? 'rotate(180deg)' : 'rotate(0deg)', transition: '0.2s' }} />
+                        </div>
+                        {showAdvancedCosts && (
+                            <div className={styles.grid} style={{ marginTop: '16px' }}>
+                                <div className={styles.field}>
+                                    <label className={styles.label}>Base Amount Override</label>
+                                    <input type="number" className={styles.selectTrigger} placeholder="Auto if empty" value={baseAmount} onChange={e => setBaseAmount(e.target.value)} />
+                                </div>
+                                <div className={styles.field}>
+                                    <label className={styles.label}>Printing Cost</label>
+                                    <input type="number" className={styles.selectTrigger} placeholder="0" value={printingCost} onChange={e => setPrintingCost(e.target.value)} />
+                                </div>
+                                <div className={styles.field}>
+                                    <label className={styles.label}>Embroidery Cost</label>
+                                    <input type="number" className={styles.selectTrigger} placeholder="0" value={embroideryCostCharged} onChange={e => setEmbroideryCostCharged(e.target.value)} />
+                                </div>
+                                <div className={styles.field}>
+                                    <label className={styles.label}>Dyeing Cost</label>
+                                    <input type="number" className={styles.selectTrigger} placeholder="0" value={dyeingCostCharged} onChange={e => setDyeingCostCharged(e.target.value)} />
+                                </div>
+                                <div className={styles.field}>
+                                    <label className={styles.label}>Additional Charges</label>
+                                    <input type="number" className={styles.selectTrigger} placeholder="0" value={additionalCharges} onChange={e => setAdditionalCharges(e.target.value)} />
+                                </div>
+                                <div className={styles.field}>
+                                    <label className={styles.label}>Discount</label>
+                                    <input type="number" className={styles.selectTrigger} placeholder="0" value={discount} onChange={e => setDiscount(e.target.value)} />
+                                </div>
+                                <div className={styles.field}>
+                                    <label className={styles.label}>GST Rate (%)</label>
+                                    <input type="number" className={styles.selectTrigger} placeholder="5" value={gstRate} onChange={e => setGstRate(e.target.value)} />
+                                </div>
+                                <div className={styles.field}>
+                                    <label className={styles.label}>GST Amount Override</label>
+                                    <input type="number" className={styles.selectTrigger} placeholder="Auto if empty" value={gstAmount} onChange={e => setGstAmount(e.target.value)} />
+                                </div>
+                            </div>
+                        )}
                     </div>
 
                     {/* SECTION 3: Production & Logistics */}

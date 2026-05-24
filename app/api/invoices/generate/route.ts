@@ -5,6 +5,7 @@ import getDatabase from '@/lib/db';
 import { generateInvoicePDFServer } from '@/lib/pdf/generateInvoiceServer';
 import { sendTelegramDocument } from '@/lib/telegram';
 import { logAction } from '@/lib/auditLogger';
+import { calculateOrderFinancials } from '@/lib/financialEngine';
 
 export async function POST(request: Request) {
     try {
@@ -66,9 +67,10 @@ export async function POST(request: Request) {
         const now = Math.floor(Date.now() / 1000);
         const dueDate = now + (dueDays * 24 * 60 * 60);
 
-        // Calculate amount prioritizing custom price/rate from order (this is taxable amount)
+        // Use central financial engine
+        const financials = calculateOrderFinancials(order);
         const pricePerMeter = order.price_per_unit && order.price_per_unit > 0 ? order.price_per_unit : order.price_per_meter;
-        const taxableAmount = order.total_price && order.total_price > 0 ? order.total_price : (order.quantity_meters * pricePerMeter);
+        const taxableAmount = financials.subtotal - financials.discount;
 
         // Compute GST components
         // Gujarat state code is '24'. If customer state code matches billing state code, apply CGST + SGST. Else apply IGST.
@@ -95,6 +97,7 @@ export async function POST(request: Request) {
             }
         }
         
+        // Guarantee Invoice Amount equals Final Order Value
         const totalAmount = taxableAmount + gstAmount;
 
         // Generate Sequential Invoice Number (INV-YYYY-XXXX)

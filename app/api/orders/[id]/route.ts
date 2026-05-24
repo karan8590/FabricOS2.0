@@ -3,6 +3,7 @@ import getDatabase from '@/lib/db';
 import { checkPermission } from '@/lib/auth/permissions';
 import { getActiveBusinessId } from '@/lib/auth/business';
 import { logAction } from '@/lib/auditLogger';
+import { calculateOrderFinancials } from '@/lib/financialEngine';
 
 export async function GET(
     request: Request,
@@ -52,8 +53,8 @@ export async function GET(
             paidAmount = invoices.reduce((sum, inv) => sum + (inv.amount_paid || (inv.status === 'paid' ? inv.amount : 0)), 0);
             pendingAmount = totalAmount - paidAmount;
         } else {
-            // Include 5% GST default before invoicing
-            totalAmount = order.total_price * 1.05;
+            const financials = calculateOrderFinancials(order);
+            totalAmount = financials.finalTotal;
             pendingAmount = totalAmount;
         }
 
@@ -95,7 +96,7 @@ export async function GET(
                 total: totalAmount,
                 paid: paidAmount,
                 pending: pendingAmount,
-                progress: (paidAmount / totalAmount) * 100
+                progress: totalAmount > 0 ? (paidAmount / totalAmount) * 100 : 0
             },
             activities,
             jobCosts,
@@ -156,16 +157,42 @@ export async function PATCH(
         if (!businessId) return NextResponse.json({ error: 'Unauthorized business access' }, { status: 401 });
 
         const body = await request.json();
-        const { quantity_meters, delivery_date, order_date } = body;
+        const { 
+            quantity_meters, delivery_date, order_date,
+            base_amount, printing_cost, embroidery_cost_charged, dyeing_cost_charged,
+            additional_charges, discount, gst_rate, gst_amount
+        } = body;
         
         const db = getDatabase();
         
         // Fetch current order to get design_id for price recalculation if quantity changed
-        const currentOrder = (await db.prepare('SELECT design_id FROM orders WHERE id = ?').get(params.id)) as any;
+        const currentOrder = (await db.prepare('SELECT * FROM orders WHERE id = ?').get(params.id)) as any;
         if (!currentOrder) return NextResponse.json({ error: 'Order not found' }, { status: 404 });
 
         const design = (await db.prepare('SELECT price_per_meter FROM designs WHERE id = ?').get(currentOrder.design_id)) as any;
-        const total_price = quantity_meters * (design?.price_per_meter || 0);
+        const newQuantity = quantity_meters !== undefined ? quantity_meters : currentOrder.quantity_meters;
+        
+        const financials = calculateOrderFinancials({
+            ...currentOrder,
+            quantity_meters: newQuantity,
+            price_per_unit: currentOrder.price_per_unit || design?.price_per_meter,
+            base_amount: base_amount !== undefined ? base_amount : currentOrder.base_amount,
+            printing_cost: printing_cost !== undefined ? printing_cost : currentOrder.printing_cost,
+            embroidery_cost_charged: embroidery_cost_charged !== undefined ? embroidery_cost_charged : currentOrder.embroidery_cost_charged,
+            dyeing_cost_charged: dyeing_cost_charged !== undefined ? dyeing_cost_charged : currentOrder.dyeing_cost_charged,
+            additional_charges: additional_charges !== undefined ? additional_charges : currentOrder.additional_charges,
+            discount: discount !== undefined ? discount : currentOrder.discount,
+            gst_rate: gst_rate !== undefined ? gst_rate : currentOrder.gst_rate,
+            gst_amount: gst_amount !== undefined ? gst_amount : currentOrder.gst_amount
+        });
+
+        const total_price = financials.finalTotal;
+
+        console.log('[DEBUG] Order edit financials:', {
+            payloadTotal: base_amount !== undefined ? base_amount : currentOrder.base_amount,
+            calculatedTotal: total_price,
+            dbSavedTotal: total_price
+        });
 
         (await db.prepare(`
             UPDATE orders 
@@ -173,9 +200,23 @@ export async function PATCH(
                 quantity_meters = COALESCE(?, quantity_meters),
                 delivery_date = COALESCE(?, delivery_date),
                 order_date = COALESCE(?, order_date),
-                total_price = COALESCE(?, total_price)
+                total_price = ?,
+                base_amount = ?,
+                printing_cost = ?,
+                embroidery_cost_charged = ?,
+                dyeing_cost_charged = ?,
+                additional_charges = ?,
+                discount = ?,
+                gst_rate = ?,
+                gst_amount = ?
             WHERE id = ? AND business_id = ?
-        `).run(quantity_meters, delivery_date, order_date, total_price, params.id, businessId));
+        `).run(
+            quantity_meters, delivery_date, order_date, 
+            total_price, financials.baseAmount, financials.printingCost, 
+            financials.embroideryCostCharged, financials.dyeingCostCharged, 
+            financials.additionalCharges, financials.discount, financials.gstRate, financials.gstAmount,
+            params.id, businessId
+        ));
 
         // Log Activity
         (await db.prepare(`

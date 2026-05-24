@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { checkPermission } from '@/lib/auth/permissions';
 import getDatabase from '@/lib/db';
 import { getActiveBusinessId } from '@/lib/auth/business';
+import { parseSafeNumber } from '@/lib/financialEngine';
 
 export async function GET(request: Request) {
     try {
@@ -93,8 +94,8 @@ export async function GET(request: Request) {
             let status = invoice.status;
 
             // Logic for status display
-            const amountPaid = invoice.amount_paid || 0;
-            const total = invoice.amount;
+            const amountPaid = parseSafeNumber(invoice.amount_paid || 0);
+            const total = parseSafeNumber(invoice.amount);
 
             if (amountPaid >= total) {
                 status = 'paid';
@@ -107,6 +108,7 @@ export async function GET(request: Request) {
             return {
                 ...invoice,
                 status,
+                amount: total,
                 amount_paid: amountPaid,
                 last_payment_date: invoice.last_payment_date
             };
