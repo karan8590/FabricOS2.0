@@ -418,6 +418,7 @@ export default function OrdersPage() {
     ];
 
     return (
+        <>
         <div className={styles.ordersPage}>
             {selectedCustomer && (
                 <CustomerContextHeader customer={selectedCustomer} />
@@ -688,11 +689,12 @@ export default function OrdersPage() {
                     orderData={challanOrderData}
                 />
             )}
-            <QRScannerModal 
-                isOpen={isQRScannerOpen}
-                onClose={() => setIsQRScannerOpen(false)}
-                onScan={handleQRScan}
-            />
         </div>
+        <QRScannerModal 
+            isOpen={isQRScannerOpen}
+            onClose={() => setIsQRScannerOpen(false)}
+            onScan={handleQRScan}
+        />
+        </>
     );
 }
