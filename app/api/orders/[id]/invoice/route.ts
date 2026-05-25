@@ -43,6 +43,12 @@ export async function POST(
             return NextResponse.json({ error: 'Order already processed' }, { status: 400 });
         }
 
+        const business = (await db.prepare(`
+            SELECT name, phone, gst_number as gstin, address, logo_url
+            FROM businesses
+            WHERE id = ?
+        `).get(order.business_id)) as any;
+
         // Calculate dates
         const now = Math.floor(Date.now() / 1000);
         const dueDate = now + (7 * 24 * 60 * 60); // Default 7 days payment terms
@@ -81,10 +87,10 @@ export async function POST(
                 ) VALUES (?, ?, ?, ?, 'unpaid', ?, ?)
             `).run(invoiceNumber, order.customer_id, order.id, amount, now, dueDate));
 
-            // 2. Update Order Status to 'invoiced'
+            // 2. Update Order invoice_generated flag
             (await db.prepare(`
-                UPDATE orders SET status = 'invoiced', completed_at = ? WHERE id = ?
-            `).run(now, orderId));
+                UPDATE orders SET invoice_generated = TRUE WHERE id = ?
+            `).run(orderId));
 
             // 3. Update Customer Outstanding Balance
             (await db.prepare(`
@@ -113,7 +119,12 @@ export async function POST(
                 fabric_type: order.fabric_type || 'Printed Fabric',
                 quantity_meters: order.quantity_meters,
                 price_per_meter: pricePerMeter,
-                generated_by: payload.name || 'System'
+                generated_by: payload.name || 'System',
+                seller_name: business?.name,
+                seller_phone: business?.phone,
+                seller_gstin: business?.gstin,
+                seller_address: business?.address,
+                seller_logo: business?.logo_url
             });
             fileBuffer = pdfResult.buffer;
 

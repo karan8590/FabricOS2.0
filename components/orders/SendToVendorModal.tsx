@@ -7,11 +7,11 @@ interface SendToVendorModalProps {
     isOpen: boolean;
     onClose: () => void;
     onSuccess: () => void;
-    order: any;
+    orders: any[];
     action: 'send_to_embroidery' | 'send_to_dyeing';
 }
 
-export default function SendToVendorModal({ isOpen, onClose, onSuccess, order, action }: SendToVendorModalProps) {
+export default function SendToVendorModal({ isOpen, onClose, onSuccess, orders, action }: SendToVendorModalProps) {
     const [vendors, setVendors] = useState<any[]>([]);
     const [selectedVendorId, setSelectedVendorId] = useState<string>('');
     const [rate, setRate] = useState<string>('');
@@ -37,8 +37,9 @@ export default function SendToVendorModal({ isOpen, onClose, onSuccess, order, a
     }, []);
 
     useEffect(() => {
-        if (isOpen && order) {
-            setMeters(order.quantity_meters?.toString() || '');
+        if (isOpen && orders && orders.length > 0) {
+            const totalMeters = orders.reduce((sum, o) => sum + Number(o.quantity_meters || 0), 0);
+            setMeters(totalMeters.toString());
             setRate('');
             setSelectedVendorId('');
             setNotes('');
@@ -60,7 +61,7 @@ export default function SendToVendorModal({ isOpen, onClose, onSuccess, order, a
             
             fetchVendors();
         }
-    }, [isOpen, order, action]);
+    }, [isOpen, orders, action]);
 
     const fetchVendors = () => {
         fetch('/api/vendors')
@@ -77,7 +78,7 @@ export default function SendToVendorModal({ isOpen, onClose, onSuccess, order, a
             .catch(console.error);
     };
 
-    if (!isOpen || !order || !mounted) return null;
+    if (!isOpen || !orders || orders.length === 0 || !mounted) return null;
 
     const title = isEmbroidery ? 'Send to Embroidery Vendor' : 'Send to Dyeing Vendor';
     const parsedRate = parseFloat(rate) || 0;
@@ -119,18 +120,18 @@ export default function SendToVendorModal({ isOpen, onClose, onSuccess, order, a
         setError('');
 
         try {
-            const res = await fetch(`/api/orders/${order.id}/workflow`, {
+            const res = await fetch('/api/orders/bulk-workflow', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
+                    orderIds: orders.map(o => o.id),
                     action,
-                    vendorId: parseInt(selectedVendorId),
+                    vendorId: selectedVendorId,
                     rate: parsedRate,
-                    metres: parsedMeters,
                     expectedReturnDate: expectedDate,
                     paymentDueDate: formattedCalculatedDueDate,
-                    generateChallan,
-                    notes
+                    notes,
+                    generateChallan
                 })
             });
 
@@ -214,7 +215,7 @@ export default function SendToVendorModal({ isOpen, onClose, onSuccess, order, a
                     <div>
                         <h2 className={styles.title}>{isCreatingVendor ? 'Add New Vendor' : title}</h2>
                         <p className={styles.subtitle}>
-                            {isCreatingVendor ? 'Create a new vendor profile' : `Order ${order.order_number || order.id} (${order.customer_name})`}
+                            {isCreatingVendor ? 'Create a new vendor profile' : `${orders.length} orders selected`}
                         </p>
                     </div>
                     <button onClick={onClose} className={styles.closeBtn}>

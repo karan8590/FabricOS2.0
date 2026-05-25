@@ -148,10 +148,14 @@ export async function POST(request: Request) {
                             gstType
                         ));
 
-            // 2. Update Order Status to 'invoiced' (maps to 'Delivered' in UI)
+            // 2. Add column if it doesn't exist (silent fail) and update invoice_generated flag
+            try {
+                await db.prepare('ALTER TABLE orders ADD COLUMN invoice_generated BOOLEAN DEFAULT FALSE').run();
+            } catch (e) {}
+
             (await db.prepare(`
-                UPDATE orders SET status = 'invoiced', completed_at = ? WHERE id = ?
-            `).run(now, orderId));
+                UPDATE orders SET invoice_generated = TRUE WHERE id = ?
+            `).run(orderId));
 
             // 3. Update Customer Outstanding Balance (inclusive of GST)
             (await db.prepare(`

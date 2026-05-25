@@ -75,7 +75,7 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
         items = [
             { label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
             { label: 'Orders', href: '/orders', icon: ShoppingBag },
-            { label: 'Dispatch Center', href: '/dispatch', icon: Truck },
+            { label: 'Dispatch Center', href: '/dispatch-center', icon: Truck },
             { label: 'Invoices', href: '/invoices', icon: Receipt },
             { label: 'Cash Book', href: '/expenses', icon: Wallet },
             { label: 'Vendor Payments', href: '/vendor-payments', icon: Landmark },

@@ -39,7 +39,7 @@ export async function GET(request: Request) {
         (await db.prepare(`
             UPDATE vendor_payments 
             SET status = 'overdue' 
-            WHERE due_date < ? AND status = 'unpaid'
+            WHERE due_date < ? AND status = 'unpaid' AND COALESCE(is_deleted, false) = false
         `).run(todayStr));
 
         const later = new Date();
@@ -51,7 +51,6 @@ export async function GET(request: Request) {
         const endMonth = new Date(localYear, now.getMonth() + 1, 0);
         const endOfMonth = `${endMonth.getFullYear()}-${String(endMonth.getMonth() + 1).padStart(2, '0')}-${String(endMonth.getDate()).padStart(2, '0')}`;
 
-        // 2. Fetch KPI Stats in Parallel
         const [
             outstandingRow,
             overdueRow,
@@ -61,23 +60,23 @@ export async function GET(request: Request) {
             db.prepare(`
                 SELECT COALESCE(SUM(balance), 0) AS val 
                 FROM vendor_payments 
-                WHERE status != 'paid' AND business_id = ?
+                WHERE status != 'paid' AND business_id = ? AND COALESCE(is_deleted, false) = false
             `).get(businessId) as Promise<any>,
             db.prepare(`
                 SELECT COALESCE(SUM(balance), 0) AS val 
                 FROM vendor_payments 
-                WHERE status = 'overdue' AND business_id = ?
+                WHERE status = 'overdue' AND business_id = ? AND COALESCE(is_deleted, false) = false
             `).get(businessId) as Promise<any>,
             db.prepare(`
                 SELECT COALESCE(SUM(balance), 0) AS val 
                 FROM vendor_payments 
-                WHERE due_date >= ? AND due_date <= ? AND status != 'paid' AND business_id = ?
+                WHERE due_date >= ? AND due_date <= ? AND status != 'paid' AND business_id = ? AND COALESCE(is_deleted, false) = false
             `).get(todayStr, sevenDaysLater, businessId) as Promise<any>,
             db.prepare(`
                 SELECT COALESCE(SUM(amount), 0) AS val 
                 FROM vendor_payment_instalments vpi
                 JOIN vendor_payments vp ON vpi.vendor_payment_id = vp.id
-                WHERE vpi.date >= ? AND vpi.date <= ? AND vp.business_id = ?
+                WHERE vpi.date >= ? AND vpi.date <= ? AND vp.business_id = ? AND COALESCE(vp.is_deleted, false) = false
             `).get(startOfMonth, endOfMonth, businessId) as Promise<any>
         ]);
 
@@ -89,7 +88,7 @@ export async function GET(request: Request) {
         // 3. Retrieve and Filter Payments
         let query = `
             SELECT * FROM vendor_payments 
-            WHERE 1=1 AND business_id = ?
+            WHERE COALESCE(is_deleted, false) = false AND business_id = ?
         `;
         const params: any[] = [businessId];
 

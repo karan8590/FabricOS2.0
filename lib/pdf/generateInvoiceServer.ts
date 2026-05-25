@@ -28,8 +28,10 @@ interface InvoicePDFData {
     price_per_meter: number;
     generated_by?: string;
     seller_name?: string;
+    seller_phone?: string;
     seller_address?: string;
     seller_gstin?: string;
+    seller_logo?: string;
 }
 
 export async function generateInvoicePDFServer(data: InvoicePDFData): Promise<{ relativePath: string; buffer: Buffer }> {
@@ -65,20 +67,33 @@ export async function generateInvoicePDFServer(data: InvoicePDFData): Promise<{ 
     // ==========================================
     
     // Left: Business Info
+    let currentY = startY;
+    if (data.seller_logo) {
+        try {
+            // Assume 25x25 box for logo
+            doc.addImage(data.seller_logo, margin, currentY, 25, 25);
+            currentY += 30;
+        } catch (e) {
+            console.error('Failed to add invoice logo:', e);
+            currentY = startY;
+        }
+    }
+
     doc.setFont('helvetica', 'bold');
     doc.setFontSize(16);
     doc.setTextColor(colorTextPrimary);
-    doc.text(data.seller_name || 'FABRICOS TEXTILES', margin, startY + 5);
+    doc.text(data.seller_name || 'FABRICOS TEXTILES', margin, currentY);
+    currentY += 5;
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.5);
     doc.setTextColor(colorTextSecondary);
     
-    let currentY = startY + 10;
     const address = data.seller_address || 'Plot No. 45-48, Sachin GIDC, Surat, Gujarat - 394230';
     doc.text(address, margin, currentY);
     currentY += 4;
-    doc.text('Phone: +91 98765 43210 | E-mail: billing@fabricos.com', margin, currentY);
+    const phoneStr = data.seller_phone ? `Phone: ${data.seller_phone}` : 'Phone: +91 98765 43210';
+    doc.text(`${phoneStr} | E-mail: billing@fabricos.com`, margin, currentY);
     currentY += 4;
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(colorTextPrimary);

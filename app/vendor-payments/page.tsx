@@ -1,10 +1,11 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import Link from 'next/link';
 import styles from './VendorPayments.module.css';
 import tableStyles from '@/components/ui/Table.module.css';
 import actionBtnStyles from '@/components/orders/ProductionActionButton.module.css';
+import AddVendorModal from '@/components/vendors/AddVendorModal';
 import { 
     Clock, 
     AlertCircle, 
@@ -48,7 +49,7 @@ interface VendorPayment {
     vendor_phone: string;
     order_id: number | null;
     order_number: string | null;
-    work_type: 'embroidery' | 'dyeing';
+    work_type: 'embroidery' | 'dyeing' | 'FABRIC' | 'PRINTING INK' | 'PACKAGING' | 'ACCESSORIES' | 'EMBROIDERY MATERIAL' | 'OTHER';
     total_amount: number;
     amount_paid: number;
     balance: number;
@@ -56,8 +57,22 @@ interface VendorPayment {
     status: 'paid' | 'partial' | 'unpaid' | 'overdue';
     linked_job_cost_id: number | null;
     created_at: number;
+    notes?: string;
     instalments: Instalment[];
 }
+
+const getWorkTypeDisplay = (type: string) => {
+    switch(type) {
+        case 'embroidery': return { label: 'Embroidery', className: styles.embroideryBadge };
+        case 'dyeing': return { label: 'Dyeing', className: styles.dyeingBadge };
+        case 'FABRIC': return { label: 'FABRIC', className: styles.fabricBadge };
+        case 'PRINTING INK': return { label: 'PRINTING INK', className: styles.inkBadge };
+        case 'PACKAGING': return { label: 'PACKAGING', className: styles.packagingBadge };
+        case 'ACCESSORIES': return { label: 'ACCESSORIES', className: styles.accessoriesBadge };
+        case 'EMBROIDERY MATERIAL': return { label: 'EMBROIDERY MATERIAL', className: styles.embroideryBadge };
+        default: return { label: 'Other', className: styles.otherBadge };
+    }
+};
 
 interface Vendor {
     id: number;
@@ -87,14 +102,16 @@ export default function VendorPaymentsPage() {
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
 
     // Collapsible Groups State
-    const [expandedVendors, setExpandedVendors] = useState<Record<string, boolean>>({});
+    const [expandedVendorName, setExpandedVendorName] = useState<string | null>(null);
+
+    // Vendor Type Filter State
+    const [activeVendorType, setActiveVendorType] = useState('All');
 
     // Action Menu Popover
     const [activeMenuId, setActiveMenuId] = useState<number | null>(null);
 
     // Modals visibility
     const [isPayModalOpen, setIsPayModalOpen] = useState(false);
-    const [isManualModalOpen, setIsManualModalOpen] = useState(false);
     const [isEditDateModalOpen, setIsEditDateModalOpen] = useState(false);
 
     // Vendor audit logs
@@ -112,28 +129,37 @@ export default function VendorPaymentsPage() {
     const [paymentNotes, setPaymentNotes] = useState('');
     const [processingPayment, setProcessingPayment] = useState(false);
 
-    // Add Manual Due Form State
-    const [manualVendorId, setManualVendorId] = useState('');
-    const [manualWorkType, setManualWorkType] = useState<'embroidery' | 'dyeing'>('embroidery');
-    const [manualAmount, setManualAmount] = useState<number>(0);
-    const [manualDaysUntilDue, setManualDaysUntilDue] = useState('7');
-    const [manualNotes, setManualNotes] = useState('');
-    const [savingManual, setSavingManual] = useState(false);
+    // Add Vendor Modal State
+    const [isAddVendorModalOpen, setIsAddVendorModalOpen] = useState(false);
+    const [savingVendor, setSavingVendor] = useState(false);
+    
+    // Vendor Form Fields
+    const [vendorName, setVendorName] = useState('');
+    const [vendorType, setVendorType] = useState('Fabric Supplier');
+    const [vendorPhone, setVendorPhone] = useState('');
+    const [vendorAltPhone, setVendorAltPhone] = useState('');
+    const [vendorEmail, setVendorEmail] = useState('');
+    const [vendorGst, setVendorGst] = useState('');
+    const [vendorAddress, setVendorAddress] = useState('');
+    const [vendorVehicleNumber, setVendorVehicleNumber] = useState('');
+    const [vendorDriverName, setVendorDriverName] = useState('');
+    const [vendorVehicleType, setVendorVehicleType] = useState('');
+    const [vendorRoute, setVendorRoute] = useState('');
+    
+    const [vendorWorkCategory, setVendorWorkCategory] = useState('Embroidery');
+    const [vendorRateType, setVendorRateType] = useState('');
+    const [vendorPaymentTerms, setVendorPaymentTerms] = useState('');
+    const [vendorUpi, setVendorUpi] = useState('');
+    const [vendorBankName, setVendorBankName] = useState('');
+    const [vendorAccountNum, setVendorAccountNum] = useState('');
+    const [vendorIfsc, setVendorIfsc] = useState('');
+    
+    const [vendorNotes, setVendorNotes] = useState('');
+    const [vendorIsActive, setVendorIsActive] = useState(true);
 
     // Edit Due Date Form State
     const [editDaysUntilDue, setEditDaysUntilDue] = useState('30');
     const [savingDueDate, setSavingDueDate] = useState(false);
-
-    const calculatedManualDueDate = useMemo(() => {
-        return calculatePaymentDueDate(parseInt(manualDaysUntilDue) || 0);
-    }, [manualDaysUntilDue]);
-
-    const displayManualDueDate = useMemo(() => {
-        if (!calculatedManualDueDate) return '';
-        const [year, month, day] = calculatedManualDueDate.split('-').map(Number);
-        const d = new Date(year, month - 1, day);
-        return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
-    }, [calculatedManualDueDate]);
 
     const calculatedEditDueDate = useMemo(() => {
         if (!selectedPayment) return '';
@@ -319,46 +345,78 @@ export default function VendorPaymentsPage() {
         }
     };
 
-    // Submit Manual Outstanding Payment
-    const handleManualSubmit = async (e: React.FormEvent) => {
+    const handleAddVendorSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
-        if (!manualVendorId || manualAmount <= 0) {
-            alert('Please select a vendor and enter a valid amount.');
+        if (!vendorName || !vendorPhone || !vendorWorkCategory) {
+            alert('Please fill out all required fields.');
             return;
         }
 
         try {
-            setSavingManual(true);
-            const res = await fetch('/api/vendor-payments', {
+            setSavingVendor(true);
+            const payload = {
+                name: vendorName,
+                contact: vendorPhone,
+                altPhone: vendorAltPhone,
+                email: vendorEmail,
+                materialSupplied: vendorType === 'transport' ? 'Transport Services' : vendorWorkCategory,
+                balance: 0,
+                vendorType: vendorType,
+                gstNo: vendorGst,
+                address: vendorAddress,
+                rateType: vendorRateType,
+                paymentTerms: vendorPaymentTerms,
+                upiId: vendorUpi,
+                bankName: vendorBankName,
+                accountNumber: vendorAccountNum,
+                ifscCode: vendorIfsc,
+                notes: vendorNotes,
+                status: vendorIsActive ? 'active' : 'inactive',
+                vehicleNumber: vendorVehicleNumber || null,
+                driverName: vendorDriverName || null,
+                vehicleType: vendorVehicleType || null,
+                defaultRoute: vendorRoute || null
+            };
+
+            const res = await fetch('/api/vendors', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    vendor_id: parseInt(manualVendorId),
-                    work_type: manualWorkType,
-                    total_amount: manualAmount,
-                    due_date: calculatedManualDueDate,
-                    notes: manualNotes
-                })
+                body: JSON.stringify(payload)
             });
 
             if (res.ok) {
-                alert('Outstanding vendor payment successfully registered! ✓');
-                setIsManualModalOpen(false);
+                alert('Vendor profile successfully created! ✓');
+                setIsAddVendorModalOpen(false);
+                
                 // Clear state
-                setManualVendorId('');
-                setManualAmount(0);
-                setManualDaysUntilDue('7');
-                setManualNotes('');
-                fetchPaymentsData();
+                setVendorName('');
+                setVendorPhone('');
+                setVendorAltPhone('');
+                setVendorEmail('');
+                setVendorGst('');
+                setVendorAddress('');
+                setVendorRateType('');
+                setVendorPaymentTerms('');
+                setVendorUpi('');
+                setVendorBankName('');
+                setVendorAccountNum('');
+                setVendorIfsc('');
+                setVendorNotes('');
+                setVendorVehicleNumber('');
+                setVendorDriverName('');
+                setVendorVehicleType('');
+                setVendorRoute('');
+                
+                fetchVendorsList(); // Re-fetch all vendors to update UI
             } else {
                 const data = await res.json();
-                alert(data.error || 'Failed to register manual payment.');
+                alert(data.error || 'Failed to create vendor.');
             }
         } catch (err) {
-            console.error('Manual submit error:', err);
-            alert('Unexpected error saving outstanding payment.');
+            console.error('Vendor creation error:', err);
+            alert('Unexpected error creating vendor.');
         } finally {
-            setSavingManual(false);
+            setSavingVendor(false);
         }
     };
 
@@ -491,6 +549,7 @@ export default function VendorPaymentsPage() {
             vendorId: number;
             vendorName: string;
             vendorPhone: string;
+            vendorType: string;
             payments: VendorPayment[];
             stats: {
                 count: number;
@@ -498,6 +557,7 @@ export default function VendorPaymentsPage() {
                 amountPaid: number;
                 balance: number;
                 overdueCount: number;
+                lastPaymentDate: string | null;
             };
         }> = {};
 
@@ -508,8 +568,9 @@ export default function VendorPaymentsPage() {
                     vendorId: p.vendor_id,
                     vendorName: p.vendor_name,
                     vendorPhone: p.vendor_phone,
+                    vendorType: p.work_type === 'embroidery' || p.work_type === 'EMBROIDERY MATERIAL' ? 'Embroidery' : p.work_type === 'dyeing' ? 'Dyeing' : getWorkTypeDisplay(p.work_type).label,
                     payments: [],
-                    stats: { count: 0, totalAmount: 0, amountPaid: 0, balance: 0, overdueCount: 0 }
+                    stats: { count: 0, totalAmount: 0, amountPaid: 0, balance: 0, overdueCount: 0, lastPaymentDate: null }
                 };
             }
 
@@ -521,27 +582,47 @@ export default function VendorPaymentsPage() {
             if (p.status === 'overdue') {
                 groups[key].stats.overdueCount += 1;
             }
+
+            // Find latest payment date
+            if (p.instalments && p.instalments.length > 0) {
+                const latest = p.instalments.reduce((latestDate, inst) => {
+                    return (!latestDate || new Date(inst.date) > new Date(latestDate)) ? inst.date : latestDate;
+                }, groups[key].stats.lastPaymentDate || '');
+                if (latest) groups[key].stats.lastPaymentDate = latest;
+            }
         });
 
-        return Object.values(groups).sort((a, b) => b.stats.balance - a.stats.balance);
-    }, [sortedPayments]);
+        // Merge vendors with 0 payments
+        vendors.forEach(v => {
+            const key = v.name;
+            if (!groups[key]) {
+                groups[key] = {
+                    vendorId: v.id,
+                    vendorName: v.name,
+                    vendorPhone: v.contact || '',
+                    vendorType: v.vendor_type === 'Job Work' ? 'Embroidery' : v.vendor_type || 'Other',
+                    payments: [],
+                    stats: { count: 0, totalAmount: 0, amountPaid: 0, balance: 0, overdueCount: 0, lastPaymentDate: null }
+                };
+            }
+        });
 
-    // Initialize all expanded by default
-    useEffect(() => {
-        if (groupedSections.length > 0 && Object.keys(expandedVendors).length === 0) {
-            const initial: Record<string, boolean> = {};
-            groupedSections.forEach(g => {
-                initial[g.vendorName] = true;
-            });
-            setExpandedVendors(initial);
+        let result = Object.values(groups);
+        if (activeVendorType !== 'All') {
+            result = result.filter(g => g.vendorType === activeVendorType);
         }
-    }, [groupedSections]);
+
+        return result.sort((a, b) => b.stats.balance - a.stats.balance);
+    }, [sortedPayments, vendors, activeVendorType]);
+
+    // Initialize all expanded by default - removed per new accordion logic
+    useEffect(() => {
+        // We start with none expanded
+        setExpandedVendorName(null);
+    }, [activeVendorType, activeFilter]);
 
     const toggleVendor = (vendorName: string) => {
-        setExpandedVendors(prev => ({
-            ...prev,
-            [vendorName]: !prev[vendorName]
-        }));
+        setExpandedVendorName(prev => prev === vendorName ? null : vendorName);
     };
 
     // Sub-text values counts
@@ -629,8 +710,8 @@ export default function VendorPaymentsPage() {
 
                                 {/* WORK TYPE */}
                                 <td className={tableStyles.td}>
-                                    <span className={p.work_type === 'embroidery' ? styles.embroideryBadge : styles.dyeingBadge}>
-                                        {p.work_type === 'embroidery' ? 'Embroidery' : 'Dyeing'}
+                                    <span className={getWorkTypeDisplay(p.work_type).className}>
+                                        {getWorkTypeDisplay(p.work_type).label}
                                     </span>
                                 </td>
 
@@ -758,15 +839,11 @@ export default function VendorPaymentsPage() {
                 <button 
                     className="action-btn-primary"
                     onClick={() => {
-                        setManualVendorId('');
-                        setManualAmount(0);
-                        setManualDaysUntilDue('7');
-                        setManualNotes('');
-                        setIsManualModalOpen(true);
+                        setIsAddVendorModalOpen(true);
                     }}
                 >
                     <Plus size={16} />
-                    <span>Add Payment Due</span>
+                    <span>Add Vendor</span>
                 </button>
             </div>
 
@@ -886,18 +963,18 @@ export default function VendorPaymentsPage() {
 
             </div>
 
-            {/* Filter Pills matching quickMonthTabs */}
-            <div className={styles.quickMonthTabs}>
-                {['All', 'Overdue', 'Due this week', 'Unpaid', 'Partial', 'Paid'].map((f) => (
+            {/* Vendor Category Toggle */}
+            <div className={styles.quickMonthTabs} style={{ marginTop: '24px', marginBottom: '16px' }}>
+                {['All', 'Embroidery', 'Dyeing', 'Fabric', 'Ink', 'Printing', 'Stitching', 'Packaging', 'Transport', 'Other'].map(type => (
                     <button
-                        key={f}
-                        className={`${styles.quickMonthTab} ${activeFilter === f ? styles.quickMonthTabActive : ''}`}
+                        key={type}
+                        className={`${styles.quickMonthTab} ${activeVendorType === type ? styles.quickMonthTabActive : ''}`}
                         onClick={() => {
-                            setActiveFilter(f);
-                            setActiveWidget(null); // Clear card filters on tab changes
+                            setActiveVendorType(type);
+                            setExpandedVendorName(null);
                         }}
                     >
-                        {f}
+                        {type}
                     </button>
                 ))}
             </div>
@@ -922,53 +999,108 @@ export default function VendorPaymentsPage() {
                     {renderTable(sortedPayments)}
                 </div>
             ) : (
-                <div className={styles.groupedContainer}>
-                    {groupedSections.map((g) => (
-                        <div key={g.vendorName} className={styles.monthGroup}>
-                            {/* Vendor collapsible Header */}
-                            <div className={styles.monthGroupHeader} onClick={() => toggleVendor(g.vendorName)}>
-                                <div className={styles.monthGroupTitleGroup}>
-                                    <ChevronDown 
-                                        size={16} 
-                                        className={`${styles.collapseArrow} ${expandedVendors[g.vendorName] ? styles.collapseArrowExpanded : ''}`} 
-                                    />
-                                    <span className={styles.monthGroupTitle}>{g.vendorName}</span>
+                <div className={styles.vendorGrid}>
+                    {groupedSections.map((g) => {
+                        const isExpanded = expandedVendorName === g.vendorName;
+                        const progressPercent = Math.min(100, Math.max(0, (g.stats.amountPaid / g.stats.totalAmount) * 100)) || 0;
+                        
+                        return (
+                            <React.Fragment key={g.vendorName}>
+                                <div 
+                                    className={`${styles.vendorCard} ${isExpanded ? styles.vendorCardActive : ''}`}
+                                    onClick={() => toggleVendor(g.vendorName)}
+                                >
+                                    <div className={styles.vendorCardHeader}>
+                                        <div>
+                                            <div className={styles.vendorCardName}>{g.vendorName}</div>
+                                            <div className={styles.vendorCardPhone}>{g.vendorPhone || 'No contact'}</div>
+                                        </div>
+                                        <div className={g.vendorType === 'Embroidery' ? styles.embroideryBadge : g.vendorType === 'Dyeing' ? styles.dyeingBadge : styles.manualBadge}>
+                                            {g.vendorType}
+                                        </div>
+                                    </div>
+                                    
+                                    <div className={styles.vendorCardStats}>
+                                        <div className={styles.vendorCardStatItem}>
+                                            <span className={styles.vendorCardStatLabel}>Outstanding</span>
+                                            <span className={`${styles.vendorCardStatValue} ${g.stats.balance > 0 ? styles.vendorCardAmount : ''}`}>
+                                                {formatCurrency(g.stats.balance)}
+                                            </span>
+                                        </div>
+                                        <div className={styles.vendorCardStatItem} style={{ alignItems: 'center' }}>
+                                            <span className={styles.vendorCardStatLabel}>Bills</span>
+                                            <span className={styles.vendorCardStatValue}>{g.stats.count}</span>
+                                        </div>
+                                        <div className={styles.vendorCardStatItem} style={{ alignItems: 'flex-end' }}>
+                                            <span className={styles.vendorCardStatLabel}>Last Paid</span>
+                                            <span className={styles.vendorCardStatValue} style={{ fontWeight: 500 }}>
+                                                {g.stats.lastPaymentDate ? formatDueDate(g.stats.lastPaymentDate) : '-'}
+                                            </span>
+                                        </div>
+                                    </div>
+
+                                    <div className={styles.vendorCardFooter}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+                                            <div style={{ display: 'flex', gap: '6px' }}>
+                                                {g.stats.overdueCount > 0 && <span className={`${styles.summaryPill} ${styles.pillUrgent}`} style={{ padding: '2px 6px', fontSize: '10px' }}>Overdue</span>}
+                                                {g.stats.balance > 0 && g.stats.amountPaid > 0 && <span className={`${styles.summaryPill} ${styles.pillWarning}`} style={{ padding: '2px 6px', fontSize: '10px' }}>Partial</span>}
+                                                {g.stats.balance === 0 && <span className={styles.summaryPill} style={{ padding: '2px 6px', fontSize: '10px', background: 'rgba(52, 199, 89, 0.1)', color: '#34C759', borderColor: 'rgba(52, 199, 89, 0.2)' }}>Paid</span>}
+                                                {g.stats.amountPaid === 0 && g.stats.balance > 0 && <span className={styles.summaryPill} style={{ padding: '2px 6px', fontSize: '10px' }}>Unpaid</span>}
+                                            </div>
+                                            <span style={{ fontSize: '11px', fontWeight: 600, color: 'var(--text-secondary)' }}>{Math.round(progressPercent)}% paid</span>
+                                        </div>
+                                        <div className={styles.progressBar}>
+                                            <div 
+                                                className={styles.progressFill} 
+                                                style={{ 
+                                                    width: `${progressPercent}%`,
+                                                    backgroundColor: '#16A34A'
+                                                }}
+                                            />
+                                        </div>
+                                    </div>
                                 </div>
                                 
-                                <div className={styles.monthGroupSummaryPills}>
-                                    <div className={styles.summaryPill}>
-                                        <span className={styles.pillValue}>{g.stats.count}</span>
-                                        <span className={styles.pillLabel}>dues</span>
-                                    </div>
-                                    <div className={styles.summaryPill}>
-                                        <span className={styles.pillValue}>{formatCurrency(g.stats.totalAmount)}</span>
-                                        <span className={styles.pillLabel}>total</span>
-                                    </div>
-                                    <div className={styles.summaryPill}>
-                                        <span className={styles.pillValue}>{formatCurrency(g.stats.amountPaid)}</span>
-                                        <span className={styles.pillLabel}>paid</span>
-                                    </div>
-                                    {g.stats.balance > 0 && (
-                                        <div className={`${styles.summaryPill} ${styles.pillWarning}`}>
-                                            <span className={styles.pillValue}>{formatCurrency(g.stats.balance)}</span>
-                                            <span className={styles.pillLabel}>outstanding</span>
+                                {isExpanded && (
+                                    <div className={styles.expandedRow}>
+                                        <div className={styles.expandedPanelContainer}>
+                                            <div className={styles.expandedPanelHeader}>
+                                                <div className={styles.expandedPanelTitle}>
+                                                    Vendor Details <span style={{ color: 'var(--text-tertiary)' }}>•</span> <span style={{ color: 'var(--accent)' }}>{g.vendorName}</span>
+                                                </div>
+                                                <div className={styles.expandedPanelStats}>
+                                                    <div className={styles.expandedPanelStat}>
+                                                        <span className={styles.expandedPanelSubtitle}>Outstanding:</span>
+                                                        <span className={`${styles.expandedPanelStatValue} ${g.stats.balance > 0 ? styles.vendorCardAmount : ''}`}>{formatCurrency(g.stats.balance)}</span>
+                                                    </div>
+                                                    <div className={styles.expandedPanelStat}>
+                                                        <span className={styles.expandedPanelSubtitle}>Invoices:</span>
+                                                        <span className={styles.expandedPanelStatValue}>{g.stats.count}</span>
+                                                    </div>
+                                                    {g.stats.overdueCount > 0 && (
+                                                        <div className={styles.expandedPanelStat}>
+                                                            <span className={styles.expandedPanelSubtitle}>Overdue:</span>
+                                                            <span className={styles.expandedPanelStatValue} style={{ color: '#FF3B30' }}>{g.stats.overdueCount}</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                            <div className={styles.tableCard} style={{ margin: 0, border: 'none', borderRadius: 0, boxShadow: 'none' }}>
+                                                {g.payments.length === 0 ? (
+                                                    <div style={{ padding: '32px', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                                        <p style={{ margin: 0, fontWeight: 500 }}>No active vendor payments</p>
+                                                        <p style={{ margin: '4px 0 0 0', fontSize: '13px' }}>Outstanding balance is zero.</p>
+                                                    </div>
+                                                ) : (
+                                                    renderTable(g.payments)
+                                                )}
+                                            </div>
                                         </div>
-                                    )}
-                                    {g.stats.overdueCount > 0 && (
-                                        <div className={`${styles.summaryPill} ${styles.pillUrgent}`}>
-                                            <span className={styles.pillValue}>{g.stats.overdueCount}</span>
-                                            <span className={styles.pillLabel}>overdue</span>
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Vendor collapsible content list */}
-                            <div className={`${styles.monthGroupContent} ${expandedVendors[g.vendorName] ? styles.monthGroupContentExpanded : ''}`}>
-                                {renderTable(g.payments)}
-                            </div>
-                        </div>
-                    ))}
+                                    </div>
+                                )}
+                            </React.Fragment>
+                        );
+                    })}
                 </div>
             )}
 
@@ -978,8 +1110,7 @@ export default function VendorPaymentsPage() {
                     <div className={`${styles.modalContent} ${styles.modalContentLarge}`} onClick={(e) => e.stopPropagation()}>
                         <h2 className={styles.modalTitle}>Pay Vendor — {selectedPayment.vendor_name}</h2>
                         <p className={styles.modalSubtitle}>
-                            {selectedPayment.work_type === 'embroidery' ? 'Embroidery' : 'Dyeing'} outsourcing 
-                            {selectedPayment.order_number ? ` for Order #${selectedPayment.order_number}` : ''}
+                            {selectedPayment.notes ? selectedPayment.notes : `${getWorkTypeDisplay(selectedPayment.work_type).label} outsourcing invoice for Order #${selectedPayment.order_number || selectedPayment.order_id}`}
                         </p>
 
                         <form onSubmit={handlePaySubmit}>
@@ -1121,115 +1252,15 @@ export default function VendorPaymentsPage() {
                 </div>
             )}
 
-            {/* Add Manual Outstanding Due Modal */}
-            {isManualModalOpen && (
-                <div className={styles.modalOverlay} onClick={() => setIsManualModalOpen(false)}>
-                    <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
-                        <h2 className={styles.modalTitle}>Add Payment Due</h2>
-                        <p className={styles.modalSubtitle}>Register a manual outsourced payment due outside of standard orders workflow</p>
-
-                        <form onSubmit={handleManualSubmit}>
-                            <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>Select External Vendor</label>
-                                <select 
-                                    className={styles.formSelect}
-                                    value={manualVendorId}
-                                    onChange={(e) => setManualVendorId(e.target.value)}
-                                    required
-                                >
-                                    <option value="">-- Choose outsourcing vendor --</option>
-                                    {vendors.map((v) => (
-                                        <option key={v.id} value={v.id}>{v.name} ({v.contact || 'No Contact'})</option>
-                                    ))}
-                                </select>
-                            </div>
-
-                            <div className={styles.formRow}>
-                                <div className={styles.formGroup}>
-                                    <label className={styles.formLabel}>Work Category</label>
-                                    <select 
-                                        className={styles.formSelect}
-                                        value={manualWorkType}
-                                        onChange={(e) => setManualWorkType(e.target.value as 'embroidery' | 'dyeing')}
-                                    >
-                                        <option value="embroidery">Embroidery Work</option>
-                                        <option value="dyeing">Dyeing Work</option>
-                                    </select>
-                                </div>
-                                <div className={styles.formGroup}>
-                                    <label className={styles.formLabel}>Total Cost Owed (₹)</label>
-                                    <input 
-                                        type="number"
-                                        className={styles.formInput}
-                                        value={manualAmount || ''}
-                                        min="1"
-                                        onChange={(e) => setManualAmount(parseFloat(e.target.value) || 0)}
-                                        placeholder="Owed amount in ₹"
-                                        required
-                                    />
-                                </div>
-                            </div>
-
-                            <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>Days Until Due <span style={{color: '#FF3B30'}}>*</span></label>
-                                <input 
-                                    type="number"
-                                    className={styles.formInput}
-                                    value={manualDaysUntilDue}
-                                    min="0"
-                                    onChange={(e) => setManualDaysUntilDue(e.target.value)}
-                                    required
-                                />
-                            </div>
-
-                            <div className={styles.formGroup} style={{ marginTop: '4px', marginBottom: '8px' }}>
-                                <label className={styles.formLabel} style={{ color: 'var(--text-secondary)' }}>Payment Due On:</label>
-                                <div style={{ 
-                                    padding: '12px', 
-                                    background: '#F9FAFB', 
-                                    border: '1px solid #E5E7EB',
-                                    borderRadius: '8px',
-                                    fontWeight: '600',
-                                    color: '#4F46E5',
-                                    fontSize: '14px'
-                                }}>
-                                    {displayManualDueDate}
-                                </div>
-                            </div>
-
-                            <div className={styles.formGroup}>
-                                <label className={styles.formLabel}>Internal notes / Context</label>
-                                <textarea 
-                                    className={styles.formTextarea}
-                                    style={{ height: '70px', resize: 'none' }}
-                                    value={manualNotes}
-                                    onChange={(e) => setManualNotes(e.target.value)}
-                                    placeholder="Add references, invoice codes or delivery details..."
-                                />
-                            </div>
-
-                            {/* Buttons */}
-                            <div style={{ display: 'flex', gap: '12px', justifyContent: 'flex-end', marginTop: '24px' }}>
-                                <button 
-                                    type="button" 
-                                    className={styles.btnSecondary} 
-                                    onClick={() => setIsManualModalOpen(false)}
-                                    disabled={savingManual}
-                                >
-                                    Cancel
-                                </button>
-                                <button 
-                                    type="submit" 
-                                    className={styles.btnPrimary}
-                                    disabled={savingManual || !manualVendorId || manualAmount <= 0}
-                                >
-                                    {savingManual ? 'Saving...' : 'Register Due'}
-                                </button>
-                            </div>
-                        </form>
-                    </div>
-                </div>
-            )}
+            {/* Add Vendor Modal */}
+            <AddVendorModal 
+                isOpen={isAddVendorModalOpen}
+                onClose={() => setIsAddVendorModalOpen(false)}
+                onSuccess={() => {
+                    setIsAddVendorModalOpen(false);
+                    fetchVendorsList(); // Re-fetch all vendors to update UI
+                }}
+            />
 
             {/* Edit Due Date Modal */}
             {isEditDateModalOpen && selectedPayment && (

@@ -2,7 +2,8 @@ import { NextResponse } from 'next/server';
 import getDatabase from '@/lib/db';
 import { checkPermission } from '@/lib/auth/permissions';
 import { getActiveBusinessId } from '@/lib/auth/business';
-import { sendTelegramMessage } from '@/lib/telegram';
+import { sendTelegramMessage, sendTelegramDocument } from '@/lib/telegram';
+import { generateVendorChallanPDFServer } from '@/lib/pdf/generateVendorChallanServer';
 import { buildOrderAlertTemplate } from '@/lib/telegram-templates';
 import { ORDER_STATUSES } from '@/lib/constants';
 
@@ -18,10 +19,12 @@ export async function POST(
         if (!businessId) return NextResponse.json({ error: 'Unauthorized business access' }, { status: 401 });
 
         const body = await request.json();
-        const { action, vendorId, rate, metres, expectedReturnDate, paymentDueDate, notes, metresReceived, qualityResult, transporterName, lrNumber, dispatchDate, metresDispatched, expectedDelivery, dateDelivered, deliveredTo } = body;
+        const { action, transporterName, lrNumber, expectedDelivery, vendorId, rate, metres, expectedReturnDate, paymentDueDate, generateChallan, notes, dateDelivered, deliveredTo } = body;
         const orderId = parseInt(params.id);
 
         const db = getDatabase();
+        let vendorDispatchId: number | null = null;
+        let vdspDetails: any = null;
 
         const order = (await db.prepare(`
             SELECT o.*, c.name as customer_name, d.name as design_name
@@ -51,8 +54,80 @@ export async function POST(
                 newStatus = ORDER_STATUSES.APPROVED;
                 activityTitle = 'Order Approved';
                 activityDescription = `Order approved for production.`;
+                
+                // --- Reserve Inventory Stock ---
+                const fabricType = order.fabric_type || 'Polyester';
+                const availableMaterials = (await db.prepare(`
+                    SELECT id, available_stock, reserved_stock 
+                    FROM inventory_materials 
+                    WHERE name = ? AND category = 'Fabric' AND business_id = ? AND available_stock > 0
+                    ORDER BY last_purchase_date ASC, id ASC
+                `).all(fabricType, businessId)) as any[];
+
+                const totalAvailable = availableMaterials.reduce((sum, m) => sum + Number(m.available_stock), 0);
+                if (totalAvailable < order.quantity_meters) {
+                    return NextResponse.json({ success: false, error: `Not enough ${fabricType} fabric available. Required: ${order.quantity_meters}m, Available: ${totalAvailable}m` }, { status: 400 });
+                }
+
+                let remainingMetersToDeduct = order.quantity_meters;
+                for (const material of availableMaterials) {
+                    if (remainingMetersToDeduct <= 0) break;
+                    
+                    const reservation = Math.min(Number(material.available_stock), remainingMetersToDeduct);
+                    const newAvailable = Number(material.available_stock) - reservation;
+                    const newReserved = Number(material.reserved_stock) + reservation;
+                    
+                    await db.prepare(`
+                        UPDATE inventory_materials 
+                        SET available_stock = ?, reserved_stock = ?
+                        WHERE id = ? AND business_id = ?
+                    `).run(newAvailable, newReserved, material.id, businessId);
+                    
+                    await db.prepare(`
+                        INSERT INTO inventory_history (business_id, material_id, action_type, quantity, prev_stock, new_stock, reason, linked_order_id, user_id)
+                        VALUES (?, ?, 'Reserved', ?, ?, ?, ?, ?, ?)
+                    `).run(businessId, material.id, reservation, material.available_stock, newAvailable, `Reserved for Order #${order.order_number}`, order.id, 1);
+
+                    remainingMetersToDeduct -= reservation;
+                }
             }
             else if (action === 'send_to_embroidery' || action === 'send_to_dyeing') {
+                const type = action === 'send_to_embroidery' ? 'embroidery' : 'dyeing';
+                await db.prepare(`
+                    UPDATE orders 
+                    SET dispatch_status = 'queued',
+                        dispatch_stage = ?,
+                        queued_for_dispatch = true,
+                        queued_at = ?,
+                        queued_vendor_id = ?,
+                        queued_rate = ?,
+                        queued_expected_date = ?,
+                        queued_notes = ?,
+                        queued_generate_challan = ?
+                    WHERE id = ? AND business_id = ?
+                `).run(
+                    type,
+                    Math.floor(Date.now() / 1000),
+                    vendorId || null,
+                    rate || 0,
+                    expectedReturnDate || null,
+                    notes || null,
+                    generateChallan ? true : false,
+                    orderId,
+                    businessId
+                );
+                
+                // Set the embroidery/dyeing status explicitly
+                if (type === 'embroidery') {
+                    await db.prepare("UPDATE orders SET embroidery_status = 'sent' WHERE id = ?").run(orderId);
+                } else if (type === 'dyeing') {
+                    await db.prepare("UPDATE orders SET dyeing_status = 'sent' WHERE id = ?").run(orderId);
+                }
+
+                return NextResponse.json({ success: true, dispatch_status: 'queued', dispatch_stage: type });
+            }
+            // OLD LOGIC BELOW IS COMMENTED OUT OR REMOVED
+            /*
                 const workType = action === 'send_to_embroidery' ? 'embroidery' : 'dyeing';
                 newStatus = action === 'send_to_embroidery' ? ORDER_STATUSES.EMBROIDERY : ORDER_STATUSES.DYEING;
                 
@@ -100,7 +175,7 @@ export async function POST(
                                 ));
 
                 const expReturnDateTs = expectedReturnDate ? Math.floor(new Date(expectedReturnDate).getTime() / 1000) : null;
-                (await db.prepare(`
+                const insertVdsp = (await db.prepare(`
                     INSERT INTO vendor_dispatches (
                         business_id, dispatch_number, order_id, vendor_id, process_type, 
                         sent_date, expected_return_date, rate_per_meter, total_meters, total_cost, status
@@ -110,6 +185,19 @@ export async function POST(
                                     Math.floor(Date.now() / 1000), expReturnDateTs, parseFloat(rate), parseFloat(metres), parseFloat(totalCost)
                                 ));
 
+                vendorDispatchId = insertVdsp.lastInsertRowid;
+                vdspDetails = { 
+                    dispatch_number: newDispatchNumber, 
+                    vendor_name: vendor.name, 
+                    vendor_phone: vendor.contact,
+                    process_type: workType,
+                    rate_per_meter: parseFloat(rate),
+                    total_meters: parseFloat(metres),
+                    total_cost: parseFloat(totalCost),
+                    expected_return_date: expReturnDateTs,
+                    notes: notes
+                };
+
                 (await db.prepare('UPDATE vendors SET balance = balance + ? WHERE id = ?').run(parseFloat(totalCost), vendorId));
 
                 const columnToUpdate = workType === 'embroidery' ? 'embroidery_job_cost' : 'dyeing_job_cost';
@@ -117,7 +205,12 @@ export async function POST(
 
                 activityTitle = `Sent to ${workType === 'embroidery' ? 'Embroidery' : 'Dyeing'}`;
                 activityDescription = `Sent ${metres}m to ${vendor.name} at ₹${rate}/m = ₹${totalCost}.`;
-            } 
+            } */
+            else if (action === 'dispatch') {
+                await db.prepare('UPDATE orders SET dispatch_stage = ? WHERE id = ? AND business_id = ?').run('queue_customer_dispatch', orderId, businessId);
+                return NextResponse.json({ success: true });
+            }
+            /*
             else if (action === 'mark_printing') {
                 newStatus = ORDER_STATUSES.PRINTING;
                 activityTitle = 'Embroidery Received - Printing Started';
@@ -140,11 +233,42 @@ export async function POST(
                 newStatus = ORDER_STATUSES.DISPATCHED;
                 activityTitle = 'Order Dispatched';
                 activityDescription = `Dispatched ${metresDispatched}m via ${transporterName} (LR: ${lrNumber}). Expected delivery: ${expectedDelivery}.`;
-            }
+            } */
             else if (action === 'mark_delivered') {
                 newStatus = ORDER_STATUSES.DELIVERED;
                 activityTitle = 'Order Delivered';
                 activityDescription = `Delivered to ${deliveredTo || 'Customer'} on ${dateDelivered}. ${notes || ''}`;
+                
+                // --- Consume Reserved Stock ---
+                const fabricType = order.fabric_type || 'Polyester';
+                const reservedMaterials = (await db.prepare(`
+                    SELECT id, available_stock, reserved_stock, used_stock 
+                    FROM inventory_materials 
+                    WHERE name = ? AND category = 'Fabric' AND business_id = ? AND reserved_stock > 0
+                    ORDER BY id ASC
+                `).all(fabricType, businessId)) as any[];
+
+                let remainingMetersToConsume = order.quantity_meters;
+                for (const material of reservedMaterials) {
+                    if (remainingMetersToConsume <= 0) break;
+                    
+                    const consumption = Math.min(Number(material.reserved_stock), remainingMetersToConsume);
+                    const newReserved = Number(material.reserved_stock) - consumption;
+                    const newUsed = Number(material.used_stock) + consumption;
+                    
+                    await db.prepare(`
+                        UPDATE inventory_materials 
+                        SET reserved_stock = ?, used_stock = ?
+                        WHERE id = ? AND business_id = ?
+                    `).run(newReserved, newUsed, material.id, businessId);
+                    
+                    await db.prepare(`
+                        INSERT INTO inventory_history (business_id, material_id, action_type, quantity, prev_stock, new_stock, reason, linked_order_id, user_id)
+                        VALUES (?, ?, 'Consumed', ?, ?, ?, ?, ?, ?)
+                    `).run(businessId, material.id, consumption, material.reserved_stock, newReserved, `Consumed for Order #${order.order_number}`, order.id, 1);
+
+                    remainingMetersToConsume -= consumption;
+                }
             }
             else {
                 throw new Error('Invalid action');
@@ -188,7 +312,49 @@ export async function POST(
             };
             
             if (tgTemplates[action]) {
-                sendTelegramMessage(tgTemplates[action], 'instant_order_alerts').catch(console.error);
+                if (action === 'send_to_embroidery' || action === 'send_to_dyeing') {
+                    // Send PDF instead of plain message
+                    if (vendorDispatchId && vdspDetails) {
+                        const business = (await db.prepare(`
+                            SELECT name, phone, gst_number as gstin, address, logo_url
+                            FROM businesses
+                            WHERE id = ?
+                        `).get(businessId)) as any;
+
+                        const pdfData = {
+                            dispatch_number: vdspDetails.dispatch_number,
+                            sent_date: Math.floor(Date.now() / 1000),
+                            vendor_name: vdspDetails.vendor_name,
+                            vendor_phone: vdspDetails.vendor_phone,
+                            process_type: vdspDetails.process_type,
+                            order_number: order.order_number,
+                            design_name: order.design_name,
+                            fabric_type: order.fabric_type,
+                            quantity: vdspDetails.total_meters,
+                            rate_per_meter: vdspDetails.rate_per_meter,
+                            total_cost: vdspDetails.total_cost,
+                            expected_return_date: vdspDetails.expected_return_date,
+                            notes: vdspDetails.notes,
+                            seller_name: business?.name,
+                            seller_phone: business?.phone,
+                            seller_gstin: business?.gstin,
+                            seller_address: business?.address,
+                            seller_logo: business?.logo_url
+                        };
+                        const { buffer } = await generateVendorChallanPDFServer(pdfData);
+                        const telegramSent = await sendTelegramDocument(
+                            buffer,
+                            `${vdspDetails.dispatch_number}.pdf`,
+                            tgTemplates[action],
+                            'vendor_alerts'
+                        );
+                        if (telegramSent) {
+                            await db.prepare('UPDATE vendor_dispatches SET telegram_sent = 1 WHERE id = ?').run(vendorDispatchId);
+                        }
+                    }
+                } else {
+                    sendTelegramMessage(tgTemplates[action], 'instant_order_alerts').catch(console.error);
+                }
             }
         } catch (tgErr) {
             console.error('[Telegram ERROR]', tgErr);

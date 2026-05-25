@@ -637,7 +637,9 @@ export default function ExpensesPage() {
                                             {isCashIn ? '+' : '-'}₹{Math.abs(tx.amount).toLocaleString('en-IN', { minimumFractionDigits: 2 })}
                                         </td>
                                         <td className={tableStyles.td} style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
-                                            {tx.paymentMode || 'Cash'} {tx.reference ? `(${tx.reference})` : ''}
+                                            <span title={tx.reference ? `Ref: ${tx.reference}` : undefined}>
+                                                {tx.paymentMode || 'Cash'}
+                                            </span>
                                         </td>
                                         <td className={tableStyles.td} style={{ fontSize: '13px', color: 'var(--text-secondary)' }}>
                                             {tx.isAuto === 1 ? 'System' : (tx.addedByName || 'Admin')}

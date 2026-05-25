@@ -10,7 +10,10 @@ import {
     Coffee, 
     Receipt,
     Scissors,
-    Droplets
+    Droplets,
+    PaintBucket,
+    Tags,
+    Sticker
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 
@@ -106,6 +109,41 @@ export const EXPENSE_CATEGORY_STYLES: Record<string, CategoryStyle> = {
         bg: '#F0FDFA',
         border: '#CCFBF1',
         text: '#0D9488'
+    },
+    'FABRIC PURCHASE': {
+        label: 'FABRIC PURCHASE',
+        icon: Package,
+        bg: '#EEF2FF',
+        border: '#C7D2FE',
+        text: '#4F46E5'
+    },
+    'PRINTING INK': {
+        label: 'PRINTING INK',
+        icon: PaintBucket,
+        bg: '#ECFEFF',
+        border: '#CFFAFE',
+        text: '#0891B2'
+    },
+    'PACKAGING MATERIAL': {
+        label: 'PACKAGING MATERIAL',
+        icon: Box,
+        bg: '#FFFBEB',
+        border: '#FEF3C7',
+        text: '#D97706'
+    },
+    'ACCESSORIES': {
+        label: 'ACCESSORIES',
+        icon: Tags,
+        bg: '#F0FDF4',
+        border: '#DCFCE7',
+        text: '#16A34A'
+    },
+    'EMBROIDERY MATERIAL': {
+        label: 'EMBROIDERY MATERIAL',
+        icon: Sticker,
+        bg: '#FAF5FF',
+        border: '#E9D5FF',
+        text: '#9333EA'
     },
     // Cash IN categories
     'Invoice Payment': {

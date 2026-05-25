@@ -17,6 +17,9 @@ import GroupedPeriodSection from '@/components/ui/GroupedPeriodSection';
 import GenerateChallanModal from '@/components/challans/GenerateChallanModal';
 import QRScannerModal from '@/components/ui/QRScannerModal';
 import { ORDER_STATUSES, ORDER_STATUS_LABELS } from '@/lib/constants';
+import CreateDispatchModal from '@/components/orders/CreateDispatchModal';
+import SendToVendorModal from '@/components/orders/SendToVendorModal';
+
 import { formatCurrencySafe } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
 
@@ -41,6 +44,21 @@ export default function OrdersPage() {
     const [isChallanModalOpen, setIsChallanModalOpen] = useState(false);
     const [challanOrderData, setChallanOrderData] = useState<any>(null);
     const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
+
+    // Bulk Actions State
+    const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+    const [bulkDispatchModalType, setBulkDispatchModalType] = useState<string | null>(null);
+
+    const toggleSelection = useCallback((id: number) => {
+        setSelectedIds(prev => {
+            const next = new Set(prev);
+            if (next.has(id)) next.delete(id);
+            else next.add(id);
+            return next;
+        });
+    }, []);
+
+    const clearSelection = useCallback(() => setSelectedIds(new Set()), []);
 
     const [availableFilters, setAvailableFilters] = useState<FilterDefinition[]>([
         { id: 'date_range', label: 'Date Range', type: 'dateRange' },
@@ -292,7 +310,10 @@ export default function OrdersPage() {
     const [activeWidget, setActiveWidget] = useState<string | null>(null);
 
     const isProductionStatus = (status: string) => [ORDER_STATUSES.APPROVED, ORDER_STATUSES.EMBROIDERY, ORDER_STATUSES.PRINTING, ORDER_STATUSES.DYEING, ORDER_STATUSES.READY, ORDER_STATUSES.DISPATCHED].includes(status.toLowerCase());
-    const isFinishedStatus = (status: string) => status.toLowerCase() === ORDER_STATUSES.DELIVERED || status.toLowerCase() === 'completed' || status.toLowerCase() === 'invoiced';
+    const isFinishedStatus = (order: any) => {
+        const status = order.status?.toLowerCase() || '';
+        return status === 'completed' || status === 'invoiced' || (status === ORDER_STATUSES.DELIVERED && order.invoice_generated);
+    };
 
     const finalOrders = useMemo(() => {
         let result = filteredOrders;
@@ -304,7 +325,7 @@ export default function OrdersPage() {
         } else if (activeWidget === 'overdue') {
             const now = Math.floor(Date.now() / 1000);
             result = result.filter(o => {
-                const isFinished = isFinishedStatus(o.status);
+                const isFinished = isFinishedStatus(o);
                 const deliveryDeadline = o.created_at + (7 * 24 * 60 * 60);
                 return !isFinished && now > deliveryDeadline;
             });
@@ -322,7 +343,7 @@ export default function OrdersPage() {
         const productionCount = filteredOrders.filter(o => isProductionStatus(o.status)).length;
         const now = Math.floor(Date.now() / 1000);
         const overdueCount = filteredOrders.filter(o => {
-            const isFinished = isFinishedStatus(o.status);
+            const isFinished = isFinishedStatus(o);
             const deliveryDeadline = o.created_at + (7 * 24 * 60 * 60);
             return !isFinished && now > deliveryDeadline;
         }).length;
@@ -409,7 +430,42 @@ export default function OrdersPage() {
         }
     };
 
-    const widgetConfig = [
+    const generateChallan = async () => {
+        try {
+            const res = await fetch('/api/challans/generate', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    orderIds: Array.from(selectedIds),
+                    challanType: 'dispatch'
+                })
+            });
+            if (!res.ok) {
+                const errData = await res.json().catch(() => ({}));
+                throw new Error(errData.error || 'Failed to generate challan');
+            }
+            
+            // Download PDF
+            const blob = await res.blob();
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Challan_${new Date().getTime()}.pdf`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            window.URL.revokeObjectURL(url);
+            
+            alert('Challan generated successfully!');
+            fetchOrders();
+            clearSelection();
+        } catch (error: any) {
+            console.error('Error generating challan:', error);
+            alert(error.message || 'Error generating challan. Please check console.');
+        }
+    };
+
+        const widgetConfig = [
         { id: 'total', label: 'Total Orders', value: stats.totalOrders, color: 'purple', icon: 'bag' },
         { id: 'revenue', label: 'Revenue Generated', value: formatCurrency(stats.totalRevenue), color: 'green', icon: 'trend' },
         { id: 'pending', label: 'Waiting Approval', value: stats.pendingCount, color: 'yellow', icon: 'clock' },
@@ -634,6 +690,8 @@ export default function OrdersPage() {
                                             onGenerateInvoice={handleGenerateInvoiceClick}
                                             onEdit={handleEditClick}
                                             activeWidget={activeWidget}
+                                            selectedIds={selectedIds}
+                                            onToggleSelect={toggleSelection}
                                         />
                                     </GroupedPeriodSection>
                                 );
@@ -673,6 +731,103 @@ export default function OrdersPage() {
                     }
                 }}
             />
+
+            {/* Bulk Action Toolbar */}
+            {selectedIds.size > 0 && (() => {
+                const selectedOrderObjs = allOrders.filter(o => selectedIds.has(o.id));
+                const totalMetres = selectedOrderObjs.reduce((sum, o) => sum + (parseFloat(o.quantity_meters) || 0), 0);
+                return (
+                    <div style={{
+                        position: 'fixed',
+                        bottom: '28px',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        background: 'rgba(255,255,255,0.95)',
+                        backdropFilter: 'blur(12px)',
+                        border: '1px solid rgba(226,232,240,0.8)',
+                        borderRadius: '20px',
+                        padding: '10px 20px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0',
+                        boxShadow: '0 20px 40px -8px rgba(0,0,0,0.15), 0 8px 16px -4px rgba(0,0,0,0.08)',
+                        zIndex: 999,
+                        minWidth: '460px',
+                    }}>
+                        {/* Left: Selection Info */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', paddingRight: '20px', borderRight: '1px solid #E2E8F0', minWidth: '90px' }}>
+                            <span style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', lineHeight: 1.2 }}>
+                                {selectedIds.size} {selectedIds.size === 1 ? 'order' : 'orders'}
+                            </span>
+                            <span style={{ fontSize: '12px', fontWeight: 500, color: '#64748B' }}>
+                                {totalMetres.toFixed(1)}m selected
+                            </span>
+                        </div>
+
+                        {/* Center: Action Buttons */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 20px' }}>
+                            <button
+                                onClick={generateChallan}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: '6px',
+                                    padding: '8px 16px', borderRadius: '10px', fontSize: '13px',
+                                    fontWeight: 600, cursor: 'pointer', border: '1px solid #E2E8F0',
+                                    background: '#FFFFFF', color: '#374151',
+                                    transition: 'all 0.15s ease', whiteSpace: 'nowrap'
+                                }}
+                                onMouseEnter={e => { (e.target as HTMLElement).closest('button')!.style.background = '#F8FAFC'; (e.target as HTMLElement).closest('button')!.style.borderColor = '#CBD5E1'; }}
+                                onMouseLeave={e => { (e.target as HTMLElement).closest('button')!.style.background = '#FFFFFF'; (e.target as HTMLElement).closest('button')!.style.borderColor = '#E2E8F0'; }}
+                            >
+                                📄 Generate Challan
+                            </button>
+                            <button
+                                onClick={() => setBulkDispatchModalType('customer')}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: '6px',
+                                    padding: '8px 18px', borderRadius: '10px', fontSize: '13px',
+                                    fontWeight: 600, cursor: 'pointer', border: 'none',
+                                    background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
+                                    color: '#FFFFFF',
+                                    boxShadow: '0 2px 8px rgba(15,23,42,0.3)',
+                                    transition: 'all 0.15s ease', whiteSpace: 'nowrap'
+                                }}
+                            >
+                                🚚 Deliver
+                            </button>
+                        </div>
+
+                        {/* Right: Clear */}
+                        <div style={{ paddingLeft: '16px', borderLeft: '1px solid #E2E8F0' }}>
+                            <button
+                                onClick={clearSelection}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: '4px',
+                                    padding: '6px 12px', borderRadius: '8px', fontSize: '13px',
+                                    fontWeight: 500, cursor: 'pointer', border: '1px solid transparent',
+                                    background: 'transparent', color: '#94A3B8',
+                                    transition: 'all 0.15s ease'
+                                }}
+                                onMouseEnter={e => { (e.currentTarget).style.color = '#EF4444'; (e.currentTarget).style.background = '#FFF5F5'; }}
+                                onMouseLeave={e => { (e.currentTarget).style.color = '#94A3B8'; (e.currentTarget).style.background = 'transparent'; }}
+                            >
+                                <X size={14} /> Clear
+                            </button>
+                        </div>
+                    </div>
+                );
+            })()}
+            {bulkDispatchModalType === 'customer' && (
+                <CreateDispatchModal
+                    isOpen={true}
+                    onClose={() => setBulkDispatchModalType(null)}
+                    selectedOrders={allOrders.filter(o => selectedIds.has(o.id))}
+                    onSuccess={() => {
+                        setBulkDispatchModalType(null);
+                        clearSelection();
+                        fetchOrders();
+                    }}
+                />
+            )}
             <EditOrderModal 
                 order={selectedOrderForEdit}
                 isOpen={isEditModalOpen}

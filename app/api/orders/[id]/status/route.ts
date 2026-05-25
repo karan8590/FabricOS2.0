@@ -21,10 +21,12 @@ export async function PATCH(
         const db = getDatabase();
 
         // Get current order and customer
-        const order = (await db.prepare('SELECT customer_id FROM orders WHERE id = ?').get(orderId)) as any;
+        const order = (await db.prepare('SELECT customer_id, business_id FROM orders WHERE id = ?').get(orderId)) as any;
         if (!order) {
             return NextResponse.json({ error: 'Order not found' }, { status: 404 });
         }
+        
+        const businessId = user?.businessId || order.business_id;
 
         // Update status
         (await db.prepare('UPDATE orders SET status = ? WHERE id = ?').run(newStatus, orderId));
@@ -62,9 +64,40 @@ export async function PATCH(
         }
 
         (await db.prepare(`
-            INSERT INTO activity (customer_id, type, title, description, created_at)
-            VALUES (?, ?, ?, ?, ?)
-        `).run(order.customer_id, newStatus === 'approved' ? 'production_started' : 'delivered', title, description, Math.floor(Date.now() / 1000)));
+            INSERT INTO activity (business_id, customer_id, type, title, description, created_at)
+            VALUES (?, ?, ?, ?, ?, ?)
+        `).run(businessId || order.business_id || 'business_001', order.customer_id, newStatus === 'approved' ? 'production_started' : 'delivered', title, description, Math.floor(Date.now() / 1000)));
+
+        // --- Inventory Reservation Resolution ---
+        if (newStatus.toUpperCase() === 'DELIVERED' || newStatus.toUpperCase() === 'COMPLETED') {
+            // Move reserved to used
+            const reservations = (await db.prepare(`SELECT material_id, quantity FROM inventory_history WHERE linked_order_id = ? AND action_type = 'Reserved' AND business_id = ?`).all(orderId, businessId || 'business_001')) as any[];
+            for (const res of reservations) {
+                await db.prepare(`UPDATE inventory_materials SET reserved_stock = reserved_stock - ?, used_stock = used_stock + ? WHERE id = ? AND business_id = ?`).run(res.quantity, res.quantity, res.material_id, businessId || 'business_001');
+                
+                // Fetch new state for logging
+                const m = (await db.prepare('SELECT used_stock FROM inventory_materials WHERE id = ? AND business_id = ?').get(res.material_id, businessId || 'business_001')) as any;
+                
+                await db.prepare(`
+                    INSERT INTO inventory_history (business_id, material_id, action_type, quantity, prev_stock, new_stock, reason, linked_order_id, user_id)
+                    VALUES (?, ?, 'Used', ?, ?, ?, ?, ?, ?)
+                `).run(businessId || 'business_001', res.material_id, res.quantity, Number(m.used_stock) - res.quantity, m.used_stock, `Order #${orderId} Completed`, orderId, user?.id || 1);
+            }
+        } else if (newStatus.toUpperCase() === 'CANCELLED') {
+            // Move reserved back to available
+            const reservations = (await db.prepare(`SELECT material_id, quantity FROM inventory_history WHERE linked_order_id = ? AND action_type = 'Reserved' AND business_id = ?`).all(orderId, businessId || 'business_001')) as any[];
+            for (const res of reservations) {
+                await db.prepare(`UPDATE inventory_materials SET reserved_stock = reserved_stock - ?, available_stock = available_stock + ? WHERE id = ? AND business_id = ?`).run(res.quantity, res.quantity, res.material_id, businessId || 'business_001');
+                
+                // Fetch new state for logging
+                const m = (await db.prepare('SELECT available_stock FROM inventory_materials WHERE id = ? AND business_id = ?').get(res.material_id, businessId || 'business_001')) as any;
+                
+                await db.prepare(`
+                    INSERT INTO inventory_history (business_id, material_id, action_type, quantity, prev_stock, new_stock, reason, linked_order_id, user_id)
+                    VALUES (?, ?, 'Released', ?, ?, ?, ?, ?, ?)
+                `).run(businessId || 'business_001', res.material_id, res.quantity, Number(m.available_stock) - res.quantity, m.available_stock, `Order #${orderId} Cancelled`, orderId, user?.id || 1);
+            }
+        }
 
         // Trigger Telegram instant_order_alerts for key status changes
         try {

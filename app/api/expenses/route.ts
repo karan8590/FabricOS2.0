@@ -61,7 +61,7 @@ export async function GET(request: Request) {
             SELECT e.*, u.name AS addedByName 
             FROM expenses e 
             LEFT JOIN users u ON COALESCE(e.addedBy, e.created_by_user_id) = u.id 
-            WHERE 1=1 AND e.business_id = ?
+            WHERE COALESCE(e.is_deleted, false) = false AND e.business_id = ?
         `;
         const params: any[] = [businessId];
 
@@ -102,7 +102,7 @@ export async function GET(request: Request) {
         const totalCashInRow = (await db.prepare(`
             SELECT SUM(amount) AS val 
             FROM expenses 
-            WHERE type = 'in' AND date >= ? AND date <= ? AND business_id = ?
+            WHERE type = 'in' AND date >= ? AND date <= ? AND business_id = ? AND COALESCE(is_deleted, false) = false
         `).get(startTimestamp, endTimestamp, businessId)) as any;
         const totalCashIn = totalCashInRow?.val || 0;
 
@@ -110,7 +110,7 @@ export async function GET(request: Request) {
         const totalCashOutRow = (await db.prepare(`
             SELECT SUM(amount) AS val 
             FROM expenses 
-            WHERE COALESCE(type, 'out') = 'out' AND date >= ? AND date <= ? AND business_id = ?
+            WHERE COALESCE(type, 'out') = 'out' AND date >= ? AND date <= ? AND business_id = ? AND COALESCE(is_deleted, false) = false
         `).get(startTimestamp, endTimestamp, businessId)) as any;
         const totalCashOut = totalCashOutRow?.val || 0;
 
@@ -118,7 +118,7 @@ export async function GET(request: Request) {
         const staffCostsRow = (await db.prepare(`
             SELECT SUM(amount) AS val 
             FROM expenses 
-            WHERE category IN ('Staff Salary', 'Staff Advance') AND COALESCE(type, 'out') = 'out' AND date >= ? AND date <= ? AND business_id = ?
+            WHERE category IN ('Staff Salary', 'Staff Advance') AND COALESCE(type, 'out') = 'out' AND date >= ? AND date <= ? AND business_id = ? AND COALESCE(is_deleted, false) = false
         `).get(startTimestamp, endTimestamp, businessId)) as any;
         const staffCosts = staffCostsRow?.val || 0;
 

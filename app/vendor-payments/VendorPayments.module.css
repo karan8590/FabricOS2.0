@@ -476,6 +476,41 @@
     border-color: rgba(13, 148, 136, 0.2);
 }
 
+.fabricBadge {
+    composes: workBadge;
+    background: rgba(79, 70, 229, 0.08);
+    color: #4F46E5;
+    border-color: rgba(79, 70, 229, 0.2);
+}
+
+.inkBadge {
+    composes: workBadge;
+    background: rgba(8, 145, 178, 0.08);
+    color: #0891B2;
+    border-color: rgba(8, 145, 178, 0.2);
+}
+
+.packagingBadge {
+    composes: workBadge;
+    background: rgba(217, 119, 6, 0.08);
+    color: #D97706;
+    border-color: rgba(217, 119, 6, 0.2);
+}
+
+.accessoriesBadge {
+    composes: workBadge;
+    background: rgba(22, 163, 74, 0.08);
+    color: #16A34A;
+    border-color: rgba(22, 163, 74, 0.2);
+}
+
+.otherBadge {
+    composes: workBadge;
+    background: rgba(107, 114, 128, 0.08);
+    color: #4B5563;
+    border-color: rgba(107, 114, 128, 0.2);
+}
+
 /* Status texts fallback */
 .textGreen { color: #34C759; }
 .textRed { color: #FF3B30; font-weight: 600; }
@@ -814,6 +849,8 @@
 
 .modalContentLarge {
     max-width: 600px;
+    max-height: 90vh;
+    overflow-y: auto;
 }
 
 .modalTitle {
@@ -971,3 +1008,179 @@
     to { opacity: 1; transform: scale(1); }
 }
 
+
+/* Vendor Grid Layout */
+.vendorGrid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    animation: fadeIn 250ms ease-out;
+}
+
+.vendorCard {
+    background: var(--bg-card);
+    border: 1px solid var(--border-primary);
+    border-radius: 14px;
+    padding: 16px;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.2s ease;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.vendorCard:hover {
+    box-shadow: var(--shadow-md);
+    transform: translateY(-2px);
+}
+
+.vendorCard:not(.vendorCardActive):hover {
+    border-color: var(--border-secondary);
+}
+
+.vendorCard.vendorCardActive {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(0, 113, 227, 0.2);
+}
+
+.vendorCardHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+}
+
+.vendorCardName {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin-bottom: 4px;
+}
+
+.vendorCardPhone {
+    font-size: 12px;
+    color: var(--text-secondary);
+}
+
+.vendorCardStats {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: var(--bg-grouped);
+    border-radius: 10px;
+    padding: 10px;
+    border: 1px solid var(--border-primary);
+}
+
+.vendorCardStatItem {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.vendorCardStatLabel {
+    font-size: 11px;
+    color: var(--text-tertiary);
+    text-transform: uppercase;
+    font-weight: 600;
+}
+
+.vendorCardStatValue {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.vendorCardAmount {
+    color: #FF3B30;
+    font-size: 16px;
+}
+
+.vendorCardFooter {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-top: auto;
+}
+
+.expandedRow {
+    grid-column: 1 / -1;
+    animation: slideDown 200ms ease-out forwards;
+}
+
+@keyframes slideDown {
+    from { opacity: 0; transform: translateY(-10px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 1024px) {
+    .vendorGrid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+@media (max-width: 640px) {
+    .vendorGrid {
+        grid-template-columns: 1fr;
+    }
+}
+
+.expandedPanelContainer {
+    background: var(--bg-card);
+    border: 1px solid var(--accent);
+    border-radius: 14px;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+    overflow: hidden;
+    margin-top: 8px;
+    position: relative;
+    animation: fadeSlideDown 250ms cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    transform-origin: top;
+}
+:global([data-theme="dark"]) .expandedPanelContainer {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+}
+
+@keyframes fadeSlideDown {
+    from { opacity: 0; transform: translateY(-8px) scaleY(0.98); }
+    to { opacity: 1; transform: translateY(0) scaleY(1); }
+}
+
+.expandedPanelHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 16px 20px;
+    background: var(--bg-grouped);
+    border-bottom: 1px solid var(--border-primary);
+}
+
+.expandedPanelTitle {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.expandedPanelSubtitle {
+    color: var(--text-secondary);
+    font-weight: 500;
+}
+
+.expandedPanelStats {
+    display: flex;
+    gap: 16px;
+    font-size: 13px;
+}
+
+.expandedPanelStat {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.expandedPanelStatValue {
+    font-weight: 600;
+    color: var(--text-primary);
+}

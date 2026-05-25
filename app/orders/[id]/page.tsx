@@ -610,8 +610,8 @@ export default function OrderDetailsPage() {
                     {status === ORDER_STATUSES.EMBROIDERY && <ProductionActionButton themeColor="purple" label="Mark Printing" onClick={() => setConfirmAction('mark_printing')} />}
                     {status === ORDER_STATUSES.PRINTING && <ProductionActionButton themeColor="cyan" label="Send to Dyeing" onClick={() => setWorkflowModalState({ isOpen: true, action: 'send_to_dyeing' })} />}
                     {status === ORDER_STATUSES.DYEING && <ProductionActionButton themeColor="green" label="Mark Ready" onClick={() => setConfirmAction('mark_ready')} />}
-                    {status === ORDER_STATUSES.READY && <ProductionActionButton themeColor="blue" label="Dispatch Order" onClick={() => setConfirmAction('dispatch')} />}
-                    {status === ORDER_STATUSES.DISPATCHED && <ProductionActionButton themeColor="green" label="Mark Delivered" onClick={() => setConfirmAction('mark_delivered')} />}
+                    {status === ORDER_STATUSES.READY && <ProductionActionButton themeColor="blue" label="Dispatch Order" onClick={() => router.push('/dispatch-center')} />}
+                    {status === ORDER_STATUSES.DISPATCHED && <ProductionActionButton themeColor="green" label="Mark Delivered" onClick={() => router.push('/dispatch-center')} />}
                 </div>
             </header>
 

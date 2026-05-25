@@ -1,12 +1,14 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
+import ConfirmDialog from '@/components/ui/ConfirmDialog';
 import Card from '@/components/ui/Card';
 import Button from '@/components/ui/Button';
 import Input from '@/components/ui/Input';
 import Modal from '@/components/ui/Modal';
 import AdvancedFilter, { FilterDefinition, FilterRow } from '@/components/ui/AdvancedFilter';
+import AddVendorModal from '@/components/vendors/AddVendorModal';
 import StatWidget from '@/components/ui/StatWidget';
 import styles from './Vendors.module.css';
 import { GST_STATES, validateGSTIN } from '@/lib/gst';
@@ -23,6 +25,11 @@ interface Vendor {
     gst_no?: string;
     state?: string;
     state_code?: string;
+    vehicle_number?: string;
+    driver_name?: string;
+    vehicle_type?: string;
+    default_route?: string;
+    alt_phone?: string;
 }
 
 export default function VendorsPage() {
@@ -39,7 +46,8 @@ export default function VendorsPage() {
             </svg>
         )},
     ]);
-    const [showModal, setShowModal] = useState(false);
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [showAddVendorWizard, setShowAddVendorWizard] = useState(false);
     const [editingVendor, setEditingVendor] = useState<Vendor | null>(null);
     const [modalError, setModalError] = useState('');
     const [formData, setFormData] = useState({
@@ -51,8 +59,23 @@ export default function VendorsPage() {
         gstNo: '',
         state: '',
         stateCode: '',
+        vehicleNumber: '',
+        driverName: '',
+        vehicleType: '',
+        defaultRoute: '',
+        altPhone: '',
     });
     const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+    const [openMenuId, setOpenMenuId] = useState<number | null>(null);
+    const [vendorToDelete, setVendorToDelete] = useState<number | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+
+    // Close menu when clicking outside
+    useEffect(() => {
+        const handleClickOutside = () => setOpenMenuId(null);
+        document.addEventListener('click', handleClickOutside);
+        return () => document.removeEventListener('click', handleClickOutside);
+    }, []);
 
     useEffect(() => {
         fetchVendors();
@@ -128,20 +151,7 @@ export default function VendorsPage() {
     };
 
     const handleAddVendor = () => {
-        setEditingVendor(null);
-        setModalError('');
-        setFormData({ 
-            name: '', 
-            contact: '', 
-            materialSupplied: '', 
-            balance: 0,
-            vendorType: 'fabric_supplier',
-            gstNo: '',
-            state: '',
-            stateCode: ''
-        });
-        setFormErrors({});
-        setShowModal(true);
+        setShowAddVendorWizard(true);
     };
 
     const handleEditVendor = (vendor: Vendor) => {
@@ -157,8 +167,13 @@ export default function VendorsPage() {
             gstNo: vendor.gst_no || '',
             state: vendor.state || '',
             stateCode: vendor.state_code || '',
+            vehicleNumber: vendor.vehicle_number || '',
+            driverName: vendor.driver_name || '',
+            vehicleType: vendor.vehicle_type || '',
+            defaultRoute: vendor.default_route || '',
+            altPhone: vendor.alt_phone || '',
         });
-        setShowModal(true);
+        setShowEditModal(true);
     };
 
     const handleStateChange = (stateName: string) => {
@@ -183,7 +198,11 @@ export default function VendorsPage() {
         const newErrors: Record<string, string> = {};
         if (!formData.name?.trim()) newErrors.name = 'Vendor name is required';
         if (!formData.contact?.trim()) newErrors.contact = 'Contact is required';
-        if (!formData.materialSupplied?.trim()) newErrors.materialSupplied = 'Material supplied is required';
+        if (formData.vendorType !== 'transport' && !formData.materialSupplied?.trim()) {
+            newErrors.materialSupplied = 'Material supplied is required';
+        }
+        
+        const materialToSubmit = formData.vendorType === 'transport' ? 'Transport Services' : formData.materialSupplied;
 
         if (formData.gstNo) {
             const val = validateGSTIN(formData.gstNo, formData.stateCode);
@@ -192,37 +211,39 @@ export default function VendorsPage() {
 
         if (Object.keys(newErrors).length > 0) {
             setFormErrors(newErrors);
-            const firstErrorField = document.querySelector('[data-error="true"]') as HTMLElement;
-            if (firstErrorField) firstErrorField.focus();
             return;
         }
 
         try {
-            const url = editingVendor ? `/api/vendors/${editingVendor.id}` : '/api/vendors';
-            const method = editingVendor ? 'PATCH' : 'POST';
+            const payload = {
+                name: formData.name,
+                contact: formData.contact,
+                materialSupplied: materialToSubmit,
+                balance: formData.balance,
+                vendorType: formData.vendorType,
+                gstNo: formData.gstNo ? formData.gstNo.trim().toUpperCase() : null,
+                state: formData.state || null,
+                stateCode: formData.stateCode || null,
+                vehicleNumber: formData.vehicleNumber || null,
+                driverName: formData.driverName || null,
+                vehicleType: formData.vehicleType || null,
+                defaultRoute: formData.defaultRoute || null,
+                altPhone: formData.altPhone || null,
+            };
 
-            const res = await fetch(url, {
-                method,
+            const res = await fetch(`/api/vendors?id=${editingVendor?.id}`, {
+                method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    name: formData.name,
-                    contact: formData.contact,
-                    materialSupplied: formData.materialSupplied,
-                    balance: formData.balance,
-                    vendorType: formData.vendorType,
-                    gstNo: formData.gstNo ? formData.gstNo.trim().toUpperCase() : null,
-                    state: formData.state || null,
-                    stateCode: formData.stateCode || null,
-                }),
+                body: JSON.stringify(payload),
             });
 
             if (res.ok) {
-                setShowModal(false);
+                setShowEditModal(false);
                 setFormErrors({});
                 fetchVendors(activeFilters);
             } else {
                 const data = await res.json();
-                setModalError(data.error || 'Failed to save vendor');
+                setModalError(data.error || 'Failed to update vendor');
             }
         } catch (error) {
             console.error('Save vendor error:', error);
@@ -230,19 +251,33 @@ export default function VendorsPage() {
         }
     };
 
-    const handleDelete = async (vendorId: number) => {
-        if (!confirm('Are you sure you want to delete this vendor?')) return;
+    const confirmDelete = (vendorId: number) => {
+        setVendorToDelete(vendorId);
+        setOpenMenuId(null);
+    };
 
+    const executeDelete = async () => {
+        if (!vendorToDelete) return;
+        setIsDeleting(true);
         try {
-            const res = await fetch(`/api/vendors/${vendorId}`, {
+            const res = await fetch(`/api/vendors/${vendorToDelete}`, {
                 method: 'DELETE',
             });
-
+            const data = await res.json();
+            
             if (res.ok) {
                 fetchVendors(activeFilters);
+                setVendorToDelete(null);
+            } else {
+                alert(data.error || 'Failed to delete vendor');
+                setVendorToDelete(null);
             }
         } catch (error) {
             console.error('Delete vendor error:', error);
+            alert('Something went wrong while trying to delete.');
+            setVendorToDelete(null);
+        } finally {
+            setIsDeleting(false);
         }
     };
 
@@ -377,30 +412,56 @@ export default function VendorsPage() {
                                     <h3 className={styles.vendorName}>{vendor.name}</h3>
                                     {vendor.vendor_type && (
                                         <span className="text-[10px] font-bold uppercase tracking-wider bg-indigo-50 border border-indigo-100 text-indigo-700 px-2 py-0.5 rounded-md mt-1 inline-block">
-                                            {vendor.vendor_type === 'fabric_supplier' ? 'Fabric Supplier' : vendor.vendor_type}
+                                            {vendor.vendor_type === 'fabric_supplier' ? 'Fabric Supplier' : vendor.vendor_type === 'transport' ? 'Transport / Tempo' : vendor.vendor_type}
                                         </span>
                                     )}
                                 </div>
-                                <div className={styles.vendorActions}>
+                                <div className={styles.vendorActions} style={{ position: 'relative' }}>
                                     <button
                                         className={styles.actionButton}
-                                        onClick={() => handleEditVendor(vendor)}
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            setOpenMenuId(openMenuId === vendor.id ? null : vendor.id);
+                                        }}
+                                        style={{ padding: '6px', borderRadius: '4px', background: 'transparent', border: 'none', cursor: 'pointer', color: '#64748b' }}
                                     >
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                            <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                            <circle cx="12" cy="12" r="1" />
+                                            <circle cx="12" cy="5" r="1" />
+                                            <circle cx="12" cy="19" r="1" />
                                         </svg>
                                     </button>
-                                    {user?.role === 'admin' && (
-                                        <button
-                                            className={`${styles.actionButton} ${styles.deleteButton}`}
-                                            onClick={() => handleDelete(vendor.id)}
-                                        >
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                <polyline points="3 6 5 6 21 6" />
-                                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                            </svg>
-                                        </button>
+                                    
+                                    {openMenuId === vendor.id && (
+                                        <div style={{ position: 'absolute', top: '100%', right: 0, zIndex: 10, background: 'white', border: '1px solid #e2e8f0', borderRadius: '8px', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)', padding: '4px', minWidth: '150px' }}>
+                                            {/* Temporarily using Edit as View Details placeholder since full View Details page is not yet requested */}
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); handleEditVendor(vendor); }}
+                                                style={{ width: '100%', textAlign: 'left', padding: '8px 12px', fontSize: '13px', border: 'none', background: 'transparent', cursor: 'pointer', borderRadius: '4px', color: '#334155' }}
+                                                onMouseOver={e => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                                                onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                                            >
+                                                View Details
+                                            </button>
+                                            <button 
+                                                onClick={(e) => { e.stopPropagation(); setOpenMenuId(null); handleEditVendor(vendor); }}
+                                                style={{ width: '100%', textAlign: 'left', padding: '8px 12px', fontSize: '13px', border: 'none', background: 'transparent', cursor: 'pointer', borderRadius: '4px', color: '#334155' }}
+                                                onMouseOver={e => e.currentTarget.style.backgroundColor = '#f1f5f9'}
+                                                onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                                            >
+                                                Edit Vendor
+                                            </button>
+                                            {user?.role === 'admin' && (
+                                                <button 
+                                                    onClick={(e) => { e.stopPropagation(); confirmDelete(vendor.id); }}
+                                                    style={{ width: '100%', textAlign: 'left', padding: '8px 12px', fontSize: '13px', border: 'none', background: 'transparent', cursor: 'pointer', borderRadius: '4px', color: '#ef4444' }}
+                                                    onMouseOver={e => e.currentTarget.style.backgroundColor = '#fef2f2'}
+                                                    onMouseOut={e => e.currentTarget.style.backgroundColor = 'transparent'}
+                                                >
+                                                    Delete Vendor
+                                                </button>
+                                            )}
+                                        </div>
                                     )}
                                 </div>
                             </div>
@@ -410,10 +471,27 @@ export default function VendorsPage() {
                                     <span className={styles.infoLabel}>Contact:</span>
                                     <span className={styles.infoValue}>{vendor.contact}</span>
                                 </div>
-                                <div className={styles.infoRow}>
-                                    <span className={styles.infoLabel}>Material:</span>
-                                    <span className={styles.infoValue}>{vendor.material_supplied}</span>
-                                </div>
+                                {vendor.vendor_type !== 'transport' ? (
+                                    <div className={styles.infoRow}>
+                                        <span className={styles.infoLabel}>Material:</span>
+                                        <span className={styles.infoValue}>{vendor.material_supplied}</span>
+                                    </div>
+                                ) : (
+                                    <>
+                                        {vendor.vehicle_number && (
+                                            <div className={styles.infoRow}>
+                                                <span className={styles.infoLabel}>Vehicle:</span>
+                                                <span className={styles.infoValue}>{vendor.vehicle_number}</span>
+                                            </div>
+                                        )}
+                                        {vendor.driver_name && (
+                                            <div className={styles.infoRow}>
+                                                <span className={styles.infoLabel}>Driver:</span>
+                                                <span className={styles.infoValue}>{vendor.driver_name}</span>
+                                            </div>
+                                        )}
+                                    </>
+                                )}
                                 {vendor.gst_no && (
                                     <div className={styles.infoRow}>
                                         <span className={styles.infoLabel}>GSTIN:</span>
@@ -438,10 +516,19 @@ export default function VendorsPage() {
                 </div>
             )}
 
+            <AddVendorModal 
+                isOpen={showAddVendorWizard}
+                onClose={() => setShowAddVendorWizard(false)}
+                onSuccess={() => {
+                    setShowAddVendorWizard(false);
+                    fetchVendors(activeFilters);
+                }}
+            />
+
             <Modal
-                isOpen={showModal}
-                onClose={() => setShowModal(false)}
-                title={editingVendor ? 'Edit Vendor Details' : 'Add New Vendor'}
+                isOpen={showEditModal}
+                onClose={() => setShowEditModal(false)}
+                title="Edit Vendor Details"
             >
                 <form onSubmit={handleSubmit}>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-4)' }}>
@@ -480,17 +567,64 @@ export default function VendorsPage() {
                                     <option value="embroidery">Embroidery Vendor</option>
                                     <option value="dyeing">Dyeing Vendor</option>
                                     <option value="both">Both (Embroidery & Dyeing)</option>
+                                    <option value="transport">Transport / Tempo</option>
                                 </select>
                             </div>
 
-                            <Input
-                                label="Material Supplied"
-                                value={formData.materialSupplied}
-                                onChange={(e) => { setFormData({ ...formData, materialSupplied: e.target.value }); setFormErrors(p => ({...p, materialSupplied: ''})); }}
-                                error={formErrors.materialSupplied}
-                                data-error={!!formErrors.materialSupplied}
-                            />
+                            {formData.vendorType !== 'transport' && (
+                                <Input
+                                    label="Material Supplied"
+                                    value={formData.materialSupplied}
+                                    onChange={(e) => { setFormData({ ...formData, materialSupplied: e.target.value }); setFormErrors(p => ({...p, materialSupplied: ''})); }}
+                                    error={formErrors.materialSupplied}
+                                    data-error={!!formErrors.materialSupplied}
+                                />
+                            )}
                         </div>
+
+                        {formData.vendorType === 'transport' && (
+                            <>
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <Input
+                                        label="Driver Name"
+                                        value={formData.driverName}
+                                        onChange={(e) => setFormData({ ...formData, driverName: e.target.value })}
+                                    />
+                                    <Input
+                                        label="Alternate Number"
+                                        value={formData.altPhone}
+                                        onChange={(e) => setFormData({ ...formData, altPhone: e.target.value })}
+                                    />
+                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <Input
+                                        label="Vehicle Number"
+                                        value={formData.vehicleNumber}
+                                        onChange={(e) => setFormData({ ...formData, vehicleNumber: e.target.value })}
+                                        placeholder="MH 04 AB 1234"
+                                    />
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">Vehicle Type</label>
+                                        <select 
+                                            className="w-full px-3 py-2 bg-slate-50/50 border border-slate-200 focus:border-indigo-500 focus:bg-bg-surface focus:ring-4 focus:ring-indigo-100 rounded-xl text-sm transition-all outline-none text-slate-800 font-medium"
+                                            value={formData.vehicleType}
+                                            onChange={(e) => setFormData({ ...formData, vehicleType: e.target.value })}
+                                        >
+                                            <option value="">Select Type</option>
+                                            <option value="mini_truck">Mini Truck</option>
+                                            <option value="tempo">Tempo</option>
+                                            <option value="heavy">Heavy Truck</option>
+                                            <option value="other">Other</option>
+                                        </select>
+                                    </div>
+                                    <Input
+                                        label="Route / Area"
+                                        value={formData.defaultRoute}
+                                        onChange={(e) => setFormData({ ...formData, defaultRoute: e.target.value })}
+                                    />
+                                </div>
+                            </>
+                        )}
 
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <div className="flex flex-col gap-1.5">
@@ -537,15 +671,25 @@ export default function VendorsPage() {
                             justifyContent: 'flex-end',
                         }}
                     >
-                        <Button variant="ghost" type="button" onClick={() => setShowModal(false)}>
+                        <Button variant="ghost" type="button" onClick={() => setShowEditModal(false)}>
                             Cancel
                         </Button>
                         <Button variant="primary" type="submit">
-                            {editingVendor ? 'Update' : 'Add'} Vendor
+                            Update Vendor
                         </Button>
                     </div>
                 </form>
             </Modal>
+            <ConfirmDialog
+                isOpen={!!vendorToDelete}
+                onClose={() => setVendorToDelete(null)}
+                onConfirm={executeDelete}
+                title="Delete Vendor"
+                message="Are you sure you want to delete this vendor? This action cannot be undone and will only succeed if the vendor has no outstanding balance, bills, or history."
+                confirmText={isDeleting ? "Deleting..." : "Delete Vendor"}
+                cancelText="Cancel"
+                variant="danger"
+            />
         </div>
     );
 }

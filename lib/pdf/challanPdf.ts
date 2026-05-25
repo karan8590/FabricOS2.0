@@ -8,7 +8,9 @@ interface ChallanData {
     order_number?: string;
     from_name: string;
     from_address: string;
+    from_phone?: string;
     from_gstin: string;
+    from_logo?: string;
     to_name: string;
     to_address: string;
     to_gstin: string;
@@ -51,6 +53,10 @@ export function generateChallanPdf(data: ChallanData): jsPDF {
     doc.text(splitAddress, margin, 32);
     
     let yPos = 32 + (splitAddress.length * 4.5);
+    if (data.from_phone) {
+        doc.text(`Phone: ${data.from_phone}`, margin, yPos);
+        yPos += 4.5;
+    }
     if (data.from_gstin) {
         doc.setFont('helvetica', 'bold');
         doc.text(`GSTIN: ${data.from_gstin}`, margin, yPos);

@@ -7,6 +7,10 @@ CREATE TABLE IF NOT EXISTS businesses (
   owner_uid INTEGER,
   status TEXT DEFAULT 'active' CHECK(status IN ('active', 'suspended')),
   uses_shared_catalog INTEGER DEFAULT 0,
+  phone TEXT,
+  gst_number TEXT,
+  address TEXT,
+  logo_url TEXT,
   created_at INTEGER NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()))::integer
 );
 
@@ -83,6 +87,14 @@ CREATE TABLE IF NOT EXISTS orders (
   recurring_parent_id INTEGER,
   recurring_active INTEGER DEFAULT 0,
   is_draft_from_recurring INTEGER DEFAULT 0,
+  invoice_generated BOOLEAN DEFAULT FALSE,
+  fabric_type TEXT DEFAULT 'Polyester',
+  dispatch_stage TEXT,
+  queued_vendor_id INTEGER,
+  queued_rate NUMERIC,
+  queued_expected_date TEXT,
+  queued_notes TEXT,
+  queued_generate_challan BOOLEAN DEFAULT TRUE,
   notes TEXT,
   qr_code TEXT,
   FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
@@ -163,6 +175,21 @@ CREATE TABLE IF NOT EXISTS vendors (
   state_code TEXT,
   vendor_type TEXT DEFAULT 'Fabric Supplier',
   balance NUMERIC NOT NULL DEFAULT 0,
+  email TEXT,
+  alt_phone TEXT,
+  address TEXT,
+  rate_type TEXT,
+  payment_terms TEXT,
+  upi_id TEXT,
+  bank_name TEXT,
+  account_number TEXT,
+  ifsc_code TEXT,
+  notes TEXT,
+  status TEXT DEFAULT 'active',
+  vehicle_number TEXT,
+  driver_name TEXT,
+  vehicle_type TEXT,
+  default_route TEXT,
   created_at INTEGER NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()))::integer
 );
 
@@ -297,7 +324,8 @@ CREATE INDEX IF NOT EXISTS idx_advance_instalments_advance ON advance_instalment
 CREATE TABLE IF NOT EXISTS inventory_fabric (
   business_id TEXT DEFAULT 'business_001',
   id SERIAL PRIMARY KEY,
-  design_name TEXT NOT NULL,
+  fabric_type TEXT,
+  design_name TEXT,
   vendor_id INTEGER NOT NULL,
   metres_ordered NUMERIC NOT NULL,
   metres_received NUMERIC NOT NULL,
@@ -315,6 +343,49 @@ CREATE TABLE IF NOT EXISTS inventory_fabric (
 
 CREATE INDEX IF NOT EXISTS idx_inventory_fabric_vendor ON inventory_fabric(vendor_id);
 CREATE INDEX IF NOT EXISTS idx_inventory_fabric_date ON inventory_fabric(purchase_date);
+
+-- New Unified Inventory Materials Table
+CREATE TABLE IF NOT EXISTS inventory_materials (
+    id SERIAL PRIMARY KEY,
+    business_id TEXT DEFAULT 'business_001',
+    name TEXT NOT NULL,
+    category TEXT NOT NULL,
+    vendor_id INTEGER NOT NULL,
+    color TEXT,
+    gsm TEXT,
+    unit TEXT NOT NULL,
+    available_stock NUMERIC NOT NULL DEFAULT 0,
+    reserved_stock NUMERIC NOT NULL DEFAULT 0,
+    used_stock NUMERIC NOT NULL DEFAULT 0,
+    rate_per_unit NUMERIC NOT NULL DEFAULT 0,
+    min_stock NUMERIC DEFAULT 0,
+    last_purchase_date TEXT,
+    status TEXT DEFAULT 'active',
+    created_at INTEGER NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()))::integer,
+    FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE CASCADE
+);
+
+-- New Inventory History Table
+CREATE TABLE IF NOT EXISTS inventory_history (
+    id SERIAL PRIMARY KEY,
+    business_id TEXT DEFAULT 'business_001',
+    material_id INTEGER NOT NULL,
+    action_type TEXT NOT NULL,
+    quantity NUMERIC NOT NULL,
+    prev_stock NUMERIC NOT NULL,
+    new_stock NUMERIC NOT NULL,
+    reason TEXT,
+    linked_order_id INTEGER,
+    vendor_id INTEGER,
+    user_id INTEGER,
+    created_at INTEGER NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()))::integer,
+    FOREIGN KEY (material_id) REFERENCES inventory_materials(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_inv_materials_biz ON inventory_materials(business_id);
+CREATE INDEX IF NOT EXISTS idx_inv_materials_vendor ON inventory_materials(vendor_id);
+CREATE INDEX IF NOT EXISTS idx_inv_history_mat ON inventory_history(material_id);
+CREATE INDEX IF NOT EXISTS idx_inv_history_biz ON inventory_history(business_id);
 
 -- Inventory Ink Table
 CREATE TABLE IF NOT EXISTS inventory_ink (
@@ -567,6 +638,7 @@ CREATE TABLE IF NOT EXISTS vendor_dispatches (
   total_cost NUMERIC NOT NULL DEFAULT 0,
   status TEXT NOT NULL CHECK(status IN ('sent', 'returned', 'cancelled')) DEFAULT 'sent',
   notes TEXT,
+  telegram_sent INTEGER DEFAULT 0,
   created_at INTEGER NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()))::integer,
   FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
   FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE RESTRICT
@@ -591,3 +663,102 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS additional_charges NUMERIC DEFAULT 0
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS discount NUMERIC DEFAULT 0;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS gst_rate NUMERIC DEFAULT 0;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS gst_amount NUMERIC DEFAULT 0;
+
+ALTER TABLE inventory_history ADD COLUMN IF NOT EXISTS unit_rate NUMERIC DEFAULT 0;
+ALTER TABLE inventory_history ADD COLUMN IF NOT EXISTS total_cost NUMERIC DEFAULT 0;
+
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS vehicle_number TEXT;
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS driver_name TEXT;
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS vehicle_type TEXT;
+ALTER TABLE vendors ADD COLUMN IF NOT EXISTS default_route TEXT;
+
+CREATE TABLE IF NOT EXISTS dispatch_batches (
+  id SERIAL PRIMARY KEY,
+  business_id TEXT DEFAULT 'business_001',
+  dispatch_number TEXT NOT NULL UNIQUE,
+  vehicle_number TEXT,
+  driver_name TEXT,
+  driver_phone TEXT,
+  route TEXT,
+  dispatch_date TEXT,
+  notes TEXT,
+  status TEXT,
+  transport_vendor_id INTEGER,
+  created_at INTEGER NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()))::integer
+);
+
+CREATE TABLE IF NOT EXISTS dispatch_orders (
+  id SERIAL PRIMARY KEY,
+  business_id TEXT DEFAULT 'business_001',
+  dispatch_id INTEGER NOT NULL,
+  order_id INTEGER NOT NULL,
+  delivery_status TEXT,
+  created_at INTEGER NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()))::integer,
+  FOREIGN KEY (dispatch_id) REFERENCES dispatch_batches(id) ON DELETE CASCADE,
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+);
+
+ALTER TABLE dispatch_batches ADD COLUMN IF NOT EXISTS transport_vendor_id INTEGER;
+
+-- Dispatch Challans Table (Delivery Challan system)
+CREATE TABLE IF NOT EXISTS dispatch_challans (
+  id SERIAL PRIMARY KEY,
+  business_id TEXT DEFAULT 'business_001',
+  challan_number TEXT NOT NULL UNIQUE,
+  dispatch_id INTEGER NOT NULL,
+  customer_id INTEGER NOT NULL,
+  order_ids TEXT NOT NULL,
+  telegram_sent INTEGER DEFAULT 0,
+  created_at INTEGER NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()))::integer
+);
+
+-- Unified Dispatches System
+CREATE TABLE IF NOT EXISTS dispatches (
+  id SERIAL PRIMARY KEY,
+  business_id TEXT DEFAULT 'business_001',
+  dispatch_number TEXT NOT NULL UNIQUE,
+  dispatch_type TEXT NOT NULL CHECK(dispatch_type IN ('embroidery', 'dyeing', 'customer')),
+  is_bulk BOOLEAN DEFAULT FALSE,
+  transporter TEXT,
+  lr_number TEXT,
+  dispatch_date INTEGER NOT NULL,
+  expected_return_date INTEGER,
+  expected_delivery_date INTEGER,
+  status TEXT NOT NULL CHECK(status IN ('in_transit', 'partially_returned', 'completed', 'overdue', 'cancelled')) DEFAULT 'in_transit',
+  created_at INTEGER NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()))::integer
+);
+
+CREATE INDEX IF NOT EXISTS idx_dispatches_business ON dispatches(business_id);
+CREATE INDEX IF NOT EXISTS idx_dispatches_status ON dispatches(status);
+
+CREATE TABLE IF NOT EXISTS dispatch_items (
+  id SERIAL PRIMARY KEY,
+  business_id TEXT DEFAULT 'business_001',
+  dispatch_id INTEGER NOT NULL,
+  order_id INTEGER NOT NULL,
+  vendor_id INTEGER,
+  rate_per_metre NUMERIC DEFAULT 0,
+  total_cost NUMERIC DEFAULT 0,
+  payment_due_date INTEGER,
+  status TEXT NOT NULL CHECK(status IN ('in_transit', 'returned', 'delivered', 'cancelled')) DEFAULT 'in_transit',
+  returned_meters NUMERIC DEFAULT 0,
+  quality_notes TEXT,
+  challan_id INTEGER,
+  created_at INTEGER NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()))::integer,
+  FOREIGN KEY (dispatch_id) REFERENCES dispatches(id) ON DELETE CASCADE,
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+  FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE SET NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_dispatch_items_dispatch ON dispatch_items(dispatch_id);
+CREATE INDEX IF NOT EXISTS idx_dispatch_items_order ON dispatch_items(order_id);
+
+
+-- Dispatch columns
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS dispatch_status TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS dispatch_type TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS queued_for_dispatch BOOLEAN DEFAULT FALSE;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS queued_at INTEGER;
+
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS embroidery_status TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS dyeing_status TEXT;

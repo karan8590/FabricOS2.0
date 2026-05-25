@@ -94,8 +94,8 @@ export async function POST(
             let itcValues: any[] = [];
             
             if (newStatus === 'paid' && payment.has_gst === 1) {
-                itcQueryAddendum = `, itc_claimed = 1, itc_amount = ?, itc_claimed_date = CAST(strftime('%s', 'now') AS INTEGER)`;
-                itcValues.push(payment.gst_amount);
+                itcQueryAddendum = `, itc_claimed = 1, itc_amount = ?, itc_claimed_date = ?`;
+                itcValues.push(payment.gst_amount, Math.floor(Date.now() / 1000));
                 
                 // Update linked job cost if exists
                 if (payment.linked_job_cost_id) {
@@ -136,7 +136,7 @@ export async function POST(
                 INSERT INTO expenses (
                     category, amount, date, description, paymentMode, reference, notes, 
                     addedBy, created_by_user_id, isAuto, linkedId, type, customerName, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, 'out', ?, CAST(strftime('%s', 'now') AS INTEGER))
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, 'out', ?, ?)
             `).run(
                             category,
                             amount,
@@ -148,7 +148,8 @@ export async function POST(
                             user.userId,
                             user.userId,
                             linkedId,
-                            payment.vendor_name
+                            payment.vendor_name,
+                            Math.floor(Date.now() / 1000)
                         ));
 
             return { newAmountPaid, newBalance, newStatus };

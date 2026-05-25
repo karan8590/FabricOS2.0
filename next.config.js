@@ -18,6 +18,15 @@ const nextConfig = {
     typescript: {
         ignoreBuildErrors: true,
     },
+    async redirects() {
+        return [
+            {
+                source: '/dispatch',
+                destination: '/dispatch-center',
+                permanent: true,
+            },
+        ];
+    },
 };
 
 module.exports = nextConfig;

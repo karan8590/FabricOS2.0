@@ -149,7 +149,11 @@ export async function DELETE(
             return NextResponse.json({ error: 'Cannot delete auto-populated expenses' }, { status: 400 });
         }
 
-        (await db.prepare('DELETE FROM expenses WHERE id = ?').run(expenseId));
+        if (existing.reference && (existing.reference.startsWith('INV-PUR-') || existing.reference.startsWith('INV-PROC-'))) {
+            return NextResponse.json({ error: 'This transaction is linked to inventory procurement. Delete from Inventory module instead.' }, { status: 400 });
+        }
+
+        (await db.prepare('UPDATE expenses SET is_deleted = TRUE, deleted_at = ? WHERE id = ?').run(Math.floor(Date.now() / 1000), expenseId));
 
         return NextResponse.json({ success: true });
     } catch (error) {

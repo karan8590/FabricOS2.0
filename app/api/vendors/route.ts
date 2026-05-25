@@ -74,7 +74,12 @@ export async function POST(request: Request) {
         }
         const businessId = payload.businessId;
 
-        const { name, contact, materialSupplied, balance, vendorType, gstNo, state, stateCode } = await request.json();
+        const { 
+            name, contact, altPhone, email, materialSupplied, balance, vendorType, 
+            gstNo, state, stateCode, address, rateType, paymentTerms, 
+            upiId, bankName, accountNumber, ifscCode, notes, status,
+            vehicleNumber, driverName, vehicleType, defaultRoute
+        } = await request.json();
 
         if (!name || !contact || !materialSupplied) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -91,31 +96,30 @@ export async function POST(request: Request) {
         const db = getDatabase();
         const result = (await db
                     .prepare(
-                        'INSERT INTO vendors (business_id, name, contact, material_supplied, balance, vendor_type, gst_no, state, state_code) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
+                        `INSERT INTO vendors (
+                            business_id, name, contact, alt_phone, email, material_supplied, balance, vendor_type, 
+                            gst_no, state, state_code, address, rate_type, payment_terms, upi_id, bank_name, 
+                            account_number, ifsc_code, notes, status, vehicle_number, driver_name, vehicle_type, default_route
+                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
                     )
                     .run(
-                        businessId,
-                        name, 
-                        contact, 
-                        materialSupplied, 
-                        balance || 0, 
-                        vendorType || 'Fabric Supplier',
-                        gstNo ? gstNo.trim().toUpperCase() : null,
-                        state || null,
-                        stateCode || null
+                        businessId, name, contact, altPhone || null, email || null, materialSupplied, balance || 0, vendorType || 'Fabric Supplier',
+                        gstNo ? gstNo.trim().toUpperCase() : null, state || null, stateCode || null,
+                        address || null, rateType || null, paymentTerms || null, upiId || null,
+                        bankName || null, accountNumber || null, ifscCode || null, notes || null, status || 'active',
+                        vehicleNumber || null, driverName || null, vehicleType || null, defaultRoute || null
                     ));
 
         const newVendorId = Number(result.lastInsertRowid);
         const vendor = {
-            id: newVendorId,
-            name,
-            contact,
-            material_supplied: materialSupplied,
-            balance: balance || 0,
-            vendor_type: vendorType || 'Fabric Supplier',
-            gst_no: gstNo ? gstNo.trim().toUpperCase() : null,
-            state: state || null,
-            state_code: stateCode || null,
+            id: newVendorId, name, contact, alt_phone: altPhone || null, email: email || null,
+            material_supplied: materialSupplied, balance: balance || 0, vendor_type: vendorType || 'Fabric Supplier',
+            gst_no: gstNo ? gstNo.trim().toUpperCase() : null, state: state || null, state_code: stateCode || null,
+            address: address || null, rate_type: rateType || null, payment_terms: paymentTerms || null,
+            upi_id: upiId || null, bank_name: bankName || null, account_number: accountNumber || null,
+            ifsc_code: ifscCode || null, notes: notes || null, status: status || 'active',
+            vehicle_number: vehicleNumber || null, driver_name: driverName || null, 
+            vehicle_type: vehicleType || null, default_route: defaultRoute || null
         };
 
         return NextResponse.json({ success: true, vendorId: newVendorId, vendor });

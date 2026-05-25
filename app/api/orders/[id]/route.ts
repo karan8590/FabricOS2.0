@@ -129,6 +129,60 @@ export async function DELETE(
             }, { status: 400 });
         }
 
+        // Cleanup Inventory Reservations / Consumptions
+        const inventoryRecords = await db.prepare(`
+            SELECT id, material_id, action_type, quantity 
+            FROM inventory_history 
+            WHERE linked_order_id = ? AND (action_type = 'Reserved' OR action_type = 'Consumed')
+        `).all(params.id) as any[];
+
+        for (const record of inventoryRecords) {
+            const material = await db.prepare('SELECT available_stock, reserved_stock, used_stock FROM inventory_materials WHERE id = ? AND business_id = ?').get(record.material_id, businessId) as any;
+            if (material) {
+                let newAvailable = Number(material.available_stock);
+                let newReserved = Number(material.reserved_stock);
+                let newUsed = Number(material.used_stock);
+
+                if (record.action_type === 'Reserved') {
+                    newAvailable += Number(record.quantity);
+                    newReserved -= Number(record.quantity);
+                } else if (record.action_type === 'Consumed') {
+                    newReserved += Number(record.quantity);
+                    newUsed -= Number(record.quantity);
+                }
+
+                await db.prepare(`
+                    UPDATE inventory_materials 
+                    SET available_stock = ?, reserved_stock = ?, used_stock = ?
+                    WHERE id = ? AND business_id = ?
+                `).run(newAvailable, newReserved, newUsed, record.material_id, businessId);
+            }
+        }
+        
+        // Delete orphaned inventory history rows
+        const invDeleted = await db.prepare('DELETE FROM inventory_history WHERE linked_order_id = ?').run(params.id);
+
+        // Delete vendor jobs and payables
+        const jobCostsDeleted = await db.prepare('DELETE FROM order_job_costs WHERE order_id = ? AND business_id = ?').run(params.id, businessId);
+        const vendorPayablesDeleted = await db.prepare('DELETE FROM vendor_payments WHERE order_id = ? AND business_id = ?').run(params.id, businessId);
+        
+        // Delete dispatch and challan records
+        const vendorDispatchesDeleted = await db.prepare('DELETE FROM vendor_dispatches WHERE order_id = ? AND business_id = ?').run(params.id, businessId);
+        const dispatchItemsDeleted = await db.prepare('DELETE FROM dispatch_items WHERE order_id = ?').run(params.id);
+        const dispatchOrdersDeleted = await db.prepare('DELETE FROM dispatch_orders WHERE order_id = ?').run(params.id);
+        const challansDeleted = await db.prepare('DELETE FROM challans WHERE order_id = ? AND business_id = ?').run(params.id, businessId);
+
+        if (process.env.NODE_ENV !== 'production') {
+            console.log(`\n[CLEANUP] Deleting Order #${params.id}`);
+            console.log(`- Removed ${invDeleted.changes} inventory history entries`);
+            console.log(`- Removed ${jobCostsDeleted.changes} vendor ledger entries (order_job_costs)`);
+            console.log(`- Removed ${vendorPayablesDeleted.changes} vendor payables (vendor_payments)`);
+            console.log(`- Removed ${vendorDispatchesDeleted.changes} vendor dispatches`);
+            console.log(`- Removed ${dispatchItemsDeleted.changes} dispatch items`);
+            console.log(`- Removed ${dispatchOrdersDeleted.changes} dispatch orders`);
+            console.log(`- Removed ${challansDeleted.changes} challans\n`);
+        }
+
         (await db.prepare('DELETE FROM orders WHERE id = ? AND business_id = ?').run(params.id, businessId));
 
         // Audit log: deletion
@@ -160,7 +214,7 @@ export async function PATCH(
         const { 
             quantity_meters, delivery_date, order_date,
             base_amount, printing_cost, embroidery_cost_charged, dyeing_cost_charged,
-            additional_charges, discount, gst_rate, gst_amount
+            additional_charges, discount, gst_rate, gst_amount, fabric_type
         } = body;
         
         const db = getDatabase();
@@ -200,6 +254,7 @@ export async function PATCH(
                 quantity_meters = COALESCE(?, quantity_meters),
                 delivery_date = COALESCE(?, delivery_date),
                 order_date = COALESCE(?, order_date),
+                fabric_type = COALESCE(?, fabric_type),
                 total_price = ?,
                 base_amount = ?,
                 printing_cost = ?,
@@ -211,7 +266,7 @@ export async function PATCH(
                 gst_amount = ?
             WHERE id = ? AND business_id = ?
         `).run(
-            quantity_meters, delivery_date, order_date, 
+            quantity_meters, delivery_date, order_date, fabric_type,
             total_price, financials.baseAmount, financials.printingCost, 
             financials.embroideryCostCharged, financials.dyeingCostCharged, 
             financials.additionalCharges, financials.discount, financials.gstRate, financials.gstAmount,

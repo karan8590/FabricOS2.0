@@ -43,7 +43,7 @@ export async function POST(request: Request) {
         if (!payload || !payload.isSuperAdmin) return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
 
         const body = await request.json();
-        const { name, gstin, adminName, phone, password, plan } = body;
+        const { name, gstin, adminName, phone, password, plan, address, logoUrl } = body;
 
         if (!name || !adminName || !phone || !password) {
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
@@ -61,16 +61,16 @@ export async function POST(request: Request) {
         const transaction = db.transaction(async () => {
             // 1. Create Business
             (await db.prepare(`
-                INSERT INTO businesses (id, name, type, status, created_at)
-                VALUES (?, ?, 'Textile Manufacturer', 'active', (EXTRACT(EPOCH FROM NOW()))::integer)
-            `).run(businessId, name));
+                INSERT INTO businesses (id, name, type, status, phone, gst_number, address, logo_url, created_at)
+                VALUES (?, ?, 'Textile Manufacturer', 'active', ?, ?, ?, ?, (EXTRACT(EPOCH FROM NOW()))::integer)
+            `).run(businessId, name, phone, gstin || null, address || null, logoUrl || null));
 
             // 2. Create Admin User
             // Create initial admin user
             const finalPhone = phone.startsWith('+') ? phone : '+91' + phone;
             (await db.prepare(`
                 INSERT INTO users (name, phone, password_hash, role, business_id, created_at)
-                VALUES (?, ?, ?, 'admin', ?, unixepoch())
+                VALUES (?, ?, ?, 'admin', ?, (EXTRACT(EPOCH FROM NOW()))::integer)
             `).run(adminName, finalPhone, passwordHash, businessId));
 
             // Update owner_uid of business (getting last inserted row id)
@@ -86,16 +86,9 @@ export async function POST(request: Request) {
                 VALUES (?, ?, ?)
             `).run('subscription_plan', plan || 'Starter', businessId));
             
-            // 4. Optionally store GST
-            if (gstin) {
-                (await db.prepare(`
-                    INSERT INTO settings (key, value, business_id)
-                    VALUES (?, ?, ?)
-                `).run('gstin', gstin, businessId));
-            }
         });
 
-        transaction();
+        await transaction();
 
         return NextResponse.json({ success: true, businessId });
 

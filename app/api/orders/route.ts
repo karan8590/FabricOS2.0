@@ -172,7 +172,7 @@ export async function POST(request: Request) {
         const body = await request.json();
         let customerId = body.customerId;
         const { 
-            designId, quantityMeters, deliveryDate, orderDate, priority, notes, pricePerUnit,
+            designId, quantityMeters, deliveryDate, orderDate, priority, notes, pricePerUnit, fabric_type: fabricType,
             baseAmount, printingCost, embroideryCostCharged, dyeingCostCharged, additionalCharges, discount, gstRate, gstAmount
         } = body;
 
@@ -181,27 +181,33 @@ export async function POST(request: Request) {
             customerId = user.customerId;
         }
 
-        if (!customerId || !designId || !quantityMeters) {
+        if (!customerId || !designId || !quantityMeters || !fabricType) {
             return NextResponse.json(
-                { error: 'Missing required fields' },
+                { error: 'Missing required fields including Fabric Type' },
                 { status: 400 }
             );
         }
 
         const db = getDatabase();
 
-        // Get design info if pricePerUnit not provided
-        let finalPricePerUnit = pricePerUnit;
-        if (!finalPricePerUnit) {
-            const design = (await db
-                            .prepare('SELECT price_per_meter FROM designs WHERE id = ?')
-                            .get(designId)) as any;
-
-            if (!design) {
-                return NextResponse.json({ error: 'Design not found' }, { status: 404 });
-            }
-            finalPricePerUnit = design.price_per_meter;
+        // 1. Silent schema migration for legacy support
+        try {
+            await db.prepare("ALTER TABLE orders ADD COLUMN fabric_type TEXT DEFAULT 'Polyester'").run();
+        } catch (e) {
+            // Column likely already exists
         }
+
+        // Get design info
+        const design = (await db
+                        .prepare('SELECT name, price_per_meter FROM designs WHERE id = ?')
+                        .get(designId)) as any;
+
+        if (!design) {
+            return NextResponse.json({ error: 'Design not found' }, { status: 404 });
+        }
+        const designName = design.name;
+
+        let finalPricePerUnit = pricePerUnit || design.price_per_meter;
 
         const financials = calculateOrderFinancials({
             quantity_meters: quantityMeters,
@@ -254,9 +260,9 @@ export async function POST(request: Request) {
                     .prepare(
                         `INSERT INTO orders (
                             customer_id, design_id, quantity_meters, total_price, status, order_number, delivery_date, order_date, priority, notes, price_per_unit, business_id,
-                            base_amount, printing_cost, embroidery_cost_charged, dyeing_cost_charged, additional_charges, discount, gst_rate, gst_amount
+                            base_amount, printing_cost, embroidery_cost_charged, dyeing_cost_charged, additional_charges, discount, gst_rate, gst_amount, fabric_type
                         )
-                 VALUES (?, ?, ?, ?, 'created', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                 VALUES (?, ?, ?, ?, 'created', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
                     )
                     .run(
                         customerId, 
@@ -277,13 +283,17 @@ export async function POST(request: Request) {
                         financials.additionalCharges,
                         financials.discount,
                         financials.gstRate,
-                        financials.gstAmount
+                        financials.gstAmount,
+                        fabricType
                     ));
 
         // Update customer total orders
         (await db.prepare(
                     'UPDATE customers SET total_orders = total_orders + 1 WHERE id = ? AND business_id = ?'
                 ).run(customerId, businessId));
+
+        // --- Removed Stock Reservation Logic ---
+        // Inventory is now only reserved strictly upon workflow 'approval' (STEP 2).
 
         // Add to activity timeline
         // TODO: add business_id to activity table if needed, ignoring for now as it's an activity log linked to customer_id.

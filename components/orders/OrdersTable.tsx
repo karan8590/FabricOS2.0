@@ -16,12 +16,20 @@ import ConfirmDeliveryModal from './ConfirmDeliveryModal';
 import PrintQRModal from './PrintQRModal';
 import { ORDER_STATUSES, ORDER_STATUS_LABELS } from '@/lib/constants';
 
+// Checkboxes ONLY for orders queued for customer dispatch
+const isEligibleForDispatch = (order: any): boolean => {
+    const s = (order.status || '').toLowerCase();
+    return s === 'queued_for_dispatch';
+};
+
 interface OrdersTableProps {
     orders: any[];
     onUpdate: () => void;
     onGenerateInvoice: (order: any) => void;
     onEdit?: (order: any) => void;
     activeWidget: string | null;
+    selectedIds?: Set<number>;
+    onToggleSelect?: (id: number) => void;
 }
 
 const OrderTableRow = React.memo(({ 
@@ -49,7 +57,7 @@ const OrderTableRow = React.memo(({
     
     const status = order.status?.toLowerCase() || ORDER_STATUSES.CREATED;
     const now = Math.floor(Date.now() / 1000);
-    const isFinished = status === ORDER_STATUSES.DELIVERED || status === 'invoiced' || status === 'completed';
+    const isFinished = status === 'completed' || status === 'invoiced' || (status === ORDER_STATUSES.DELIVERED && order.invoice_generated);
     const isPending = status === ORDER_STATUSES.CREATED;
     const isInProduction = [ORDER_STATUSES.APPROVED, ORDER_STATUSES.EMBROIDERY, ORDER_STATUSES.PRINTING, ORDER_STATUSES.DYEING, ORDER_STATUSES.READY, ORDER_STATUSES.DISPATCHED].includes(status);
     
@@ -73,8 +81,42 @@ const OrderTableRow = React.memo(({
             onMouseLeave={() => setIsHovered(false)}
         >
             <td className={styles.tdCheckbox}>
-                {isReady && (
+                {isEligibleForDispatch(order) && (
                     <input 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+                    
                         type="checkbox"
                         className={styles.rowCheckbox}
                         checked={isSelected || false}
@@ -131,18 +173,29 @@ const OrderTableRow = React.memo(({
                 </div>
             </td>
             <td className={styles.actionsCell}>
-                <div className={styles.actionsWrapper}>
-                    <OrderActionButton 
-                        order={order} 
-                        onUpdate={onUpdate} 
-                        onWorkflowAction={(action) => onWorkflowAction(action, order)}
-                    />
-                    <OrderActionMenu 
-                        order={order} 
-                        onUpdate={onUpdate} 
-                        onGenerateInvoice={onGenerateInvoice} 
-                        onEdit={onEdit}
-                    />
+                <div className={styles.actionsWrapper} style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'flex-end' }}>
+                    {order.invoice_generated ? (
+                        <div style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '4px',
+                            background: 'rgba(52,199,89,0.08)', color: '#34C759',
+                            padding: '4px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: 600,
+                        }}>
+                            <CheckCircle2 size={12} /> Invoice Generated
+                        </div>
+                    ) : null}
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', width: '100%', justifyContent: 'flex-end' }}>
+                        <OrderActionButton 
+                            order={order} 
+                            onUpdate={onUpdate} 
+                            onWorkflowAction={(action) => onWorkflowAction(action, order)}
+                        />
+                        <OrderActionMenu 
+                            order={order} 
+                            onUpdate={onUpdate} 
+                            onGenerateInvoice={onGenerateInvoice} 
+                            onEdit={onEdit}
+                        />
+                    </div>
                 </div>
             </td>
         </tr>
@@ -171,7 +224,7 @@ const OrderMobileCard = React.memo(({
 
     const status = order.status?.toLowerCase() || ORDER_STATUSES.CREATED;
     const now = Math.floor(Date.now() / 1000);
-    const isFinished = status === ORDER_STATUSES.DELIVERED || status === 'invoiced' || status === 'completed';
+    const isFinished = status === 'completed' || status === 'invoiced' || (status === ORDER_STATUSES.DELIVERED && order.invoice_generated);
     const isPending = status === ORDER_STATUSES.CREATED;
     const isInProduction = [ORDER_STATUSES.APPROVED, ORDER_STATUSES.EMBROIDERY, ORDER_STATUSES.PRINTING, ORDER_STATUSES.DYEING, ORDER_STATUSES.READY, ORDER_STATUSES.DISPATCHED].includes(status);
     
@@ -246,18 +299,29 @@ const OrderMobileCard = React.memo(({
                         year: 'numeric'
                     })}
                 </div>
-                <div className={styles.mobileActionsContainer}>
-                    <OrderActionButton 
-                        order={order} 
-                        onUpdate={onUpdate} 
-                        onWorkflowAction={(action) => onWorkflowAction(action, order)}
-                    />
-                    <OrderActionMenu 
-                        order={order} 
-                        onUpdate={onUpdate} 
-                        onGenerateInvoice={onGenerateInvoice} 
-                        onEdit={onEdit}
-                    />
+                <div className={styles.mobileActionsContainer} style={{ display: 'flex', flexDirection: 'column', gap: '8px', alignItems: 'flex-end', width: '100%' }}>
+                    {order.invoice_generated ? (
+                        <div style={{
+                            display: 'inline-flex', alignItems: 'center', gap: '4px',
+                            background: 'rgba(52,199,89,0.08)', color: '#34C759',
+                            padding: '4px 8px', borderRadius: '8px', fontSize: '11px', fontWeight: 600,
+                        }}>
+                            <CheckCircle2 size={12} /> Invoiced
+                        </div>
+                    ) : null}
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', width: '100%' }}>
+                        <OrderActionButton 
+                            order={order} 
+                            onUpdate={onUpdate} 
+                            onWorkflowAction={(action) => onWorkflowAction(action, order)}
+                        />
+                        <OrderActionMenu 
+                            order={order} 
+                            onUpdate={onUpdate} 
+                            onGenerateInvoice={onGenerateInvoice} 
+                            onEdit={onEdit}
+                        />
+                    </div>
                 </div>
             </div>
         </div>
@@ -265,20 +329,20 @@ const OrderMobileCard = React.memo(({
 });
 OrderMobileCard.displayName = 'OrderMobileCard';
 
-export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdit, activeWidget }: OrdersTableProps) {
+
+
+export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdit, activeWidget, selectedIds, onToggleSelect }: OrdersTableProps) {
     const router = useRouter();
     const [currentPage, setCurrentPage] = useState(1);
     
     // Modals state
     const [workflowActionState, setWorkflowActionState] = useState<{isOpen: boolean, action: string, order: any}>({isOpen: false, action: '', order: null});
     
-    const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
     const [showDispatchModal, setShowDispatchModal] = useState(false);
     const rowsPerPage = 20;
 
     useEffect(() => {
-        setCurrentPage(1);
-        setSelectedIds(new Set());
+        // Reset page if needed via parent
     }, [orders]);
 
     const handleCustomerClick = React.useCallback((customerId: number) => {
@@ -299,26 +363,20 @@ export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdi
 
     const highlightClass = getHighlightClass();
 
-    const readyOrders = orders.filter(o => o.status?.toLowerCase() === ORDER_STATUSES.READY);
-    const allReadySelected = readyOrders.length > 0 && readyOrders.every(o => selectedIds.has(o.id));
-
-    const toggleSelect = React.useCallback((id: number) => {
-        setSelectedIds(prev => {
-            const next = new Set(prev);
-            if (next.has(id)) next.delete(id); else next.add(id);
-            return next;
-        });
-    }, []);
+    const readyOrders = orders.filter(o => isEligibleForDispatch(o));
+    
+    const allReadySelected = readyOrders.length > 0 && readyOrders.every(o => selectedIds?.has(o.id));
 
     const toggleSelectAll = () => {
+        if (!onToggleSelect) return;
         if (allReadySelected) {
-            setSelectedIds(new Set());
+            readyOrders.forEach(o => selectedIds?.has(o.id) && onToggleSelect(o.id));
         } else {
-            setSelectedIds(new Set(readyOrders.map(o => o.id)));
+            readyOrders.forEach(o => !selectedIds?.has(o.id) && onToggleSelect(o.id));
         }
     };
 
-    const selectedOrders = orders.filter(o => selectedIds.has(o.id));
+    const selectedOrders = orders.filter(o => selectedIds?.has(o.id));
 
     const needsPagination = orders.length > 50;
     const startIndex = needsPagination ? (currentPage - 1) * rowsPerPage : 0;
@@ -333,6 +391,7 @@ export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdi
         onUpdate();
     };
 
+    console.log('OrdersTable rendering modals, workflowActionState:', workflowActionState);
     return (
         <div className={styles.tableContainer}>
             {/* Vendor Modals */}
@@ -340,7 +399,7 @@ export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdi
                 isOpen={workflowActionState.isOpen && (workflowActionState.action === 'send_to_embroidery' || workflowActionState.action === 'send_to_dyeing')}
                 onClose={closeWorkflowModal}
                 onSuccess={handleModalSuccess}
-                order={workflowActionState.order}
+                orders={workflowActionState.order ? [workflowActionState.order] : []}
                 action={workflowActionState.action as any}
             />
             <ConfirmReceivedModal
@@ -368,42 +427,12 @@ export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdi
                 onClose={() => setShowDispatchModal(false)}
                 onSuccess={() => {
                     setShowDispatchModal(false);
-                    setSelectedIds(new Set());
                     onUpdate();
                 }}
                 selectedOrders={selectedOrders}
             />
 
-            <AnimatePresence>
-                {selectedIds.size > 0 && (
-                    <motion.div
-                        className={styles.dispatchToolbar}
-                        initial={{ opacity: 0, y: -12 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -12 }}
-                        transition={{ duration: 0.2 }}
-                    >
-                        <div className={styles.dispatchToolbarLeft}>
-                            <div className={styles.dispatchCount}>
-                                <span>{selectedIds.size}</span>
-                                order{selectedIds.size > 1 ? 's' : ''} selected
-                            </div>
-                            <div className={styles.dispatchMeta}>
-                                {selectedOrders.reduce((s, o) => s + (o.quantity_meters || 0), 0)}m &nbsp;·&nbsp;
-                                ₹{selectedOrders.reduce((s, o) => s + (o.total_price || 0), 0).toLocaleString('en-IN')}
-                            </div>
-                        </div>
-                        <div className={styles.dispatchToolbarRight}>
-                            <button className={styles.dispatchClearBtn} onClick={() => setSelectedIds(new Set())}>
-                                <X size={14} /> Clear
-                            </button>
-                            <button className={styles.dispatchCreateBtn} onClick={() => setShowDispatchModal(true)}>
-                                <Truck size={15} /> Add to Dispatch
-                            </button>
-                        </div>
-                    </motion.div>
-                )}
-            </AnimatePresence>
+            
 
             <table className={styles.table}>
                 <thead>
@@ -430,7 +459,10 @@ export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdi
                 <tbody>
                     {paginatedOrders.map((order) => (
                         <OrderTableRow 
-                            onWorkflowAction={(action, ord) => setWorkflowActionState({ isOpen: true, action, order: ord })}
+                            onWorkflowAction={(action, ord) => {
+                                console.log('MODAL STATE CHANGED to action:', action, 'for order:', ord?.id);
+                                setWorkflowActionState({ isOpen: true, action, order: ord });
+                            }}
                             key={order.id}
                             order={order}
                             onUpdate={onUpdate}
@@ -438,8 +470,8 @@ export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdi
                             onEdit={onEdit}
                             highlightClass={highlightClass}
                             handleCustomerClick={handleCustomerClick}
-                            isSelected={selectedIds.has(order.id)}
-                            onToggleSelect={toggleSelect}
+                            isSelected={selectedIds?.has(order.id)}
+                            onToggleSelect={onToggleSelect}
                         />
                     ))}
                 </tbody>
@@ -448,7 +480,10 @@ export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdi
             <div className={styles.mobileCardsList}>
                 {paginatedOrders.map((order) => (
                         <OrderMobileCard 
-                            onWorkflowAction={(action, ord) => setWorkflowActionState({ isOpen: true, action, order: ord })}
+                            onWorkflowAction={(action, ord) => {
+                                console.log('MODAL STATE CHANGED to action:', action, 'for order:', ord?.id);
+                                setWorkflowActionState({ isOpen: true, action, order: ord });
+                            }}
                             key={order.id}
                             order={order}
                             onUpdate={onUpdate}
@@ -500,7 +535,7 @@ function OrderActionMenu({ order, onUpdate, onGenerateInvoice, onEdit }: { order
     }, []);
 
     const status = order.status?.toLowerCase() || 'pending';
-    const isFinished = status === 'completed' || status === 'invoiced' || status === ORDER_STATUSES.DELIVERED;
+    const isFinished = status === 'completed' || status === 'invoiced' || (status === ORDER_STATUSES.DELIVERED && order.invoice_generated);
 
     useEffect(() => {
         const handleClickOutside = (event: MouseEvent) => {
@@ -546,7 +581,7 @@ function OrderActionMenu({ order, onUpdate, onGenerateInvoice, onEdit }: { order
             icon: <FileText size={16} />, 
             onClick: () => onGenerateInvoice(order),
             color: '#34C759',
-            show: !isFinished
+            show: !order.invoice_generated
         },
 
         { type: 'separator' },
@@ -721,6 +756,29 @@ function OrderActionButton({
         );
     }
 
+    if (order.dispatch_status === 'queued') {
+        return (
+            <div style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: 'rgba(175, 82, 222, 0.08)',
+                color: '#AF52DE',
+                border: '1px solid rgba(175, 82, 222, 0.2)',
+                borderRadius: '12px',
+                padding: '8px 16px',
+                fontSize: '13px',
+                fontWeight: 600,
+                width: '100%',
+                justifyContent: 'center',
+                opacity: 0.8,
+                cursor: 'default'
+            }}>
+                <i className="ti ti-clock"></i> Queued For Dispatch
+            </div>
+        );
+    }
+
     const config = ACTION_CONFIG[status];
     if (!config) return null;
 
@@ -747,11 +805,12 @@ function OrderActionButton({
         }
     };
 
-    const handleAction = () => {
+    const handleAction = (e: React.MouseEvent) => {
+        e.stopPropagation();
+        console.log('SEND TO EMBROIDERY CLICKED', order.id, 'Status:', status);
         if (status === ORDER_STATUSES.CREATED || status === 'pending' || status === 'waiting_approval') {
             setShowApproveModal(true);
         } else {
-            // Determine action keyword for modal
             let actionKey = '';
             if (status === ORDER_STATUSES.APPROVED) actionKey = 'send_to_embroidery';
             else if (status === ORDER_STATUSES.EMBROIDERY || status === 'embroidery_in_progress') actionKey = 'mark_printing';
@@ -760,7 +819,29 @@ function OrderActionButton({
             else if (status === ORDER_STATUSES.READY) actionKey = 'dispatch';
             else if (status === ORDER_STATUSES.DISPATCHED) actionKey = 'mark_delivered';
             
-            if (actionKey) onWorkflowAction(actionKey);
+            if (actionKey === 'dispatch') {
+                setIsProcessing(true);
+                fetch(`/api/orders/${order.id}/workflow`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ action: actionKey })
+                })
+                .then(res => res.json().then(data => ({ok: res.ok, data})))
+                .then(({ok, data}) => {
+                    if (ok) {
+                        if (onUpdate) onUpdate();
+                    } else {
+                        alert(`❌ Failed to queue order: ${data.error || 'Unknown error'}`);
+                    }
+                })
+                .catch(err => alert(`❌ Error: ${err.message}`))
+                .finally(() => setIsProcessing(false));
+            } else {
+                if (actionKey) {
+                    console.log('Calling onWorkflowAction with actionKey:', actionKey);
+                    onWorkflowAction(actionKey);
+                }
+            }
         }
     };
 
