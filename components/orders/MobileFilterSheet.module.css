@@ -1,0 +1,225 @@
+/* ===================================================
+   MobileFilterSheet — Bottom Sheet Filter Panel
+   =================================================== */
+
+.overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(4px);
+    z-index: 800;
+    animation: fadeOverlay 0.2s ease;
+}
+
+@keyframes fadeOverlay {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+.sheet {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--bg-card);
+    border-radius: 24px 24px 0 0;
+    padding: 0 0 env(safe-area-inset-bottom, 16px);
+    z-index: 801;
+    animation: slideUp 0.28s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    max-height: 85vh;
+    overflow-y: auto;
+    box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.18);
+}
+
+@keyframes slideUp {
+    from { transform: translateY(100%); opacity: 0.6; }
+    to   { transform: translateY(0);    opacity: 1; }
+}
+
+/* Handle bar */
+.handle {
+    width: 40px;
+    height: 4px;
+    background: var(--border-primary);
+    border-radius: 2px;
+    margin: 12px auto 0;
+}
+
+/* Sheet header */
+.sheetHeader {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px 12px;
+    border-bottom: 1px solid var(--border-subtle, rgba(0,0,0,0.06));
+}
+
+.sheetTitle {
+    font-size: 17px;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.closeBtn {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--bg-grouped);
+    border: none;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-secondary);
+    cursor: pointer;
+    font-size: 18px;
+    line-height: 1;
+}
+
+/* Section */
+.section {
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border-subtle, rgba(0,0,0,0.05));
+}
+
+.sectionLabel {
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.07em;
+    color: var(--text-tertiary);
+    margin-bottom: 12px;
+}
+
+/* Status chips */
+.chipGrid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    padding: 7px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1.5px solid var(--border-primary);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    transition: all 0.15s ease;
+    user-select: none;
+}
+
+.chip:active {
+    transform: scale(0.96);
+}
+
+.chipActive {
+    background: var(--accent, #0071E3);
+    border-color: var(--accent, #0071E3);
+    color: #fff;
+}
+
+/* Month chips — horizontal scroll */
+.monthRow {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+}
+
+.monthRow::-webkit-scrollbar { display: none; }
+
+.monthChip {
+    flex-shrink: 0;
+    padding: 7px 14px;
+    border-radius: 20px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: 1.5px solid var(--border-primary);
+    background: var(--bg-card);
+    color: var(--text-secondary);
+    transition: all 0.15s ease;
+    user-select: none;
+    white-space: nowrap;
+}
+
+.monthChipActive {
+    background: var(--accent, #0071E3);
+    border-color: var(--accent, #0071E3);
+    color: #fff;
+}
+
+/* Year selector */
+.yearRow {
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+}
+
+.yearRow::-webkit-scrollbar { display: none; }
+
+/* Footer actions */
+.sheetFooter {
+    display: flex;
+    gap: 12px;
+    padding: 16px 20px;
+}
+
+.resetBtn {
+    flex: 0 0 auto;
+    height: 50px;
+    padding: 0 20px;
+    border-radius: 14px;
+    border: 1.5px solid var(--border-primary);
+    background: var(--bg-grouped);
+    color: var(--text-secondary);
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.resetBtn:active {
+    background: var(--bg-hover);
+}
+
+.applyBtn {
+    flex: 1;
+    height: 50px;
+    border-radius: 14px;
+    border: none;
+    background: var(--accent, #0071E3);
+    color: #fff;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.15s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.applyBtn:active {
+    transform: scale(0.98);
+}
+
+/* Active count badge on apply button */
+.activeBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(255,255,255,0.25);
+    border-radius: 20px;
+    padding: 2px 7px;
+    font-size: 12px;
+    font-weight: 700;
+}

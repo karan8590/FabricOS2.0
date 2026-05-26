@@ -1,0 +1,115 @@
+/* ===================================================
+   BulkActionBar CSS
+   =================================================== */
+
+.barContainer {
+    position: fixed;
+    bottom: 76px; /* Sits elegantly above bottom mobile nav bar */
+    left: 50%;
+    transform: translateX(-50%);
+    width: calc(100% - 32px);
+    max-width: 568px;
+    z-index: 99;
+    
+    background: rgba(255, 255, 255, 0.8);
+    backdrop-filter: blur(20px) saturate(190%);
+    -webkit-backdrop-filter: blur(20px) saturate(190%);
+    border: 1.5px solid rgba(226, 232, 240, 0.7);
+    
+    box-shadow: 
+        0 10px 30px -10px rgba(0, 0, 0, 0.08),
+        0 1px 3px rgba(0, 0, 0, 0.02);
+    
+    border-radius: 20px;
+    padding: 12px 16px;
+    
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+}
+
+:global(.dark-mode) .barContainer {
+    background: rgba(28, 28, 30, 0.8);
+    border-color: rgba(54, 54, 56, 0.7);
+    box-shadow: 
+        0 10px 30px -10px rgba(0, 0, 0, 0.3),
+        0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.leftInfo {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.selectedCount {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary, #1F2937);
+}
+
+.metersTotal {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-tertiary, #6B7280);
+}
+
+.actionsGroup {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.clearBtn {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary, #4B5563);
+    font-size: 13px;
+    font-weight: 600;
+    padding: 6px 12px;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.clearBtn:hover {
+    background: rgba(0, 0, 0, 0.04);
+}
+
+:global(.dark-mode) .clearBtn:hover {
+    background: rgba(255, 255, 255, 0.04);
+}
+
+.actionBtn {
+    background: var(--accent, #0071E3);
+    color: #FFF;
+    border: none;
+    font-size: 13px;
+    font-weight: 700;
+    padding: 8px 16px;
+    border-radius: 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    box-shadow: 0 2px 8px rgba(0, 113, 227, 0.25);
+    transition: all 0.15s ease;
+}
+
+.actionBtn:hover {
+    opacity: 0.95;
+    transform: translateY(-1px);
+}
+
+.actionBtn:active {
+    transform: translateY(0);
+}
+
+.actionBtn:disabled {
+    background: var(--border-primary, #E5E7EB);
+    color: var(--text-tertiary, #9CA3AF);
+    box-shadow: none;
+    cursor: not-allowed;
+    transform: none;
+}

@@ -509,3 +509,149 @@
     border-color: #0071E3;
     color: #FFFFFF;
 }
+
+/* ===================================================
+   Mobile-First Layout Additions
+   =================================================== */
+
+/* Desktop filter bar — hide on mobile */
+.desktopFilterControls {
+    display: flex;
+}
+
+/* Mobile filter row — hidden on desktop, shown on mobile */
+.mobileFilterControls {
+    display: none;
+}
+
+/* Mobile FAB — hidden on desktop */
+.mobileFab {
+    display: none;
+}
+
+/* Mobile filter button */
+.mobileFilterBtn {
+    display: none;
+}
+
+/* Mobile filter badge */
+.mobileFilterBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    background: #0071E3;
+    color: #fff;
+    border-radius: 20px;
+    min-width: 18px;
+    height: 18px;
+    font-size: 10px;
+    font-weight: 700;
+    padding: 0 5px;
+}
+
+@media (max-width: 768px) {
+    /* Hide desktop filter bar on mobile */
+    .desktopFilterControls {
+        display: none !important;
+    }
+
+    /* Show mobile filter row */
+    .mobileFilterControls {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 16px;
+        width: 100%;
+    }
+
+    .mobileFilterBtn {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 10px 14px;
+        border-radius: 12px;
+        background: var(--bg-card);
+        border: 1.5px solid var(--border-primary);
+        color: var(--text-primary);
+        font-size: 13px;
+        font-weight: 600;
+        cursor: pointer;
+        white-space: nowrap;
+        flex-shrink: 0;
+        transition: all 0.15s ease;
+    }
+
+    .mobileFilterBtn:active {
+        transform: scale(0.97);
+        background: var(--bg-hover);
+    }
+
+    /* Stat widget row — horizontal scroll on mobile */
+    .widgetRow {
+        display: flex;
+        flex-wrap: nowrap;
+        gap: 10px;
+        overflow-x: auto;
+        scrollbar-width: none;
+        padding-bottom: 8px;
+        scroll-snap-type: x mandatory;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .widgetRow::-webkit-scrollbar { display: none; }
+
+    .widgetRow > * {
+        min-width: 140px;
+        max-width: 160px;
+        flex-shrink: 0;
+        scroll-snap-align: start;
+    }
+
+    /* Page title */
+    .title { font-size: 24px; }
+    .header { margin-bottom: 20px; }
+    .subtitle { font-size: 13px; }
+
+    /* Active filter pill */
+    .activeWidgetPill { font-size: 12px; padding: 5px 12px; }
+
+    /* Active filters row — tighter */
+    .activeFilters { gap: 6px; margin-bottom: 16px; }
+    .filterChip { font-size: 11.5px; padding: 4px 10px; }
+
+    /* Content area needs bottom padding for FAB + action bar */
+    .ordersPage {
+        padding-bottom: 100px;
+    }
+
+    /* Mobile FAB — fixed bottom right */
+    .mobileFab {
+        display: flex;
+        position: fixed;
+        bottom: 24px;
+        right: 20px;
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: var(--accent, #0071E3);
+        color: #fff;
+        border: none;
+        box-shadow: 0 4px 20px rgba(0, 113, 227, 0.4), 0 2px 8px rgba(0,0,0,0.15);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        z-index: 200;
+        transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .mobileFab:active {
+        transform: scale(0.92);
+        box-shadow: 0 2px 10px rgba(0, 113, 227, 0.3);
+    }
+
+    /* Hide original filter controls mobile override (now handled by desktopFilterControls) */
+    .filterControls {
+        display: none;
+    }
+}

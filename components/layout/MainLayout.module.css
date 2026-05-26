@@ -73,7 +73,8 @@
     stroke: var(--text-primary);
 }
 
-@media (max-width: 1023px) {
+/* ── Tablet: 769–1023px — slide drawer still used ── */
+@media (min-width: 769px) and (max-width: 1023px) {
     .content {
         margin-left: 0;
         width: 100%;
@@ -81,7 +82,7 @@
 
     .main {
         padding: 16px;
-        padding-top: 64px;
+        padding-top: 80px; /* space for fixed header + hamburger */
     }
 
     .header {
@@ -90,6 +91,30 @@
 
     .menuButton {
         display: flex;
+    }
+}
+
+/* ── Mobile: <= 768px — bottom nav replaces sidebar ── */
+@media (max-width: 768px) {
+    .content {
+        margin-left: 0;
+        width: 100%;
+    }
+
+    /* Hide desktop-only elements on mobile */
+    .header {
+        display: none !important;
+    }
+
+    .menuButton {
+        display: none !important;
+    }
+
+    .main {
+        padding: 16px;
+        /* MobileTopBar is 56px + safe-area; bottom nav is 60px + safe-area */
+        padding-top: calc(56px + env(safe-area-inset-top, 0px) + 16px);
+        padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 16px);
     }
 }
 

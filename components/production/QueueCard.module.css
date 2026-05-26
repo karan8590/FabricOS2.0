@@ -1,0 +1,159 @@
+/* ===================================================
+   QueueCard CSS
+   =================================================== */
+
+.cardContainer {
+    position: relative;
+    width: 100%;
+    margin-bottom: 12px;
+    border-radius: 16px;
+    overflow: hidden;
+    touch-action: pan-y; /* Allow vertical scroll, handle horizontal swipe via framer */
+}
+
+.actionBackground {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 20px;
+    border-radius: 16px;
+    z-index: 0;
+}
+
+.actionLeft {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.actionRight {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: white;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.card {
+    position: relative;
+    z-index: 1;
+    background: var(--bg-card);
+    border: 1px solid var(--border-primary);
+    border-radius: 16px;
+    padding: 14px;
+    display: flex;
+    align-items: stretch;
+    gap: 12px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.02);
+}
+
+.selectedCard {
+    background: var(--accent-bg, rgba(0, 113, 227, 0.05));
+    border-color: var(--accent, #0071E3);
+}
+
+.checkboxContainer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding-right: 4px;
+}
+
+.checkbox {
+    width: 22px;
+    height: 22px;
+    border-radius: 6px;
+    border: 2px solid var(--border-primary);
+    background: transparent;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.15s ease;
+}
+
+.checkboxSelected {
+    background: var(--accent, #0071E3);
+    border-color: var(--accent, #0071E3);
+}
+
+.content {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 6px;
+}
+
+.customer {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.orderNo {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    background: var(--bg-grouped);
+    padding: 2px 6px;
+    border-radius: 6px;
+}
+
+.details {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+.qtyChip {
+    font-weight: 600;
+    color: var(--text-primary);
+    background: var(--bg-grouped);
+    padding: 2px 8px;
+    border-radius: 99px;
+    font-size: 12px;
+}
+
+.statusIndicator {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 600;
+    margin-top: 8px;
+}
+
+/* Action button that reveals on swipe */
+.revealedActionBtn {
+    background: rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.4);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}

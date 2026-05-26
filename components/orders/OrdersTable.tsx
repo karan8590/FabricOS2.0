@@ -7,6 +7,7 @@ import {
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './OrdersTable.module.css';
 import { createPortal } from 'react-dom';
+import MobileOrderCard, { isEligibleForBulkAction } from './MobileOrderCard';
 import IntelligentChip from './IntelligentChip';
 import CreateDispatchModal from './CreateDispatchModal';
 import SendToVendorModal from './SendToVendorModal';
@@ -18,13 +19,7 @@ import PrintQRModal from './PrintQRModal';
 import ApproveOrderModal from './ApproveOrderModal';
 import { ORDER_STATUSES, ORDER_STATUS_LABELS } from '@/lib/constants';
 
-const isEligibleForBulkAction = (order: any): boolean => {
-    const isEmbroideryQueue = order.order_stage === 'embroidery' && order.embroidery_status === 'queued_delivery';
-    const isDyeingQueue = order.order_stage === 'dyeing' && order.dyeing_status === 'queued_delivery';
-    const isReadyForDelivery = order.order_stage === 'ready';
-    
-    return isEmbroideryQueue || isDyeingQueue || isReadyForDelivery;
-};
+// isEligibleForBulkAction is imported from MobileOrderCard.tsx
 
 interface OrdersTableProps {
     orders: any[];
@@ -66,8 +61,7 @@ const OrderTableRow = React.memo(({
     
     const orderStage = order.order_stage || 'order_added';
     
-    // VERIFY NEWLY CREATED ORDERS LOG
-    console.log("ORDER STAGE:", order.id, orderStage);
+
     
     const now = Math.floor(Date.now() / 1000);
     const isFinished = orderStage === 'delivered';
@@ -387,7 +381,7 @@ export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdi
         onUpdate();
     };
 
-    console.log('OrdersTable rendering modals, workflowActionState:', workflowActionState);
+
     return (
         <div className={styles.tableContainer}>
             {/* Vendor Modals */}
@@ -477,11 +471,10 @@ export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdi
                 </thead>
                 <tbody>
                     {paginatedOrders.map((order) => (
-                        <OrderTableRow 
-                            onWorkflowAction={(action, ord) => {
-                                console.log('MODAL STATE CHANGED to action:', action, 'for order:', ord?.id);
-                                setWorkflowActionState({ isOpen: true, action, order: ord });
-                            }}
+                        <OrderTableRow
+                            onWorkflowAction={(action, ord) =>
+                                setWorkflowActionState({ isOpen: true, action, order: ord })
+                            }
                             key={order.id}
                             order={order}
                             onUpdate={onUpdate}
@@ -500,21 +493,20 @@ export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdi
 
             <div className={styles.mobileCardsList}>
                 {paginatedOrders.map((order) => (
-                        <OrderMobileCard 
-                            onWorkflowAction={(action, ord) => {
-                                console.log('MODAL STATE CHANGED to action:', action, 'for order:', ord?.id);
-                                setWorkflowActionState({ isOpen: true, action, order: ord });
-                            }}
-                            key={order.id}
-                            order={order}
-                            onUpdate={onUpdate}
-                            onGenerateInvoice={onGenerateInvoice}
-                            onEdit={onEdit}
-                            highlightClass={highlightClass}
-                            handleCustomerClick={handleCustomerClick}
-                            setIsCompletePrintingModalOpen={setIsCompletePrintingModalOpen}
-                            setSelectedOrderForPrinting={setSelectedOrderForPrinting}
-                        />
+                    <MobileOrderCard
+                        key={order.id}
+                        order={order}
+                        onUpdate={onUpdate}
+                        onGenerateInvoice={onGenerateInvoice}
+                        onEdit={onEdit}
+                        onWorkflowAction={(action, ord) =>
+                            setWorkflowActionState({ isOpen: true, action, order: ord })
+                        }
+                        isSelected={selectedIds?.has(order.id)}
+                        onToggleSelect={onToggleSelect}
+                        setIsCompletePrintingModalOpen={setIsCompletePrintingModalOpen}
+                        setSelectedOrderForPrinting={setSelectedOrderForPrinting}
+                    />
                 ))}
             </div>
 
@@ -541,99 +533,106 @@ export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdi
             )}
             {selectedOrders.length > 0 && (() => {
                 const totalMetres = selectedOrders.reduce((sum, o) => sum + (parseFloat(o.quantity_meters) || 0), 0);
-                const uniqueStages = [...new Set(selectedOrders.map(o => {
-                    return `${o.order_stage || 'order_added'}-${o.embroidery_status || ''}-${o.printing_status || ''}-${o.dyeing_status || ''}`;
-                }))];
+                const uniqueStages = [...new Set(selectedOrders.map(o =>
+                    `${o.order_stage || 'order_added'}-${o.embroidery_status || ''}-${o.printing_status || ''}-${o.dyeing_status || ''}`
+                ))];
                 const isMixed = uniqueStages.length > 1;
                 const sample = selectedOrders[0];
                 const sStage = sample.order_stage || 'order_added';
                 const sEmb = sample.embroidery_status;
-                const sPrint = sample.printing_status;
                 const sDye = sample.dyeing_status;
-                
-                let bulkActionProps = null;
+
+                let bulkActionProps: { label: string; icon: string; color: string; onClick: () => void } | null = null;
                 if (!isMixed) {
-                    if (sStage === 'approved') {
-                        bulkActionProps = { label: 'Send to Embroidery', icon: 'ti-needle', onClick: () => setWorkflowActionState({ isOpen: true, action: 'send_to_embroidery', order: null }) };
-                    } else if (sStage === 'embroidery' && sEmb === 'queued_delivery') {
-                        bulkActionProps = { label: 'Deliver Orders', icon: 'ti-truck', onClick: () => setShowDispatchModal(true) };
-                    } else if (sStage === 'printing' && sPrint === 'in_progress') {
-                        bulkActionProps = { label: 'Send to Dyeing', icon: 'ti-droplet', onClick: () => setWorkflowActionState({ isOpen: true, action: 'send_to_dyeing', order: null }) };
-                    } else if (sStage === 'dyeing' && sDye === 'queued_delivery') {
-                        bulkActionProps = { label: 'Deliver Orders', icon: 'ti-truck', onClick: () => setShowDispatchModal(true) };
-                    } else if (sStage === 'ready') {
-                        bulkActionProps = { label: 'Deliver Orders', icon: 'ti-truck', onClick: () => setShowDispatchModal(true) };
-                    }
+                    if (sStage === 'embroidery' && sEmb === 'queued_delivery')
+                        bulkActionProps = { label: 'Deliver Orders', icon: 'ti-truck', color: '#3B82F6', onClick: () => setShowDispatchModal(true) };
+                    else if (sStage === 'dyeing' && sDye === 'queued_delivery')
+                        bulkActionProps = { label: 'Deliver Orders', icon: 'ti-truck', color: '#3B82F6', onClick: () => setShowDispatchModal(true) };
+                    else if (sStage === 'ready')
+                        bulkActionProps = { label: 'Deliver Orders', icon: 'ti-truck', color: '#3B82F6', onClick: () => setShowDispatchModal(true) };
                 }
 
                 return (
                     <div style={{
                         position: 'fixed',
-                        bottom: '28px',
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        background: 'rgba(255,255,255,0.95)',
-                        backdropFilter: 'blur(12px)',
-                        border: '1px solid rgba(226,232,240,0.8)',
-                        borderRadius: '20px',
-                        padding: '10px 20px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0',
-                        boxShadow: '0 20px 40px -8px rgba(0,0,0,0.15), 0 8px 16px -4px rgba(0,0,0,0.08)',
+                        /* Mobile: full-width with safe margin; Desktop: centered pill */
+                        bottom: 0,
+                        left: 0,
+                        right: 0,
                         zIndex: 999,
-                        minWidth: '460px',
+                        padding: '12px 16px calc(12px + env(safe-area-inset-bottom, 0px))',
+                        background: 'var(--bg-card)',
+                        backdropFilter: 'blur(20px)',
+                        borderTop: '1px solid var(--border-primary)',
+                        boxShadow: '0 -4px 24px rgba(0,0,0,0.08)',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        gap: '10px',
                     }}>
-                        {/* Left: Selection Info */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', paddingRight: '20px', borderRight: '1px solid #E2E8F0', minWidth: '90px' }}>
-                            <span style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', lineHeight: 1.2 }}>
-                                {selectedOrders.length} {selectedOrders.length === 1 ? 'order' : 'orders'}
-                            </span>
-                            <span style={{ fontSize: '12px', fontWeight: 500, color: '#64748B' }}>
-                                {totalMetres.toFixed(1)}m selected
-                            </span>
+                        {/* Row 1: count + clear */}
+                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                <div style={{
+                                    width: '28px', height: '28px', borderRadius: '8px',
+                                    background: '#0EA5E9', display: 'flex', alignItems: 'center',
+                                    justifyContent: 'center', color: '#fff', fontSize: '13px', fontWeight: 700
+                                }}>{selectedOrders.length}</div>
+                                <div>
+                                    <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.2 }}>
+                                        {selectedOrders.length} {selectedOrders.length === 1 ? 'order' : 'orders'} selected
+                                    </div>
+                                    <div style={{ fontSize: '11.5px', color: 'var(--text-tertiary)' }}>
+                                        {totalMetres.toFixed(1)} m total
+                                    </div>
+                                </div>
+                            </div>
+                            <button
+                                onClick={() => { if (onToggleSelect && selectedIds) { selectedOrders.forEach(o => onToggleSelect(o.id)); } }}
+                                style={{
+                                    width: '36px', height: '36px', borderRadius: '50%',
+                                    background: 'var(--bg-grouped)', border: '1px solid var(--border-primary)',
+                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                    cursor: 'pointer', color: 'var(--text-secondary)'
+                                }}
+                            >
+                                <X size={16} />
+                            </button>
                         </div>
 
-                        {/* Center: Action Buttons */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 20px', flex: 1, justifyContent: 'center' }}>
+                        {/* Row 2: action button */}
+                        <div>
                             {isMixed ? (
-                                <span style={{ color: '#EF4444', fontSize: '13px', fontWeight: 600 }}>Mixed stages selected - Bulk actions disabled</span>
+                                <div style={{
+                                    padding: '12px', borderRadius: '14px', background: 'rgba(239,68,68,0.08)',
+                                    border: '1px solid rgba(239,68,68,0.2)', textAlign: 'center',
+                                    fontSize: '13px', fontWeight: 600, color: '#EF4444'
+                                }}>
+                                    Mixed stages — bulk actions unavailable
+                                </div>
                             ) : bulkActionProps ? (
                                 <button
                                     onClick={bulkActionProps.onClick}
                                     style={{
-                                        display: 'flex', alignItems: 'center', gap: '6px',
-                                        padding: '8px 18px', borderRadius: '10px', fontSize: '13px',
-                                        fontWeight: 600, cursor: 'pointer', border: 'none',
-                                        background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
-                                        color: '#FFFFFF',
-                                        boxShadow: '0 2px 8px rgba(15,23,42,0.3)',
-                                        transition: 'all 0.15s ease', whiteSpace: 'nowrap'
+                                        width: '100%', minHeight: '50px', borderRadius: '14px',
+                                        border: 'none', background: 'linear-gradient(135deg, #0F172A, #1E293B)',
+                                        color: '#fff', fontSize: '15px', fontWeight: 700,
+                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                        gap: '8px', cursor: 'pointer',
+                                        boxShadow: '0 4px 16px rgba(15,23,42,0.25)'
                                     }}
                                 >
-                                    <i className={`ti ${bulkActionProps.icon}`}></i> {bulkActionProps.label}
+                                    <i className={`ti ${bulkActionProps.icon}`} style={{ fontSize: '18px' }} />
+                                    {bulkActionProps.label}
                                 </button>
                             ) : (
-                                <span style={{ color: '#64748B', fontSize: '13px', fontWeight: 600 }}>No bulk actions for this stage</span>
+                                <div style={{
+                                    padding: '12px', borderRadius: '14px', background: 'var(--bg-grouped)',
+                                    border: '1px solid var(--border-primary)', textAlign: 'center',
+                                    fontSize: '13px', fontWeight: 500, color: 'var(--text-tertiary)'
+                                }}>
+                                    No bulk actions for this stage
+                                </div>
                             )}
-                        </div>
-
-                        {/* Right: Clear */}
-                        <div style={{ paddingLeft: '16px', borderLeft: '1px solid #E2E8F0' }}>
-                            <button
-                                onClick={() => { if (onToggleSelect && selectedIds) { selectedOrders.forEach(o => onToggleSelect(o.id)); } }}
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: '4px',
-                                    padding: '6px 12px', borderRadius: '8px', fontSize: '13px',
-                                    fontWeight: 500, cursor: 'pointer', border: '1px solid transparent',
-                                    background: 'transparent', color: '#94A3B8',
-                                    transition: 'all 0.15s ease'
-                                }}
-                                onMouseEnter={e => { (e.currentTarget).style.color = '#EF4444'; (e.currentTarget).style.background = '#FFF5F5'; }}
-                                onMouseLeave={e => { (e.currentTarget).style.color = '#94A3B8'; (e.currentTarget).style.background = 'transparent'; }}
-                            >
-                                <X size={14} /> Clear
-                            </button>
                         </div>
                     </div>
                 );

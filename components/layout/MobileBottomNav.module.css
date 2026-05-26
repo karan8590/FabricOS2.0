@@ -1,0 +1,116 @@
+/* ===================================================
+   MobileBottomNav — 5-tab native bottom navigation
+   =================================================== */
+
+.bottomNav {
+    display: none; /* hidden on desktop */
+}
+
+@media (max-width: 768px) {
+    .bottomNav {
+        display: flex;
+        align-items: stretch;
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        z-index: 500;
+        height: calc(60px + env(safe-area-inset-bottom, 0px));
+        padding-bottom: env(safe-area-inset-bottom, 0px);
+        background: var(--bg-card);
+        border-top: 1px solid var(--border-primary);
+        backdrop-filter: blur(20px) saturate(180%);
+        -webkit-backdrop-filter: blur(20px) saturate(180%);
+        box-shadow: 0 -2px 16px rgba(0, 0, 0, 0.06);
+    }
+
+    .tab {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 3px;
+        background: transparent;
+        border: none;
+        cursor: pointer;
+        padding: 6px 4px 2px;
+        position: relative;
+        color: var(--text-tertiary);
+        text-decoration: none;
+        transition: color 0.15s ease;
+        -webkit-tap-highlight-color: transparent;
+        user-select: none;
+    }
+
+    .tab:active {
+        transform: scale(0.88);
+        transition: transform 0.1s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .tabActive {
+        color: var(--accent, #0071E3);
+    }
+
+    /* Active indicator dot under icon */
+    .tab::after {
+        content: '';
+        position: absolute;
+        bottom: 0;
+        left: 50%;
+        transform: translateX(-50%) scaleX(0);
+        width: 20px;
+        height: 3px;
+        border-radius: 3px 3px 0 0;
+        background: var(--accent, #0071E3);
+        transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    }
+
+    .tabActive::after {
+        transform: translateX(-50%) scaleX(1);
+    }
+
+    .tabIcon {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 28px;
+        height: 28px;
+    }
+
+    .tabLabel {
+        font-size: 9.5px;
+        font-weight: 600;
+        letter-spacing: 0.02em;
+        text-align: center;
+        line-height: 1;
+        transition: color 0.15s ease;
+    }
+
+    /* Badge on tab icon */
+    .badge {
+        position: absolute;
+        top: -4px;
+        right: -6px;
+        min-width: 16px;
+        height: 16px;
+        border-radius: 99px;
+        background: #FF3B30;
+        color: #fff;
+        font-size: 9px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 4px;
+        border: 1.5px solid var(--bg-card);
+        line-height: 1;
+    }
+
+    /* Active icon background pill */
+    .tabActive .tabIcon {
+        background: var(--accent-bg, rgba(0, 113, 227, 0.1));
+        border-radius: 10px;
+    }
+}

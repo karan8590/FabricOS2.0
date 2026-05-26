@@ -8,7 +8,7 @@ import Input from '@/components/ui/Input';
 import AdvancedFilter, { FilterDefinition, FilterRow } from '@/components/ui/AdvancedFilter';
 import StatWidget from '@/components/ui/StatWidget';
 import CustomerContextHeader from '@/components/customers/CustomerContextHeader';
-import { Calendar, X, Plus } from 'lucide-react';
+import { Calendar, X, Plus, SlidersHorizontal } from 'lucide-react';
 import styles from './Orders.module.css';
 import CreateOrderPanel from '@/components/orders/CreateOrderPanel';
 import EditOrderModal from '@/components/orders/EditOrderModal';
@@ -19,6 +19,7 @@ import QRScannerModal from '@/components/ui/QRScannerModal';
 import { ORDER_STATUSES, ORDER_STATUS_LABELS } from '@/lib/constants';
 import CreateDispatchModal from '@/components/orders/CreateDispatchModal';
 import SendToVendorModal from '@/components/orders/SendToVendorModal';
+import MobileFilterSheet from '@/components/orders/MobileFilterSheet';
 
 import { formatCurrencySafe } from '@/lib/utils';
 import { Loader2 } from 'lucide-react';
@@ -49,6 +50,11 @@ export default function OrdersPage() {
     // Bulk Actions State
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
     const [bulkDispatchModalType, setBulkDispatchModalType] = useState<string | null>(null);
+
+    // Mobile filter sheet state
+    const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
+    const [mobileStatuses, setMobileStatuses] = useState<string[]>([]);
+
 
     const toggleSelection = useCallback((id: number) => {
         setSelectedIds(prev => {
@@ -321,8 +327,15 @@ export default function OrdersPage() {
             );
         }
 
+        // Mobile status filter (from bottom-sheet)
+        if (mobileStatuses.length > 0) {
+            result = result.filter(o =>
+                mobileStatuses.includes((o.status || '').toLowerCase())
+            );
+        }
+
         return result;
-    }, [allOrders, appliedFilters, searchTerm, selectedYear, selectedMonth]);
+    }, [allOrders, appliedFilters, searchTerm, selectedYear, selectedMonth, mobileStatuses]);
 
     const [activeWidget, setActiveWidget] = useState<string | null>(null);
 
@@ -569,7 +582,8 @@ export default function OrdersPage() {
                 </div>
             )}
 
-            <div className={styles.filterControls}>
+            {/* ── Desktop filter controls ── */}
+            <div className={`${styles.filterControls} ${styles.desktopFilterControls}`}>
                 <div className={styles.searchWrapper}>
                     <Input
                         placeholder="Search orders..."
@@ -632,6 +646,37 @@ export default function OrdersPage() {
                         <span>Add Order</span>
                     </button>
                 </div>
+            </div>
+
+            {/* ── Mobile filter controls (search + filter button row) ── */}
+            <div className={styles.mobileFilterControls}>
+                <div style={{ flex: 1 }}>
+                    <Input
+                        placeholder="Search orders..."
+                        value={searchTerm}
+                        onChange={(e) => {
+                            setSearchTerm(e.target.value);
+                            setSelectedIds(new Set());
+                        }}
+                        icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>}
+                    />
+                </div>
+                <button
+                    className={styles.mobileFilterBtn}
+                    onClick={() => setIsMobileFilterOpen(true)}
+                >
+                    <SlidersHorizontal size={16} />
+                    Filters
+                    {mobileStatuses.length > 0 && (
+                        <span className={styles.mobileFilterBadge}>{mobileStatuses.length}</span>
+                    )}
+                </button>
+                <button
+                    style={{ padding: '10px', borderRadius: '12px', background: 'var(--bg-card)', border: '1px solid var(--border-primary)', cursor: 'pointer', display: 'flex', alignItems: 'center', color: 'var(--text-secondary)', flexShrink: 0 }}
+                    onClick={() => setIsQRScannerOpen(true)}
+                >
+                    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 3h6v6H3z"></path><path d="M15 3h6v6h-6z"></path><path d="M3 15h6v6H3z"></path><path d="M15 15h6v6h-6z"></path></svg>
+                </button>
             </div>
 
             {activeFilters.length > 0 && (
@@ -787,10 +832,36 @@ export default function OrdersPage() {
                 />
             )}
         </div>
+
+        {/* Mobile FAB — Add Order */}
+        <button
+            className={styles.mobileFab}
+            onClick={() => setIsCreatePanelOpen(true)}
+            aria-label="Add Order"
+        >
+            <Plus size={22} />
+        </button>
+
         <QRScannerModal 
             isOpen={isQRScannerOpen}
             onClose={() => setIsQRScannerOpen(false)}
             onScan={handleQRScan}
+        />
+
+        {/* Mobile Filter Bottom Sheet */}
+        <MobileFilterSheet
+            isOpen={isMobileFilterOpen}
+            onClose={() => setIsMobileFilterOpen(false)}
+            selectedMonth={selectedMonth}
+            selectedYear={selectedYear}
+            selectedStatuses={mobileStatuses}
+            years={years}
+            onApply={(statuses, month, year) => {
+                setMobileStatuses(statuses);
+                setSelectedMonth(month);
+                setSelectedYear(year);
+                setSelectedIds(new Set());
+            }}
         />
         </>
     );

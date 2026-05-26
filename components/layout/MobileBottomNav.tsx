@@ -1,0 +1,91 @@
+'use client';
+
+import { useEffect, useState, useCallback } from 'react';
+import { usePathname, useRouter } from 'next/navigation';
+import {
+    LayoutDashboard, ShoppingBag, Factory, Landmark, Grid2x2
+} from 'lucide-react';
+import styles from './MobileBottomNav.module.css';
+import { useAuth } from '@/contexts/AuthContext';
+
+export interface MobileBottomNavProps {
+    onMoreOpen: () => void;
+    isMoreOpen: boolean;
+}
+
+const TABS = [
+    { id: 'dashboard',   label: 'Dashboard',   icon: LayoutDashboard, href: '/dashboard' },
+    { id: 'orders',      label: 'Orders',       icon: ShoppingBag,     href: '/orders' },
+    { id: 'production',  label: 'Production',   icon: Factory,         href: '/production' },
+    { id: 'payments',    label: 'Payments',     icon: Landmark,        href: '/vendor-payments' },
+    { id: 'more',        label: 'More',         icon: Grid2x2,         href: null },
+] as const;
+
+function isTabActive(tab: typeof TABS[number], pathname: string): boolean {
+    if (!tab.href) return false;
+    if (tab.href === '/dashboard') return pathname === '/dashboard';
+    return pathname.startsWith(tab.href);
+}
+
+export default function MobileBottomNav({ onMoreOpen, isMoreOpen }: MobileBottomNavProps) {
+    const pathname = usePathname();
+    const router = useRouter();
+    const { user } = useAuth();
+    const [overdueCount, setOverdueCount] = useState(0);
+
+    // Fetch overdue count for Payments badge
+    useEffect(() => {
+        if (!user || user.role === 'customer') return;
+        const fetchCount = async () => {
+            try {
+                const res = await fetch('/api/vendor-payments/overdue-count');
+                if (res.ok) {
+                    const d = await res.json();
+                    setOverdueCount(d.overdueCount || 0);
+                }
+            } catch { /* silent */ }
+        };
+        fetchCount();
+        const t = setInterval(fetchCount, 15000);
+        return () => clearInterval(t);
+    }, [user]);
+
+    if (!user || user.role === 'customer' || user.isSuperAdmin) return null;
+
+    const handleTab = (tab: typeof TABS[number]) => {
+        if (tab.id === 'more') {
+            onMoreOpen();
+        } else if (tab.href) {
+            router.push(tab.href);
+        }
+    };
+
+    return (
+        <nav className={styles.bottomNav} role="navigation" aria-label="Main navigation">
+            {TABS.map((tab) => {
+                const Icon = tab.icon;
+                const active = tab.id === 'more' ? isMoreOpen : isTabActive(tab, pathname);
+
+                return (
+                    <button
+                        key={tab.id}
+                        className={`${styles.tab} ${active ? styles.tabActive : ''}`}
+                        onClick={() => handleTab(tab)}
+                        aria-label={tab.label}
+                        aria-current={active && tab.id !== 'more' ? 'page' : undefined}
+                    >
+                        <span className={styles.tabIcon}>
+                            <Icon size={22} strokeWidth={active ? 2.2 : 1.8} />
+                            {tab.id === 'payments' && overdueCount > 0 && (
+                                <span className={styles.badge}>
+                                    {overdueCount > 99 ? '99+' : overdueCount}
+                                </span>
+                            )}
+                        </span>
+                        <span className={styles.tabLabel}>{tab.label}</span>
+                    </button>
+                );
+            })}
+        </nav>
+    );
+}

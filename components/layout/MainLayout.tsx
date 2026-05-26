@@ -6,10 +6,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import Sidebar from './Sidebar';
 import NotificationBell from './NotificationBell';
 import GlobalSearch from './GlobalSearch';
+import MobileTopBar from './MobileTopBar';
+import MobileBottomNav from './MobileBottomNav';
+import MobileMoreSheet from './MobileMoreSheet';
 import styles from './MainLayout.module.css';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
     const [sidebarOpen, setSidebarOpen] = useState(false);
+    const [isMoreOpen, setIsMoreOpen] = useState(false);
     const { user, loading } = useAuth();
     const router = useRouter();
 
@@ -61,8 +65,14 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
 
     return (
         <div className={styles.mainLayout}>
+            {/* Desktop sidebar — hidden on mobile */}
             <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+
+            {/* Mobile top bar — hidden on desktop */}
+            <MobileTopBar />
+
             <div className={styles.content}>
+                {/* Desktop header — hidden on mobile */}
                 <header className={styles.header}>
                     <div className={styles.headerLeft}>
                         <GlobalSearch />
@@ -71,6 +81,7 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                         <NotificationBell />
                     </div>
                 </header>
+                {/* Desktop hamburger button — hidden on mobile */}
                 <button
                     className={styles.menuButton}
                     onClick={() => setSidebarOpen(!sidebarOpen)}
@@ -83,6 +94,18 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
                 </button>
                 <main className={styles.main}>{children}</main>
             </div>
+
+            {/* Mobile bottom navigation — hidden on desktop */}
+            <MobileBottomNav
+                onMoreOpen={() => setIsMoreOpen(true)}
+                isMoreOpen={isMoreOpen}
+            />
+
+            {/* More sheet — only mounted when open */}
+            <MobileMoreSheet
+                isOpen={isMoreOpen}
+                onClose={() => setIsMoreOpen(false)}
+            />
         </div>
     );
 }
