@@ -111,6 +111,12 @@ export default function InvoicesPage() {
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
 
     useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const searchParam = params.get('search');
+        if (searchParam) {
+            setSearchTerm(searchParam);
+        }
+
         const fetchFilterData = async () => {
             try {
                 const res = await fetch('/api/customers');
@@ -136,7 +142,7 @@ export default function InvoicesPage() {
         };
 
         fetchFilterData();
-        fetchInvoices();
+        fetchInvoices(activeFilters, searchParam || searchTerm);
     }, [sortBy, sortOrder]);
 
     const fetchInvoices = async (filters: FilterRow[] = [], search: string = searchTerm) => {

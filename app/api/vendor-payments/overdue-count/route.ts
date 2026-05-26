@@ -29,14 +29,14 @@ export async function GET() {
         (await db.prepare(`
             UPDATE vendor_payments 
             SET status = 'overdue' 
-            WHERE due_date < ? AND status = 'unpaid'
-        `).run(todayStr));
+            WHERE due_date < ? AND status = 'unpaid' AND business_id = ? AND COALESCE(is_deleted, false) = false
+        `).run(todayStr, user.businessId));
 
         const countRow = (await db.prepare(`
             SELECT COUNT(*) AS count 
             FROM vendor_payments 
-            WHERE status = 'overdue'
-        `).get()) as any;
+            WHERE status = 'overdue' AND business_id = ? AND COALESCE(is_deleted, false) = false
+        `).get(user.businessId)) as any;
 
         return NextResponse.json({ overdueCount: countRow?.count || 0 });
     } catch (error) {

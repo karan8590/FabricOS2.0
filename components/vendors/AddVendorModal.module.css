@@ -363,3 +363,61 @@
         transform: translateY(0) scale(1);
     }
 }
+
+.chipsGrid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 4px;
+}
+
+.chip {
+    padding: 10px 18px;
+    border-radius: 9999px;
+    border: 1px solid #E2E8F0;
+    background: #FFFFFF;
+    color: #475569;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.02);
+}
+
+.chip:hover {
+    border-color: #CBD5E1;
+    background: #F8FAFC;
+    color: #0F172A;
+}
+
+.chipActive {
+    border-color: #38BDF8;
+    background: #F0F9FF;
+    color: #0369A1;
+    box-shadow: 0 4px 12px rgba(14, 165, 233, 0.12);
+}
+
+.chipCheckbox {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    border-radius: 4px;
+    border: 1.5px solid #CBD5E1;
+    background: #FFFFFF;
+    font-size: 10px;
+    color: transparent;
+    transition: all 0.2s ease;
+    font-weight: 900;
+}
+
+.chipActive .chipCheckbox {
+    border-color: #0EA5E9;
+    background: #0EA5E9;
+    color: #FFFFFF;
+}
+

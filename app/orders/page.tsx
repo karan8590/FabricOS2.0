@@ -111,6 +111,13 @@ export default function OrdersPage() {
     ];
 
     useEffect(() => {
+        const search = searchParams?.get('search');
+        if (search) {
+            setSearchTerm(search);
+        }
+    }, [searchParams]);
+
+    useEffect(() => {
         const fetchFilterData = async () => {
             try {
                 const res = await fetch('/api/customers');
@@ -349,12 +356,18 @@ export default function OrdersPage() {
     const stats = useMemo(() => {
         const totalOrders = filteredOrders.length;
         const totalRevenue = filteredOrders.reduce((sum, o) => sum + (parseFloat(o.total_price) || 0), 0);
-        const pendingCount = filteredOrders.filter(o => o.order_stage === 'order_added').length;
-        const productionCount = filteredOrders.filter(o => ['embroidery', 'printing', 'dyeing', 'ready', 'out_for_delivery'].includes(o.order_stage)).length;
-        const overdueCount = paymentIssuesCount;
+        const pendingCount = filteredOrders.filter(o => o.status?.toLowerCase() === ORDER_STATUSES.CREATED).length;
+        const productionCount = filteredOrders.filter(o => isProductionStatus(o.status || '')).length;
+        
+        const now = Math.floor(Date.now() / 1000);
+        const overdueCount = filteredOrders.filter(o => {
+            const isFinished = isFinishedStatus(o);
+            const deliveryDeadline = (o.order_date || o.created_at) + (7 * 24 * 60 * 60);
+            return !isFinished && now > deliveryDeadline;
+        }).length;
 
         return { totalOrders, totalRevenue, pendingCount, productionCount, overdueCount };
-    }, [filteredOrders, paymentIssuesCount]);
+    }, [filteredOrders]);
 
     const groupedOrders = useMemo(() => {
         const groups: Record<string, { month: number; year: number; monthName: string; orders: any[]; revenue: number; pending: number; approved: number }> = {};
@@ -703,6 +716,7 @@ export default function OrdersPage() {
                                             activeWidget={activeWidget}
                                             selectedIds={selectedIds}
                                             onToggleSelect={toggleSelection}
+                                            onClearSelection={clearSelection}
                                         />
                                     </GroupedPeriodSection>
                                 );

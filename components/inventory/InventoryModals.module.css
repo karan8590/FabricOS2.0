@@ -231,3 +231,113 @@
     from { opacity: 0; transform: translateY(20px) scale(0.95); }
     to { opacity: 1; transform: translateY(0) scale(1); }
 }
+
+.searchableSelectContainer {
+    position: relative;
+    width: 100%;
+}
+
+.searchableSelectTrigger {
+    position: relative;
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 10px;
+    font-size: 14px;
+    background: var(--bg-card);
+    color: var(--text-primary);
+    text-align: left;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.searchableSelectTrigger:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+}
+
+.searchableSelectTriggerDisabled {
+    background: var(--bg-hover) !important;
+    color: var(--text-secondary) !important;
+    cursor: not-allowed !important;
+}
+
+.searchableSelectDropdown {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    background: white;
+    border: 1px solid var(--border-subtle);
+    border-radius: 12px;
+    box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1);
+    max-height: 280px;
+    overflow-y: auto;
+    z-index: 200;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.searchableSelectSearchWrapper {
+    position: sticky;
+    top: 0;
+    background: white;
+    padding-bottom: 6px;
+    border-bottom: 1px solid var(--border-subtle);
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.searchableSelectSearch {
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    font-size: 14px;
+    background: #f8fafc;
+    color: var(--text-primary);
+    outline: none;
+}
+
+.searchableSelectSearch:focus {
+    border-color: var(--accent);
+    background: white;
+}
+
+.searchableSelectOption {
+    padding: 10px 12px;
+    border-radius: 8px;
+    font-size: 14px;
+    cursor: pointer;
+    color: var(--text-primary);
+    transition: all 0.15s ease;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.searchableSelectOption:hover {
+    background: #f1f5f9;
+    color: var(--accent);
+}
+
+.searchableSelectOptionSelected {
+    background: #eff6ff;
+    color: var(--accent);
+    font-weight: 600;
+}
+
+.searchableSelectNoResults {
+    padding: 16px;
+    text-align: center;
+    font-size: 13px;
+    color: var(--text-secondary);
+}

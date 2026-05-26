@@ -427,8 +427,9 @@ CREATE INDEX IF NOT EXISTS idx_inventory_packaging_date ON inventory_packaging(p
 -- Settings Table
 CREATE TABLE IF NOT EXISTS settings (
   business_id TEXT DEFAULT 'business_001',
-  key TEXT PRIMARY KEY,
-  value TEXT NOT NULL
+  key TEXT,
+  value TEXT NOT NULL,
+  PRIMARY KEY (business_id, key)
 );
 
 -- WhatsApp Reminders Table
@@ -780,4 +781,43 @@ CREATE TABLE IF NOT EXISTS inventory_fabric_history (
   vendor_id INTEGER,
   created_at INTEGER NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()))::integer
 );
+
+-- Workspace System
+CREATE TABLE IF NOT EXISTS workspaces (
+  id TEXT PRIMARY KEY,
+  workspace_name TEXT NOT NULL,
+  logo_url TEXT,
+  owner_name TEXT,
+  phone TEXT,
+  created_at INTEGER NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()))::integer
+);
+
+CREATE TABLE IF NOT EXISTS firms (
+  id SERIAL PRIMARY KEY,
+  workspace_id TEXT NOT NULL,
+  firm_name TEXT NOT NULL,
+  gst_number TEXT,
+  phone TEXT,
+  email TEXT,
+  address TEXT,
+  logo_url TEXT,
+  bank_name TEXT,
+  account_number TEXT,
+  ifsc_code TEXT,
+  upi_id TEXT,
+  invoice_prefix TEXT,
+  challan_prefix TEXT,
+  is_default BOOLEAN DEFAULT FALSE,
+  created_at INTEGER NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()))::integer,
+  FOREIGN KEY (workspace_id) REFERENCES workspaces(id) ON DELETE CASCADE
+);
+
+-- Multi-Firm Foreign Keys & Snapshots
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS billing_firm_id INTEGER;
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS billing_firm_id INTEGER;
+ALTER TABLE invoices ADD COLUMN IF NOT EXISTS firm_snapshot TEXT;
+ALTER TABLE dispatch_challans ADD COLUMN IF NOT EXISTS billing_firm_id INTEGER;
+ALTER TABLE dispatch_challans ADD COLUMN IF NOT EXISTS firm_snapshot TEXT;
+ALTER TABLE challans ADD COLUMN IF NOT EXISTS billing_firm_id INTEGER;
+ALTER TABLE challans ADD COLUMN IF NOT EXISTS firm_snapshot TEXT;
 

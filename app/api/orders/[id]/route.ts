@@ -62,22 +62,31 @@ export async function GET(
         const activities = (await db.prepare(`
             SELECT * FROM audit_logs 
             WHERE entity = 'order' AND entity_id = ?
-            ORDER BY created_at DESC
+            ORDER BY timestamp DESC
         `).all(params.id.toString())).map((log: any) => ({
             id: log.id,
             title: log.action.replace(/_/g, ' ').replace(/\b\w/g, (c: string) => c.toUpperCase()),
             description: `Order ${log.action.replace(/_/g, ' ')} by ${log.user_name}`,
-            created_at: log.created_at,
+            created_at: log.timestamp,
             meta: log.changes
         }));
 
-        // Fetch all job costs for this order
+        // Fetch all job costs for this order (manually added via inline form)
         const jobCosts = (await db.prepare(`
             SELECT jc.*, v.name AS vendor_name 
             FROM order_job_costs jc
             JOIN vendors v ON jc.vendor_id = v.id
             WHERE jc.order_id = ?
             ORDER BY jc.created_at DESC
+        `).all(params.id)) as any[];
+
+        // Fetch vendor dispatches for this order (created via "Send to Embroidery/Dyeing Vendor" workflow)
+        const vendorDispatches = (await db.prepare(`
+            SELECT vd.*, v.name AS vendor_name, v.contact AS vendor_phone
+            FROM vendor_dispatches vd
+            JOIN vendors v ON vd.vendor_id = v.id
+            WHERE vd.order_id = ?
+            ORDER BY vd.created_at DESC
         `).all(params.id)) as any[];
 
         // Calculate linked fabric purchase costs from inventory_fabric
@@ -88,6 +97,22 @@ export async function GET(
             WHERE linked_order_no = ? OR linked_order_no = ?
         `).get(orderNum, `#${orderNum}`)) as any;
         const fabricPurchaseCost = fabricCostRow?.val || 0;
+
+        // Compute total outsourcing costs from dispatches (for profitability)
+        const dispatchEmbroideryTotal = vendorDispatches
+            .filter((d: any) => d.process_type === 'embroidery')
+            .reduce((sum: number, d: any) => sum + parseFloat(d.total_cost || 0), 0);
+        const dispatchDyeingTotal = vendorDispatches
+            .filter((d: any) => d.process_type === 'dyeing')
+            .reduce((sum: number, d: any) => sum + parseFloat(d.total_cost || 0), 0);
+
+        // Combine with manual job costs for profitability totals
+        const manualEmbroideryTotal = jobCosts
+            .filter((j: any) => j.type === 'embroidery')
+            .reduce((sum: number, j: any) => sum + parseFloat(j.total_cost || 0), 0);
+        const manualDyeingTotal = jobCosts
+            .filter((j: any) => j.type === 'dyeing')
+            .reduce((sum: number, j: any) => sum + parseFloat(j.total_cost || 0), 0);
 
         return NextResponse.json({
             ...order,
@@ -100,7 +125,12 @@ export async function GET(
             },
             activities,
             jobCosts,
-            fabricPurchaseCost
+            vendorDispatches,
+            fabricPurchaseCost,
+            outsourcingTotals: {
+                embroidery: dispatchEmbroideryTotal + manualEmbroideryTotal,
+                dyeing: dispatchDyeingTotal + manualDyeingTotal,
+            }
         });
     } catch (err: any) {
         console.error('API Error:', err);

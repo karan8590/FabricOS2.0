@@ -1,10 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { X } from 'lucide-react';
-import styles from './InventoryModals.module.css'; // Let's use the shared modal styles or create it
+import React, { useState, useEffect, useMemo, useRef } from 'react';
+import { X, ChevronDown, Search } from 'lucide-react';
+import styles from './InventoryModals.module.css';
 
 interface Vendor {
     id: number;
     name: string;
+    vendor_type?: string;
 }
 
 interface AddPurchaseModalProps {
@@ -15,7 +16,7 @@ interface AddPurchaseModalProps {
     editingMaterial?: any;
 }
 
-export default function AddPurchaseModal({ isOpen, onClose, onSave, vendors, editingMaterial }: AddPurchaseModalProps) {
+export default function AddPurchaseModal({ isOpen, onClose, onSave, vendors: propVendors, editingMaterial }: AddPurchaseModalProps) {
     const [form, setForm] = useState({
         name: '',
         category: 'Fabric',
@@ -31,6 +32,75 @@ export default function AddPurchaseModal({ isOpen, onClose, onSave, vendors, edi
 
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [loading, setLoading] = useState(false);
+    
+    // Dynamic Filtered Vendor states
+    const [filteredVendors, setFilteredVendors] = useState<Vendor[]>([]);
+    const [vendorSearch, setVendorSearch] = useState('');
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [fetchingVendors, setFetchingVendors] = useState(false);
+    const dropdownRef = useRef<HTMLDivElement>(null);
+
+    // Fetch vendors dynamically based on category
+    useEffect(() => {
+        if (!isOpen) return;
+
+        const categoryLower = form.category.toLowerCase();
+        let targetType = '';
+        if (
+            categoryLower.includes('fabric') ||
+            categoryLower.includes('polyester') ||
+            categoryLower.includes('viscose') ||
+            categoryLower.includes('cotton') ||
+            categoryLower.includes('yarn')
+        ) {
+            targetType = 'fabric_supplier';
+        } else if (categoryLower.includes('packaging')) {
+            targetType = 'packaging';
+        } else if (categoryLower.includes('dyeing')) {
+            targetType = 'dyeing';
+        } else if (categoryLower.includes('embroidery')) {
+            targetType = 'embroidery';
+        } else if (categoryLower.includes('printing')) {
+            targetType = 'printing';
+        } else if (categoryLower.includes('transport')) {
+            targetType = 'transport';
+        }
+
+        const loadVendors = async () => {
+            setFetchingVendors(true);
+            try {
+                const res = await fetch(`/api/vendors?type=${targetType}`);
+                if (res.ok) {
+                    const data = await res.json();
+                    setFilteredVendors(data.vendors || []);
+                }
+            } catch (err) {
+                console.error('Failed to fetch filtered vendors:', err);
+            } finally {
+                setFetchingVendors(false);
+            }
+        };
+
+        loadVendors();
+    }, [isOpen, form.category]);
+
+    // Handle click outside to close dropdown
+    useEffect(() => {
+        const handleClickOutside = (event: MouseEvent) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+                setIsDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    // Memoized filtered vendor search results
+    const searchedVendors = useMemo(() => {
+        const query = vendorSearch.trim().toLowerCase();
+        if (!query) return filteredVendors;
+        return filteredVendors.filter(v => v.name.toLowerCase().includes(query));
+    }, [filteredVendors, vendorSearch]);
 
     useEffect(() => {
         if (isOpen) {
@@ -55,6 +125,8 @@ export default function AddPurchaseModal({ isOpen, onClose, onSave, vendors, edi
                 });
             }
             setErrors({});
+            setVendorSearch('');
+            setIsDropdownOpen(false);
         }
     }, [isOpen, editingMaterial]);
 
@@ -92,7 +164,7 @@ export default function AddPurchaseModal({ isOpen, onClose, onSave, vendors, edi
 
         setLoading(true);
         try {
-            const vendorName = vendors.find(v => v.id.toString() === form.vendorId)?.name || 'Unknown Vendor';
+            const vendorName = filteredVendors.find(v => v.id.toString() === form.vendorId)?.name || 'Unknown Vendor';
             
             const res = await fetch('/api/inventory', {
                 method: 'POST',
@@ -150,17 +222,56 @@ export default function AddPurchaseModal({ isOpen, onClose, onSave, vendors, edi
                             <div className={styles.formRow}>
                                 <div className={styles.formGroup}>
                                     <label>Vendor <span className={styles.req}>*</span></label>
-                                    <select 
-                                        value={form.vendorId} 
-                                        onChange={e => setForm({...form, vendorId: e.target.value})}
-                                        className={errors.vendorId ? styles.inputError : ''}
-                                        disabled={!!editingMaterial}
-                                    >
-                                        <option value="">Select Vendor...</option>
-                                        {vendors.map(v => (
-                                            <option key={v.id} value={v.id}>{v.name}</option>
-                                        ))}
-                                    </select>
+                                    <div className={styles.searchableSelectContainer} ref={dropdownRef}>
+                                        <button
+                                            type="button"
+                                            className={`${styles.searchableSelectTrigger} ${errors.vendorId ? styles.inputError : ''} ${editingMaterial ? styles.searchableSelectTriggerDisabled : ''}`}
+                                            onClick={() => !editingMaterial && setIsDropdownOpen(!isDropdownOpen)}
+                                            disabled={!!editingMaterial}
+                                        >
+                                            <span>
+                                                {form.vendorId 
+                                                    ? (filteredVendors.find(v => v.id.toString() === form.vendorId)?.name || 'Loading vendor...')
+                                                    : 'Select Vendor...'}
+                                            </span>
+                                            <ChevronDown size={16} style={{ opacity: 0.6 }} />
+                                        </button>
+                                        
+                                        {isDropdownOpen && !editingMaterial && (
+                                            <div className={styles.searchableSelectDropdown}>
+                                                <div className={styles.searchableSelectSearchWrapper}>
+                                                    <input
+                                                        type="text"
+                                                        className={styles.searchableSelectSearch}
+                                                        placeholder="Search vendor..."
+                                                        value={vendorSearch}
+                                                        onChange={e => setVendorSearch(e.target.value)}
+                                                        autoFocus
+                                                    />
+                                                </div>
+                                                {fetchingVendors ? (
+                                                    <div className={styles.searchableSelectNoResults}>Loading vendors...</div>
+                                                ) : searchedVendors.length === 0 ? (
+                                                    <div className={styles.searchableSelectNoResults}>No vendors found</div>
+                                                ) : (
+                                                    searchedVendors.map(v => (
+                                                        <div
+                                                            key={v.id}
+                                                            className={`${styles.searchableSelectOption} ${form.vendorId === v.id.toString() ? styles.searchableSelectOptionSelected : ''}`}
+                                                            onClick={() => {
+                                                                setForm({ ...form, vendorId: v.id.toString() });
+                                                                setErrors({ ...errors, vendorId: '' });
+                                                                setIsDropdownOpen(false);
+                                                                setVendorSearch('');
+                                                            }}
+                                                        >
+                                                            <span>{v.name}</span>
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                        )}
+                                    </div>
                                     {errors.vendorId && <span className={styles.errorText}>{errors.vendorId}</span>}
                                 </div>
                             </div>

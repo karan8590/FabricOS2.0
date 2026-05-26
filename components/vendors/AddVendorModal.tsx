@@ -42,7 +42,7 @@ export default function AddVendorModal({ isOpen, onClose, onSuccess }: AddVendor
     const [notes, setNotes] = useState('');
 
     // Specific fields
-    const [fabricType, setFabricType] = useState('Both'); // Polyester, Viscose, Both
+    const [fabricTypes, setFabricTypes] = useState<string[]>(['Polyester']);
     const [workCategory, setWorkCategory] = useState('Embroidery'); // Embroidery, Dyeing, Printing, Stitching, Packaging
     const [driverName, setDriverName] = useState('');
     const [vehicleNumber, setVehicleNumber] = useState('');
@@ -60,7 +60,7 @@ export default function AddVendorModal({ isOpen, onClose, onSuccess }: AddVendor
         setGst('');
         setAddress('');
         setNotes('');
-        setFabricType('Both');
+        setFabricTypes(['Polyester']);
         setWorkCategory('Embroidery');
         setDriverName('');
         setVehicleNumber('');
@@ -87,7 +87,7 @@ export default function AddVendorModal({ isOpen, onClose, onSuccess }: AddVendor
             let materialSupplied = '';
             
             if (vendorType === 'Fabric Supplier') {
-                materialSupplied = fabricType;
+                materialSupplied = fabricTypes.join(', ') || 'Fabric';
             } else if (vendorType === 'Job Work') {
                 materialSupplied = workCategory;
             } else if (vendorType === 'transport') {
@@ -233,13 +233,32 @@ export default function AddVendorModal({ isOpen, onClose, onSuccess }: AddVendor
                                 <label className={styles.label}>Phone Number <span className={styles.requiredStar}>*</span></label>
                                 <input className={styles.input} required type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="10-digit number" />
                             </div>
-                            <div className={styles.formField}>
-                                <label className={styles.label}>Fabric Type Supplied</label>
-                                <select className={styles.select} value={fabricType} onChange={e => setFabricType(e.target.value)}>
-                                    <option value="Polyester">Polyester</option>
-                                    <option value="Viscose">Viscose</option>
-                                    <option value="Both">Both (Polyester & Viscose)</option>
-                                </select>
+                            <div className={styles.formField} style={{ gridColumn: 'span 2' }}>
+                                <label className={styles.label}>Fabric Specialization</label>
+                                <div className={styles.chipsGrid}>
+                                    {['Polyester', 'Viscose', 'Cotton', 'Silk Blend', 'Georgette'].map((type) => {
+                                        const isSelected = fabricTypes.includes(type);
+                                        return (
+                                            <button
+                                                key={type}
+                                                type="button"
+                                                className={`${styles.chip} ${isSelected ? styles.chipActive : ''}`}
+                                                onClick={() => {
+                                                    if (isSelected) {
+                                                        setFabricTypes(fabricTypes.filter(t => t !== type));
+                                                    } else {
+                                                        setFabricTypes([...fabricTypes, type]);
+                                                    }
+                                                }}
+                                            >
+                                                <span className={styles.chipCheckbox}>
+                                                    {isSelected ? '✓' : ''}
+                                                </span>
+                                                {type}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
                             </div>
                             <div className={styles.formField}>
                                 <label className={styles.label}>GST Number</label>

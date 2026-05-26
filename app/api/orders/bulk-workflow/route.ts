@@ -41,12 +41,17 @@ export async function POST(request: Request) {
             if (generateChallan && vendorId) {
                 const currentYear = new Date().getFullYear();
                 const prefix = `VC-${currentYear}-`;
-                const lastChallan = (await db.prepare(`SELECT challan_number FROM challans WHERE business_id = ? AND challan_number LIKE ? ORDER BY id DESC LIMIT 1`).get(businessId, `${prefix}%`)) as any;
+                const lastChallan = (await db.prepare(`SELECT challan_number FROM challans WHERE challan_number LIKE ? ORDER BY id DESC LIMIT 1`).get(`${prefix}%`)) as any;
                 
                 let nextNum = 1;
-                if (lastChallan) {
+                if (lastChallan && lastChallan.challan_number) {
                     const parts = lastChallan.challan_number.split('-');
-                    if (parts.length === 3) nextNum = parseInt(parts[2], 10) + 1;
+                    if (parts.length >= 3) {
+                        const lastNum = parseInt(parts[parts.length - 1], 10);
+                        if (!isNaN(lastNum)) {
+                            nextNum = lastNum + 1;
+                        }
+                    }
                 }
                 const challanNumber = `${prefix}${nextNum.toString().padStart(4, '0')}`;
                 
@@ -94,12 +99,17 @@ export async function POST(request: Request) {
                 // Create vendor dispatch
                 const currentYear = new Date().getFullYear();
                 const vdspPrefix = `VDSP-${currentYear}-`;
-                const lastVdsp = (await db.prepare(`SELECT dispatch_number FROM vendor_dispatches WHERE business_id = ? AND dispatch_number LIKE ? ORDER BY id DESC LIMIT 1`).get(businessId, `${vdspPrefix}%`)) as any;
+                const lastVdsp = (await db.prepare(`SELECT dispatch_number FROM vendor_dispatches WHERE dispatch_number LIKE ? ORDER BY id DESC LIMIT 1`).get(`${vdspPrefix}%`)) as any;
                 
                 let vdspNextNum = 1;
-                if (lastVdsp) {
+                if (lastVdsp && lastVdsp.dispatch_number) {
                     const parts = lastVdsp.dispatch_number.split('-');
-                    if (parts.length === 3) vdspNextNum = parseInt(parts[2], 10) + 1;
+                    if (parts.length >= 3) {
+                        const lastNum = parseInt(parts[parts.length - 1], 10);
+                        if (!isNaN(lastNum)) {
+                            vdspNextNum = lastNum + 1;
+                        }
+                    }
                 }
                 const vdspNumber = `${vdspPrefix}${vdspNextNum.toString().padStart(4, '0')}`;
                 

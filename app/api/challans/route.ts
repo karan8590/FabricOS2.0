@@ -93,16 +93,16 @@ export async function POST(request: Request) {
         
         const latestChallan = (await db.prepare(`
             SELECT challan_number FROM challans 
-            WHERE challan_number LIKE ? AND business_id = ?
+            WHERE challan_number LIKE ?
             ORDER BY challan_number DESC 
             LIMIT 1
-        `).get(`${prefix}-${yearMonth}-%`, businessId)) as any;
+        `).get(`${prefix}-${yearMonth}-%`)) as any;
 
         let nextSequence = 1;
         if (latestChallan && latestChallan.challan_number) {
             const parts = latestChallan.challan_number.split('-');
-            if (parts.length === 3) {
-                const lastSeq = parseInt(parts[2]);
+            if (parts.length >= 3) {
+                const lastSeq = parseInt(parts[parts.length - 1], 10);
                 if (!isNaN(lastSeq)) {
                     nextSequence = lastSeq + 1;
                 }

@@ -458,26 +458,36 @@ export default function OrderDetailsPage() {
     const currentStepIndex = STEPS.findIndex(s => s.key === status);
 
     const orderValue = order.total_price || 0;
-    const embroideryCost = order.embroidery_job_cost || 0;
-    const dyeingCost = order.dyeing_job_cost || 0;
     const fabricCost = order.fabric_purchase_cost || 0;
-    const grossProfit = orderValue - embroideryCost - dyeingCost - fabricCost;
-    const marginPercent = orderValue > 0 ? (grossProfit / orderValue) * 100 : 0;
 
+    // Manual job costs (inline form entries)
     const embroideryEntries = order.jobCosts?.filter((j: any) => j.type === 'embroidery') || [];
     const dyeingEntries = order.jobCosts?.filter((j: any) => j.type === 'dyeing') || [];
 
-    const totalEmbroidery = embroideryEntries.reduce((sum: number, j: any) => sum + j.total_cost, 0);
-    const totalDyeing = dyeingEntries.reduce((sum: number, j: any) => sum + j.total_cost, 0);
+    // Vendor dispatch records (created via "Send to Vendor" workflow)
+    const embroideryDispatches = order.vendorDispatches?.filter((d: any) => d.process_type === 'embroidery') || [];
+    const dyeingDispatches = order.vendorDispatches?.filter((d: any) => d.process_type === 'dyeing') || [];
 
-    const getFilteredVendors = (type: string) => [...vendorsList].sort((a, b) => {
-        const typeMatch = type === 'embroidery' ? 'Embroidery' : 'Dyeing';
-        const aMatch = a.vendor_type?.includes(typeMatch);
-        const bMatch = b.vendor_type?.includes(typeMatch);
-        if (aMatch && !bMatch) return -1;
-        if (!aMatch && bMatch) return 1;
-        return 0;
-    });
+    // Totals from API (dispatches + manual)
+    const embroideryCost = order.outsourcingTotals?.embroidery ?? (
+        embroideryEntries.reduce((s: number, j: any) => s + parseFloat(j.total_cost || 0), 0) +
+        embroideryDispatches.reduce((s: number, d: any) => s + parseFloat(d.total_cost || 0), 0)
+    );
+    const dyeingCost = order.outsourcingTotals?.dyeing ?? (
+        dyeingEntries.reduce((s: number, j: any) => s + parseFloat(j.total_cost || 0), 0) +
+        dyeingDispatches.reduce((s: number, d: any) => s + parseFloat(d.total_cost || 0), 0)
+    );
+
+    const grossProfit = orderValue - embroideryCost - dyeingCost - fabricCost;
+    const marginPercent = orderValue > 0 ? (grossProfit / orderValue) * 100 : 0;
+
+    const totalEmbroidery = embroideryCost;
+    const totalDyeing = dyeingCost;
+
+    const getFilteredVendors = (type: string) => {
+        const targetType = type === 'embroidery' ? 'embroidery' : 'dyeing';
+        return vendorsList.filter(v => v.vendor_type === targetType);
+    };
 
     const renderInlineForm = (type: 'embroidery' | 'dyeing') => (
         <div className={styles.inlineForm}>
@@ -743,6 +753,57 @@ export default function OrderDetailsPage() {
 
                             {addingCostFor === 'embroidery' && renderInlineForm('embroidery')}
 
+                            {/* Vendor Dispatch records (from Send to Vendor workflow) */}
+                            {embroideryDispatches.length > 0 && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '12px' }}>
+                                    {embroideryDispatches.map((d: any) => (
+                                        <div key={d.id} className={styles.dispatchCard}>
+                                            <div className={styles.dispatchCardHeader}>
+                                                <div className={styles.dispatchVendorName}>
+                                                    <Scissors size={14} color="#FF9F0A" style={{flexShrink: 0}} />
+                                                    {d.vendor_name}
+                                                </div>
+                                                <span className={d.status === 'returned' ? styles.badgePaid : d.status === 'cancelled' ? styles.badgeUnpaid : styles.badgeSent}>
+                                                    {d.status === 'sent' ? 'In Progress' : d.status === 'returned' ? 'Returned' : 'Cancelled'}
+                                                </span>
+                                            </div>
+                                            <div className={styles.dispatchCardBody}>
+                                                <div className={styles.dispatchStat}>
+                                                    <span className={styles.dispatchStatLabel}>Metres</span>
+                                                    <span className={styles.dispatchStatVal}>{parseFloat(d.total_meters || 0).toFixed(1)} m</span>
+                                                </div>
+                                                <div className={styles.dispatchStat}>
+                                                    <span className={styles.dispatchStatLabel}>Rate</span>
+                                                    <span className={styles.dispatchStatVal}>₹{parseFloat(d.rate_per_meter || 0).toFixed(2)}/m</span>
+                                                </div>
+                                                <div className={styles.dispatchStat}>
+                                                    <span className={styles.dispatchStatLabel}>Total Cost</span>
+                                                    <span className={styles.dispatchStatVal} style={{fontWeight: 800, color: 'var(--text-primary)'}}>₹{parseFloat(d.total_cost || 0).toLocaleString('en-IN')}</span>
+                                                </div>
+                                                <div className={styles.dispatchStat}>
+                                                    <span className={styles.dispatchStatLabel}>Sent Date</span>
+                                                    <span className={styles.dispatchStatVal}>{d.sent_date ? new Date(d.sent_date * 1000).toLocaleDateString('en-IN', {day: '2-digit', month: 'short', year: 'numeric'}) : '—'}</span>
+                                                </div>
+                                                {d.expected_return_date && (
+                                                    <div className={styles.dispatchStat}>
+                                                        <span className={styles.dispatchStatLabel}>Due Back</span>
+                                                        <span className={styles.dispatchStatVal}>{new Date(d.expected_return_date * 1000).toLocaleDateString('en-IN', {day: '2-digit', month: 'short', year: 'numeric'})}</span>
+                                                    </div>
+                                                )}
+                                                {d.dispatch_number && (
+                                                    <div className={styles.dispatchStat}>
+                                                        <span className={styles.dispatchStatLabel}>Dispatch #</span>
+                                                        <span className={styles.dispatchStatVal} style={{fontFamily: 'monospace', fontSize: '12px'}}>{d.dispatch_number}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {d.notes && <div className={styles.dispatchNotes}>{d.notes}</div>}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Manual job cost entries (table) */}
                             {embroideryEntries.length > 0 && (
                                 <div className={styles.tableContainer}>
                                     <table className={styles.costsTable}>
@@ -753,7 +814,7 @@ export default function OrderDetailsPage() {
                                                     <td><strong>{entry.vendor_name}</strong></td>
                                                     <td>{entry.metres} m</td>
                                                     <td>₹{entry.rate_per_metre}</td>
-                                                    <td><strong>₹{entry.total_cost.toLocaleString('en-IN')}</strong></td>
+                                                    <td><strong>₹{parseFloat(entry.total_cost || 0).toLocaleString('en-IN')}</strong></td>
                                                     <td><span className={entry.status === 'paid' ? styles.badgePaid : styles.badgeUnpaid}>{entry.status}</span></td>
                                                     <td>
                                                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -776,6 +837,14 @@ export default function OrderDetailsPage() {
                                     </table>
                                 </div>
                             )}
+
+                            {embroideryDispatches.length === 0 && embroideryEntries.length === 0 && !addingCostFor && (
+                                <div className={styles.emptyOutsourcing}>
+                                    <Scissors size={28} opacity={0.25} />
+                                    <p>No embroidery outsourcing added yet</p>
+                                    <span>Use &quot;Send to Embroidery Vendor&quot; or Quick Add Cost</span>
+                                </div>
+                            )}
                         </div>
                     </div>
 
@@ -794,6 +863,57 @@ export default function OrderDetailsPage() {
 
                             {addingCostFor === 'dyeing' && renderInlineForm('dyeing')}
 
+                            {/* Vendor Dispatch records (from Send to Vendor workflow) */}
+                            {dyeingDispatches.length > 0 && (
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '12px' }}>
+                                    {dyeingDispatches.map((d: any) => (
+                                        <div key={d.id} className={styles.dispatchCard}>
+                                            <div className={styles.dispatchCardHeader}>
+                                                <div className={styles.dispatchVendorName}>
+                                                    <Droplets size={14} color="#0A84FF" style={{flexShrink: 0}} />
+                                                    {d.vendor_name}
+                                                </div>
+                                                <span className={d.status === 'returned' ? styles.badgePaid : d.status === 'cancelled' ? styles.badgeUnpaid : styles.badgeSent}>
+                                                    {d.status === 'sent' ? 'In Progress' : d.status === 'returned' ? 'Returned' : 'Cancelled'}
+                                                </span>
+                                            </div>
+                                            <div className={styles.dispatchCardBody}>
+                                                <div className={styles.dispatchStat}>
+                                                    <span className={styles.dispatchStatLabel}>Metres</span>
+                                                    <span className={styles.dispatchStatVal}>{parseFloat(d.total_meters || 0).toFixed(1)} m</span>
+                                                </div>
+                                                <div className={styles.dispatchStat}>
+                                                    <span className={styles.dispatchStatLabel}>Rate</span>
+                                                    <span className={styles.dispatchStatVal}>₹{parseFloat(d.rate_per_meter || 0).toFixed(2)}/m</span>
+                                                </div>
+                                                <div className={styles.dispatchStat}>
+                                                    <span className={styles.dispatchStatLabel}>Total Cost</span>
+                                                    <span className={styles.dispatchStatVal} style={{fontWeight: 800, color: 'var(--text-primary)'}}>₹{parseFloat(d.total_cost || 0).toLocaleString('en-IN')}</span>
+                                                </div>
+                                                <div className={styles.dispatchStat}>
+                                                    <span className={styles.dispatchStatLabel}>Sent Date</span>
+                                                    <span className={styles.dispatchStatVal}>{d.sent_date ? new Date(d.sent_date * 1000).toLocaleDateString('en-IN', {day: '2-digit', month: 'short', year: 'numeric'}) : '—'}</span>
+                                                </div>
+                                                {d.expected_return_date && (
+                                                    <div className={styles.dispatchStat}>
+                                                        <span className={styles.dispatchStatLabel}>Due Back</span>
+                                                        <span className={styles.dispatchStatVal}>{new Date(d.expected_return_date * 1000).toLocaleDateString('en-IN', {day: '2-digit', month: 'short', year: 'numeric'})}</span>
+                                                    </div>
+                                                )}
+                                                {d.dispatch_number && (
+                                                    <div className={styles.dispatchStat}>
+                                                        <span className={styles.dispatchStatLabel}>Dispatch #</span>
+                                                        <span className={styles.dispatchStatVal} style={{fontFamily: 'monospace', fontSize: '12px'}}>{d.dispatch_number}</span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                            {d.notes && <div className={styles.dispatchNotes}>{d.notes}</div>}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {/* Manual job cost entries (table) */}
                             {dyeingEntries.length > 0 && (
                                 <div className={styles.tableContainer}>
                                     <table className={styles.costsTable}>
@@ -804,7 +924,7 @@ export default function OrderDetailsPage() {
                                                     <td><strong>{entry.vendor_name}</strong></td>
                                                     <td>{entry.metres} m</td>
                                                     <td>₹{entry.rate_per_metre}</td>
-                                                    <td><strong>₹{entry.total_cost.toLocaleString('en-IN')}</strong></td>
+                                                    <td><strong>₹{parseFloat(entry.total_cost || 0).toLocaleString('en-IN')}</strong></td>
                                                     <td><span className={entry.status === 'paid' ? styles.badgePaid : styles.badgeUnpaid}>{entry.status}</span></td>
                                                     <td>
                                                         <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
@@ -825,6 +945,14 @@ export default function OrderDetailsPage() {
                                             ))}
                                         </tbody>
                                     </table>
+                                </div>
+                            )}
+
+                            {dyeingDispatches.length === 0 && dyeingEntries.length === 0 && !addingCostFor && (
+                                <div className={styles.emptyOutsourcing}>
+                                    <Droplets size={28} opacity={0.25} />
+                                    <p>No dyeing outsourcing added yet</p>
+                                    <span>Use &quot;Send to Dyeing Vendor&quot; or Quick Add Cost</span>
                                 </div>
                             )}
                         </div>

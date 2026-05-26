@@ -33,6 +33,7 @@ export default function CreateOrderPanel({ isOpen, onClose, onSuccess, initialCu
     const [loading, setLoading] = useState(false);
     const [customers, setCustomers] = useState<Customer[]>([]);
     const [designs, setDesigns] = useState<Design[]>([]);
+    const [firms, setFirms] = useState<any[]>([]);
     const [mounted, setMounted] = useState(false);
 
     // Form State
@@ -44,6 +45,7 @@ export default function CreateOrderPanel({ isOpen, onClose, onSuccess, initialCu
     const [deliveryDate, setDeliveryDate] = useState<string>('');
     const [sendSampleFirst, setSendSampleFirst] = useState(false);
     const [fabricType, setFabricType] = useState<string>('Polyester');
+    const [billingFirmId, setBillingFirmId] = useState<string>('');
     const [errors, setErrors] = useState<Record<string, string>>({});
 
     // Dropdown States
@@ -98,9 +100,10 @@ export default function CreateOrderPanel({ isOpen, onClose, onSuccess, initialCu
 
     const fetchInitialData = async () => {
         try {
-            const [custRes, designRes] = await Promise.all([
+            const [custRes, designRes, firmsRes] = await Promise.all([
                 fetch('/api/customers'),
-                fetch('/api/designs')
+                fetch('/api/designs'),
+                fetch('/api/firms')
             ]);
             
             if (custRes.ok) {
@@ -117,6 +120,18 @@ export default function CreateOrderPanel({ isOpen, onClose, onSuccess, initialCu
             if (designRes.ok) {
                 const data = await designRes.json();
                 setDesigns(data.designs);
+            }
+
+            if (firmsRes.ok) {
+                const data = await firmsRes.json();
+                setFirms(data);
+                const saved = localStorage.getItem('selectedFirmId');
+                if (saved && data.find((f: any) => f.id.toString() === saved)) {
+                    setBillingFirmId(saved);
+                } else if (data.length > 0) {
+                    const defaultFirm = data.find((f: any) => f.is_default) || data[0];
+                    setBillingFirmId(defaultFirm.id.toString());
+                }
             }
         } catch (error) {
             console.error('Failed to fetch initial data:', error);
@@ -152,6 +167,7 @@ export default function CreateOrderPanel({ isOpen, onClose, onSuccess, initialCu
         const newErrors: Record<string, string> = {};
         if (!selectedCustomer) newErrors.customer = 'Please select a customer';
         if (!selectedDesign) newErrors.design = 'Please select a design';
+        if (!billingFirmId) newErrors.billingFirmId = 'Billing firm is required';
         if (!quantity || parseFloat(quantity) <= 0) newErrors.quantity = 'Quantity is required and must be > 0';
         if (!pricePerUnit || parseFloat(pricePerUnit) <= 0) newErrors.pricePerUnit = 'Price per unit is required';
         if (!fabricType) newErrors.fabricType = 'Fabric type is required';
@@ -171,6 +187,7 @@ export default function CreateOrderPanel({ isOpen, onClose, onSuccess, initialCu
                 body: JSON.stringify({
                     customerId: selectedCustomer.id,
                     designId: selectedDesign.id,
+                    billingFirmId: parseInt(billingFirmId),
                     quantityMeters: parseFloat(quantity),
                     pricePerUnit: parseFloat(pricePerUnit),
                     delivery_date: deliveryDate ? Math.floor(new Date(deliveryDate).getTime() / 1000) : null,
@@ -299,6 +316,22 @@ export default function CreateOrderPanel({ isOpen, onClose, onSuccess, initialCu
                                     readOnly
                                     disabled
                                 />
+                            </div>
+                            <div className={styles.field} style={{ gridColumn: 'span 2', marginTop: '16px' }}>
+                                <label className={styles.label}>Billing Firm *</label>
+                                <select 
+                                    className={`${styles.selectTrigger} ${errors.billingFirmId ? '!border-red-400 focus:!ring-red-500 !bg-red-50/30' : ''}`}
+                                    value={billingFirmId}
+                                    onChange={e => { setBillingFirmId(e.target.value); setErrors(prev => ({...prev, billingFirmId: ''})); }}
+                                    data-error={!!errors.billingFirmId}
+                                    style={{ WebkitAppearance: 'none', appearance: 'none', background: 'transparent' }}
+                                >
+                                    <option value="" disabled>Select a billing firm...</option>
+                                    {firms.map((f: any) => (
+                                        <option key={f.id} value={f.id.toString()}>{f.firm_name} (GST: {f.gst_number || 'N/A'})</option>
+                                    ))}
+                                </select>
+                                {errors.billingFirmId && <p className="text-red-500 text-xs mt-1 transition-all duration-200">{errors.billingFirmId}</p>}
                             </div>
                         </div>
                     </div>

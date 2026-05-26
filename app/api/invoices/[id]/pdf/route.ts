@@ -47,17 +47,47 @@ export async function GET(
         const pricePerMeter = invoice.price_per_unit && invoice.price_per_unit > 0 ? invoice.price_per_unit : invoice.price_per_meter;
         const amount = invoice.amount; // Use the stored amount
 
-        // Get global GST settings to fetch seller info
-        const gstRow = (await db.prepare("SELECT value FROM settings WHERE key = 'gst'").get()) as { value: string } | undefined;
-        const gstConfig = gstRow ? JSON.parse(gstRow.value) : null;
-        
-        const sellerName = gstConfig?.legalName || 'FABRICOS TEXTILES';
-        const sellerAddress = gstConfig?.address || 'Plot No. 45-48, Sachin GIDC, Surat, Gujarat - 394230';
-        const sellerGstin = gstConfig?.gstin || '24AAECF1234A1Z0';
-        const sellerStateCode = gstConfig?.stateCode || '24';
-        
-        const gstRate = gstConfig?.defaultGstRate !== undefined ? parseFloat(gstConfig.defaultGstRate) : 5;
-        const hsnCode = gstConfig?.hsnCode || '5407';
+        let sellerName = 'FABRICOS TEXTILES';
+        let sellerAddress = 'Plot No. 45-48, Sachin GIDC, Surat, Gujarat - 394230';
+        let sellerGstin = '24AAECF1234A1Z0';
+        let sellerStateCode = '24';
+        let gstRate = 5;
+        let hsnCode = '5407';
+
+        if (invoice.firm_snapshot) {
+            try {
+                const firm = JSON.parse(invoice.firm_snapshot);
+                if (firm.firm_name) sellerName = firm.firm_name;
+                else if (firm.legalName) sellerName = firm.legalName; // fallback to legacy
+                
+                if (firm.address) sellerAddress = firm.address;
+                if (firm.gst_number) sellerGstin = firm.gst_number;
+                else if (firm.gstin) sellerGstin = firm.gstin; // fallback to legacy
+                
+                if (sellerGstin && sellerGstin.length >= 2) {
+                    sellerStateCode = sellerGstin.substring(0, 2);
+                } else if (firm.stateCode) {
+                    sellerStateCode = firm.stateCode;
+                }
+                
+                if (firm.defaultGstRate !== undefined) gstRate = parseFloat(firm.defaultGstRate);
+                if (firm.hsnCode) hsnCode = firm.hsnCode;
+            } catch (e) {
+                console.error('Failed to parse firm_snapshot', e);
+            }
+        } else {
+            // Get global GST settings (legacy)
+            const gstRow = (await db.prepare("SELECT value FROM settings WHERE key = 'gst'").get()) as { value: string } | undefined;
+            const gstConfig = gstRow ? JSON.parse(gstRow.value) : null;
+            
+            sellerName = gstConfig?.legalName || sellerName;
+            sellerAddress = gstConfig?.address || sellerAddress;
+            sellerGstin = gstConfig?.gstin || sellerGstin;
+            sellerStateCode = gstConfig?.stateCode || sellerStateCode;
+            
+            gstRate = gstConfig?.defaultGstRate !== undefined ? parseFloat(gstConfig.defaultGstRate) : 5;
+            hsnCode = gstConfig?.hsnCode || '5407';
+        }
         
         const taxableAmount = invoice.total_price && invoice.total_price > 0 ? invoice.total_price : (invoice.quantity_meters * pricePerMeter);
         

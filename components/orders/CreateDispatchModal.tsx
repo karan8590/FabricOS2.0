@@ -47,14 +47,10 @@ export default function CreateDispatchModal({ isOpen, onClose, onSuccess, select
 
     const fetchVendors = async () => {
         try {
-            const res = await fetch('/api/vendors');
+            const res = await fetch('/api/vendors?type=transport');
             if (res.ok) {
                 const data = await res.json();
-                const transportVendors = data.vendors?.filter((v: any) => {
-                    const type = (v.vendor_type || '').toLowerCase();
-                    return type === 'transport' || type === 'transport / tempo';
-                }) || [];
-                setVendors(transportVendors);
+                setVendors(data.vendors || []);
             }
         } catch (error) {
             console.error('Failed to fetch vendors:', error);

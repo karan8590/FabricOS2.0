@@ -36,14 +36,38 @@ export async function POST(req: Request) {
             return NextResponse.json({ error: 'Orders not found' }, { status: 404 });
         }
 
+        const firstOrder = orders[0];
+        let challanPrefix = 'DC';
+        let firmSnapshot = '{}';
+        let sellerName = 'FabricOS ERP';
+        
+        if (firstOrder.billing_firm_id) {
+            const firm = await db.prepare('SELECT * FROM firms WHERE id = ?').get(firstOrder.billing_firm_id) as any;
+            if (firm) {
+                challanPrefix = firm.challan_prefix || challanPrefix;
+                firmSnapshot = JSON.stringify(firm);
+                sellerName = firm.firm_name || sellerName;
+            }
+        }
+
         // Generate challan number
         const year = new Date().getFullYear();
-        const countRes = await db.prepare(`
-            SELECT COUNT(*) as count FROM challans WHERE business_id = ? AND challan_number LIKE ?
-        `).get(businessId, `DC-${year}-%`) as { count: number };
+        const prefix = `${challanPrefix}-${year}-`;
+        const lastChallan = await db.prepare(`
+            SELECT challan_number FROM challans WHERE challan_number LIKE ? ORDER BY id DESC LIMIT 1
+        `).get(`${prefix}%`) as { challan_number: string } | undefined;
 
-        const nextNum = (Number(countRes?.count) || 0) + 1;
-        const challanNumber = `DC-${year}-${String(nextNum).padStart(3, '0')}`;
+        let nextNum = 1;
+        if (lastChallan && lastChallan.challan_number) {
+            const parts = lastChallan.challan_number.split('-');
+            if (parts.length >= 3) {
+                const lastSeq = parseInt(parts[parts.length - 1], 10);
+                if (!isNaN(lastSeq)) {
+                    nextNum = lastSeq + 1;
+                }
+            }
+        }
+        const challanNumber = `${prefix}${String(nextNum).padStart(3, '0')}`;
         const dateStr = new Date().toISOString().split('T')[0];
 
         const totalQty = orders.reduce((sum: number, o: any) => sum + (parseFloat(o.quantity_meters) || 0), 0);
@@ -59,8 +83,8 @@ export async function POST(req: Request) {
         // Insert challan and log activity in a transaction
         await db.transaction(async () => {
             await db.prepare(`
-                INSERT INTO challans (business_id, challan_number, challan_type, date, to_name, to_gstin, items, total_quantity, total_value, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open')
+                INSERT INTO challans (business_id, challan_number, challan_type, date, to_name, to_gstin, items, total_quantity, total_value, status, billing_firm_id, firm_snapshot)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'open', ?, ?)
             `).run(
                 businessId,
                 challanNumber,
@@ -71,6 +95,8 @@ export async function POST(req: Request) {
                 itemsJson,
                 totalQty,
                 totalValue,
+                firstOrder.billing_firm_id || null,
+                firmSnapshot
             );
 
             // Log activity for each order's customer
@@ -103,7 +129,7 @@ export async function POST(req: Request) {
         doc.text('DELIVERY CHALLAN', 105, 12, { align: 'center' });
         doc.setFontSize(10);
         doc.setFont('helvetica', 'normal');
-        doc.text('FabricOS ERP', 105, 20, { align: 'center' });
+        doc.text(sellerName, 105, 20, { align: 'center' });
 
         // Challan meta
         doc.setTextColor(0, 0, 0);

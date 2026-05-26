@@ -49,7 +49,7 @@ export async function GET(request: Request) {
         // --------------------------------------
 
         // 1. Fetch vendors
-        const vendors = (await db.prepare(`SELECT id, name, contact, city, gst_no FROM vendors WHERE business_id = ? ORDER BY name ASC`).all(businessId)) as any[];
+        const vendors = (await db.prepare(`SELECT id, name, contact, city, gst_no, vendor_type FROM vendors WHERE business_id = ? ORDER BY name ASC`).all(businessId)) as any[];
         console.log(`[API /inventory] Fetched ${vendors?.length} vendors for businessId: ${businessId}`);
         
         // 2. Fetch materials based on category

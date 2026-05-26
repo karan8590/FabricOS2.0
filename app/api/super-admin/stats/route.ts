@@ -26,7 +26,7 @@ export async function GET(request: Request) {
         const activePlans = plansResult.reduce((acc, curr) => acc + curr.count, 0) || businessesResult.count;
 
         const usersResult = (await db.prepare('SELECT COUNT(*) as count FROM users').get()) as { count: number };
-        const revenueResult = (await db.prepare('SELECT SUM(total_price) as total FROM orders WHERE status = "delivered"').get()) as { total: number };
+        const revenueResult = (await db.prepare("SELECT SUM(total_price) as total FROM orders WHERE status = 'delivered'").get()) as { total: number };
 
         return NextResponse.json({
             businesses: { value: businessesResult.count, change: 5.2 },

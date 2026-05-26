@@ -34,6 +34,7 @@ interface OrdersTableProps {
     activeWidget: string | null;
     selectedIds?: Set<number>;
     onToggleSelect?: (id: number) => void;
+    onClearSelection?: () => void;
 }
 
 const OrderTableRow = React.memo(({ 
@@ -317,7 +318,7 @@ OrderMobileCard.displayName = 'OrderMobileCard';
 
 
 
-export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdit, activeWidget, selectedIds, onToggleSelect }: OrdersTableProps) {
+export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdit, activeWidget, selectedIds, onToggleSelect, onClearSelection }: OrdersTableProps) {
     const router = useRouter();
     const [currentPage, setCurrentPage] = useState(1);
     
@@ -382,6 +383,7 @@ export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdi
 
     const handleModalSuccess = () => {
         closeWorkflowModal();
+        if (onClearSelection) onClearSelection();
         onUpdate();
     };
 
@@ -428,6 +430,7 @@ export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdi
                 onClose={() => setShowDispatchModal(false)}
                 onSuccess={() => {
                     setShowDispatchModal(false);
+                    if (onClearSelection) onClearSelection();
                     onUpdate();
                 }}
                 selectedOrders={selectedOrders}
@@ -444,6 +447,7 @@ export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdi
                     onSuccess={() => {
                         setIsCompletePrintingModalOpen(false);
                         setSelectedOrderForPrinting(null);
+                        if (onClearSelection) onClearSelection();
                         onUpdate();
                     }}
                 />

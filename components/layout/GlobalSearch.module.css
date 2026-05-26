@@ -1,0 +1,68 @@
+.searchTrigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 260px;
+    height: 38px;
+    padding: 0 12px;
+    background: #FFFFFF;
+    border: 1px solid var(--border-primary);
+    border-radius: var(--radius-md);
+    cursor: pointer;
+    transition: all 150ms ease;
+    color: var(--text-secondary);
+}
+
+.searchTrigger:hover {
+    background: var(--bg-hover);
+    border-color: var(--accent);
+    color: var(--text-primary);
+    box-shadow: 0 2px 8px rgba(79, 70, 229, 0.05);
+}
+
+.triggerLeft {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: var(--font-size-sm);
+    font-weight: 500;
+}
+
+.searchIcon {
+    width: 16px;
+    height: 16px;
+    stroke: var(--text-tertiary);
+    transition: stroke 150ms ease;
+}
+
+.searchTrigger:hover .searchIcon {
+    stroke: var(--accent);
+}
+
+.shortcutBadge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2px 6px;
+    background: var(--bg-page);
+    border: 1px solid var(--border-subtle);
+    border-radius: 4px;
+    font-size: 10px;
+    font-family: monospace;
+    font-weight: 600;
+    color: var(--text-tertiary);
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.03);
+}
+
+@media (max-width: 767px) {
+    .searchTrigger {
+        width: 40px;
+        padding: 0;
+        justify-content: center;
+        border-radius: var(--radius-full);
+    }
+    
+    .shortcutBadge, .triggerLeft span {
+        display: none;
+    }
+}

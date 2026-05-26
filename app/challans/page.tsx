@@ -52,6 +52,18 @@ export default function ChallansPage() {
     };
 
     useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const search = params.get('search');
+        if (search) {
+            setSearchQuery(search);
+        }
+        const type = params.get('type');
+        if (type) {
+            setFilterType(type);
+        }
+    }, []);
+
+    useEffect(() => {
         fetchChallans();
     }, [filterType, filterStatus, searchQuery]);
 

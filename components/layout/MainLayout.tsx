@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useAuth } from '@/contexts/AuthContext';
 import Sidebar from './Sidebar';
 import NotificationBell from './NotificationBell';
+import GlobalSearch from './GlobalSearch';
 import styles from './MainLayout.module.css';
 
 export default function MainLayout({ children }: { children: React.ReactNode }) {
@@ -63,6 +64,9 @@ export default function MainLayout({ children }: { children: React.ReactNode }) 
             <Sidebar isOpen={sidebarOpen} onClose={() => setSidebarOpen(false)} />
             <div className={styles.content}>
                 <header className={styles.header}>
+                    <div className={styles.headerLeft}>
+                        <GlobalSearch />
+                    </div>
                     <div className={styles.headerRight}>
                         <NotificationBell />
                     </div>

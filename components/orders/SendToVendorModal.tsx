@@ -65,15 +65,12 @@ export default function SendToVendorModal({ isOpen, onClose, onSuccess, orders, 
     }, [isOpen, orders, action]);
 
     const fetchVendors = () => {
-        fetch('/api/vendors')
+        const targetType = action === 'send_to_embroidery' ? 'embroidery' : 'dyeing';
+        fetch(`/api/vendors?type=${targetType}`)
             .then(res => res.json())
             .then(data => {
                 if (data.vendors) {
-                    setVendors(data.vendors.filter((v: any) => 
-                        action === 'send_to_embroidery' 
-                            ? v.vendor_type?.toLowerCase().includes('embroidery') || v.vendor_type === 'Job Worker'
-                            : v.vendor_type?.toLowerCase().includes('dyeing') || v.vendor_type === 'Job Worker'
-                    ));
+                    setVendors(data.vendors);
                 }
             })
             .catch(console.error);

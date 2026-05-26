@@ -62,7 +62,12 @@ export default function CatalogPage() {
     const isCustomer = user?.role === 'customer';
 
     useEffect(() => {
-        fetchDesigns();
+        const params = new URLSearchParams(window.location.search);
+        const search = params.get('search');
+        if (search) {
+            setSearchTerm(search);
+        }
+        fetchDesigns(activeFilters, search || searchTerm);
     }, []);
 
     const handleApplyFilters = (filters: FilterRow[]) => {

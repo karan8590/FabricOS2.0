@@ -193,13 +193,14 @@ export async function POST(
             const displayType = type === 'embroidery' ? 'Embroidery' : 'Dyeing';
             const description = `${displayType} — ${vendor.name} for #${order.order_number || orderId}`;
             const dateTimestamp = Math.floor(new Date(date).getTime() / 1000);
+            const now = Math.floor(Date.now() / 1000);
 
             (await db.prepare(`
                 INSERT INTO expenses (
                     category, amount, date, description, paymentMode, reference, notes, 
                     addedBy, created_by_user_id, isAuto, linkedId, type, customerName, isPending, created_at,
                     has_gst, supplier_gstin, taxable_amount, gst_rate, gst_amount, gst_type, itc_claimed
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, 'out', ?, ?, (EXTRACT(EPOCH FROM NOW()))::integer, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, 'out', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `).run(
                             category,
                             total_cost,
@@ -213,6 +214,7 @@ export async function POST(
                             linkedId,
                             vendor.name,
                             status === 'paid' ? 0 : 1,
+                            now,
                             calculatedHasGst,
                             vendor.gstin || null,
                             calculatedTaxableAmount,
@@ -404,6 +406,7 @@ export async function PATCH(
             const displayType = type === 'embroidery' ? 'Embroidery' : 'Dyeing';
             const description = `${displayType} — ${vendor.name} for #${order.order_number || orderId}`;
             const dateTimestamp = Math.floor(new Date(date).getTime() / 1000);
+            const now = Math.floor(Date.now() / 1000);
 
             // Check if expense entry exists
             const existingExpense = (await db.prepare('SELECT id FROM expenses WHERE linkedId = ?').get(linkedId));
@@ -440,7 +443,7 @@ export async function PATCH(
                         category, amount, date, description, paymentMode, reference, notes, 
                         addedBy, created_by_user_id, isAuto, linkedId, type, customerName, isPending, created_at,
                         has_gst, supplier_gstin, taxable_amount, gst_rate, gst_amount, gst_type, itc_claimed
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, 'out', ?, ?, (EXTRACT(EPOCH FROM NOW()))::integer, ?, ?, ?, ?, ?, ?, ?)
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, 'out', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 `).run(
                                     category,
                                     total_cost,

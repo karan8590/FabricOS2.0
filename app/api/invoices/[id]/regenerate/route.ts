@@ -43,6 +43,31 @@ export async function POST(
         const pricePerMeter = invoice.price_per_unit && invoice.price_per_unit > 0 ? invoice.price_per_unit : invoice.price_per_meter;
         const amount = invoice.total_price && invoice.total_price > 0 ? invoice.total_price : (invoice.quantity_meters * pricePerMeter);
 
+        let sellerName = 'FABRICOS TEXTILES';
+        let sellerAddress = 'Plot No. 45-48, Sachin GIDC, Surat, Gujarat - 394230';
+        let sellerGstin = '24AAECF1234A1Z0';
+        let sellerStateCode = '24';
+        
+        if (invoice.firm_snapshot) {
+            try {
+                const firm = JSON.parse(invoice.firm_snapshot);
+                if (firm.firm_name) sellerName = firm.firm_name;
+                else if (firm.legalName) sellerName = firm.legalName;
+                if (firm.address) sellerAddress = firm.address;
+                if (firm.gst_number) sellerGstin = firm.gst_number;
+                else if (firm.gstin) sellerGstin = firm.gstin;
+                if (sellerGstin && sellerGstin.length >= 2) sellerStateCode = sellerGstin.substring(0, 2);
+                else if (firm.stateCode) sellerStateCode = firm.stateCode;
+            } catch (e) { console.error('Failed to parse firm_snapshot', e); }
+        } else {
+            const gstRow = (await db.prepare("SELECT value FROM settings WHERE key = 'gst'").get()) as { value: string } | undefined;
+            const gstConfig = gstRow ? JSON.parse(gstRow.value) : null;
+            sellerName = gstConfig?.legalName || sellerName;
+            sellerAddress = gstConfig?.address || sellerAddress;
+            sellerGstin = gstConfig?.gstin || sellerGstin;
+            sellerStateCode = gstConfig?.stateCode || sellerStateCode;
+        }
+
         // Re-generate Premium PDF server-side with latest details
         const pdfResult = await generateInvoicePDFServer({
             invoice_number: invoice.invoice_number,
@@ -57,7 +82,9 @@ export async function POST(
             fabric_type: invoice.fabric_type || 'Printed Fabric',
             quantity_meters: invoice.quantity_meters,
             price_per_meter: pricePerMeter,
-            generated_by: payload.name || 'System'
+            seller_name: sellerName,
+            seller_address: sellerAddress,
+            seller_gstin: sellerGstin
         });
 
         const relativePath = `/api/invoices/${invoiceId}/pdf`;

@@ -24,10 +24,16 @@ export async function GET(request: Request) {
         const minBalance = searchParams.get('minBalance');
         const maxBalance = searchParams.get('maxBalance');
         const search = searchParams.get('search');
+        const type = searchParams.get('type') || searchParams.get('vendor_type');
 
         const db = getDatabase();
         let query = 'SELECT * FROM vendors WHERE 1=1 AND business_id = ?';
         const params: any[] = [businessId];
+
+        if (type) {
+            query += ' AND vendor_type = ?';
+            params.push(type.toLowerCase());
+        }
 
         if (materialSupplied) {
             query += ' AND material_supplied = ?';

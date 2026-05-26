@@ -1043,3 +1043,146 @@
 .cancelBtn:hover {
     background: var(--bg-hover);
 }
+
+/* --- Vendor Dispatch Cards (from Send to Vendor workflow) --- */
+.dispatchCard {
+    background: var(--bg-card);
+    border: 1px solid var(--border-primary);
+    border-radius: 14px;
+    overflow: hidden;
+    transition: box-shadow 0.2s ease;
+}
+
+.dispatchCard:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.dispatchCardHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    background: var(--bg-grouped);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.dispatchVendorName {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.dispatchCardBody {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+    gap: 0;
+    padding: 0;
+}
+
+.dispatchStat {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 10px 16px;
+    border-right: 1px solid var(--border-subtle);
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.dispatchStat:last-child {
+    border-right: none;
+}
+
+.dispatchStatLabel {
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: var(--text-tertiary);
+}
+
+.dispatchStatVal {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.dispatchNotes {
+    padding: 10px 16px;
+    font-size: 12px;
+    color: var(--text-tertiary);
+    font-style: italic;
+    border-top: 1px solid var(--border-subtle);
+    background: rgba(0,0,0,0.02);
+}
+
+.badgeSent {
+    background: rgba(10, 132, 255, 0.1);
+    color: #0A84FF;
+    border: 1px solid rgba(10, 132, 255, 0.2);
+    padding: 2px 8px;
+    border-radius: 99px;
+    font-weight: 600;
+    font-size: 11px;
+}
+
+/* --- Empty Outsourcing State --- */
+.emptyOutsourcing {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    padding: 32px 16px;
+    text-align: center;
+    color: var(--text-tertiary);
+}
+
+.emptyOutsourcing p {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin: 0;
+}
+
+.emptyOutsourcing span {
+    font-size: 12px;
+    color: var(--text-tertiary);
+}
+
+.iconButtonDelete {
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 6px;
+    border-radius: 6px;
+    color: var(--text-tertiary);
+    transition: all 0.2s ease;
+}
+
+.iconButtonDelete:hover {
+    color: #FF3B30;
+    background: rgba(255, 59, 48, 0.1);
+}
+
+.autoTotal {
+    background: rgba(48, 209, 88, 0.08);
+    border: 1px solid rgba(48, 209, 88, 0.2);
+    border-radius: 8px;
+    padding: 10px 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.primaryActionBtn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+

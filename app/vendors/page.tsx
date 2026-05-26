@@ -78,7 +78,12 @@ export default function VendorsPage() {
     }, []);
 
     useEffect(() => {
-        fetchVendors();
+        const params = new URLSearchParams(window.location.search);
+        const search = params.get('search');
+        if (search) {
+            setSearchTerm(search);
+        }
+        fetchVendors(activeFilters, search || searchTerm);
     }, []);
 
     const stats = useMemo(() => {

@@ -41,7 +41,7 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
                 INSERT INTO expenses (
                     category, amount, date, description, paymentMode, reference, notes, 
                     addedBy, created_by_user_id, isAuto, linkedId, type, customerName, created_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, 'in', ?, (EXTRACT(EPOCH FROM NOW()))::integer)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, 'in', ?, ?)
             `).run(
                             'Invoice Payment',
                             paymentAmount,
@@ -53,7 +53,8 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
                             userId,
                             userId,
                             id,
-                            customerName
+                            customerName,
+                            paymentDate
                         ));
         } catch (e) {
             console.error('Failed to auto-create Cash IN entry for invoice payment:', e);

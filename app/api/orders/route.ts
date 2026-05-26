@@ -173,7 +173,8 @@ export async function POST(request: Request) {
         let customerId = body.customerId;
         const { 
             designId, quantityMeters, deliveryDate, orderDate, priority, notes, pricePerUnit, fabric_type: fabricType,
-            baseAmount, printingCost, embroideryCostCharged, dyeingCostCharged, additionalCharges, discount, gstRate, gstAmount
+            baseAmount, printingCost, embroideryCostCharged, dyeingCostCharged, additionalCharges, discount, gstRate, gstAmount,
+            billingFirmId
         } = body;
 
         // Security: If user is customer, force customerId to their own ID
@@ -181,9 +182,9 @@ export async function POST(request: Request) {
             customerId = user.customerId;
         }
 
-        if (!customerId || !designId || !quantityMeters || !fabricType) {
+        if (!customerId || !designId || !quantityMeters || !fabricType || !billingFirmId) {
             return NextResponse.json(
-                { error: 'Missing required fields including Fabric Type' },
+                { error: 'Missing required fields including Fabric Type and Billing Firm' },
                 { status: 400 }
             );
         }
@@ -260,9 +261,9 @@ export async function POST(request: Request) {
                     .prepare(
                         `INSERT INTO orders (
                             customer_id, design_id, quantity_meters, total_price, status, order_stage, order_number, delivery_date, order_date, priority, notes, price_per_unit, business_id,
-                            base_amount, printing_cost, embroidery_cost_charged, dyeing_cost_charged, additional_charges, discount, gst_rate, gst_amount, fabric_type
+                            base_amount, printing_cost, embroidery_cost_charged, dyeing_cost_charged, additional_charges, discount, gst_rate, gst_amount, fabric_type, billing_firm_id
                         )
-                 VALUES (?, ?, ?, ?, 'created', 'order_added', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                 VALUES (?, ?, ?, ?, 'created', 'order_added', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
                     )
                     .run(
                         customerId, 
@@ -284,7 +285,8 @@ export async function POST(request: Request) {
                         financials.discount,
                         financials.gstRate,
                         financials.gstAmount,
-                        fabricType
+                        fabricType,
+                        billingFirmId
                     ));
 
         // Update customer total orders

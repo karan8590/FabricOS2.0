@@ -51,17 +51,47 @@ export async function POST(request: Request) {
             return NextResponse.json({ error: 'Order already processed' }, { status: 400 });
         }
 
-        // Get global GST settings
-        const gstRow = (await db.prepare("SELECT value FROM settings WHERE key = 'gst'").get()) as { value: string } | undefined;
-        const gstConfig = gstRow ? JSON.parse(gstRow.value) : null;
+        let sellerName = 'FABRICOS TEXTILES';
+        let sellerAddress = 'Plot No. 45-48, Sachin GIDC, Surat, Gujarat - 394230';
+        let sellerGstin = '24AAECF1234A1Z0';
+        let sellerStateCode = '24';
+        let invoicePrefix = 'INV';
+        let firmSnapshot = '{}';
+        let gstRate = 5;
+        let hsnCode = '5407';
         
-        const sellerName = gstConfig?.legalName || 'FABRICOS TEXTILES';
-        const sellerAddress = gstConfig?.address || 'Plot No. 45-48, Sachin GIDC, Surat, Gujarat - 394230';
-        const sellerGstin = gstConfig?.gstin || '24AAECF1234A1Z0';
-        const sellerStateCode = gstConfig?.stateCode || '24';
-        
-        const gstRate = gstConfig?.defaultGstRate !== undefined ? parseFloat(gstConfig.defaultGstRate) : 5;
-        const hsnCode = gstConfig?.hsnCode || '5407';
+        // Fetch Firm if order has billing_firm_id
+        if (order.billing_firm_id) {
+            const firm = (await db.prepare('SELECT * FROM firms WHERE id = ?').get(order.billing_firm_id)) as any;
+            if (firm) {
+                sellerName = firm.firm_name;
+                sellerAddress = firm.address || sellerAddress;
+                sellerGstin = firm.gst_number || sellerGstin;
+                if (sellerGstin && sellerGstin.length >= 2) {
+                    sellerStateCode = sellerGstin.substring(0, 2);
+                }
+                invoicePrefix = firm.invoice_prefix || invoicePrefix;
+                firmSnapshot = JSON.stringify(firm);
+            }
+            
+            const gstRow = (await db.prepare("SELECT value FROM settings WHERE key = 'gst'").get()) as { value: string } | undefined;
+            const gstConfig = gstRow ? JSON.parse(gstRow.value) : null;
+            if (gstConfig?.defaultGstRate !== undefined) gstRate = parseFloat(gstConfig.defaultGstRate);
+            if (gstConfig?.hsnCode) hsnCode = gstConfig.hsnCode;
+        } else {
+            // Get global GST settings (legacy fallback)
+            const gstRow = (await db.prepare("SELECT value FROM settings WHERE key = 'gst'").get()) as { value: string } | undefined;
+            const gstConfig = gstRow ? JSON.parse(gstRow.value) : null;
+            
+            sellerName = gstConfig?.legalName || sellerName;
+            sellerAddress = gstConfig?.address || sellerAddress;
+            sellerGstin = gstConfig?.gstin || sellerGstin;
+            sellerStateCode = gstConfig?.stateCode || sellerStateCode;
+            firmSnapshot = JSON.stringify(gstConfig || {});
+            
+            if (gstConfig?.defaultGstRate !== undefined) gstRate = parseFloat(gstConfig.defaultGstRate);
+            if (gstConfig?.hsnCode) hsnCode = gstConfig.hsnCode;
+        }
 
         // Calculate dates
         const now = Math.floor(Date.now() / 1000);
@@ -102,7 +132,7 @@ export async function POST(request: Request) {
 
         // Generate Sequential Invoice Number (INV-YYYY-XXXX)
         const currentYear = new Date().getFullYear();
-        const prefix = `INV-${currentYear}-`;
+        const prefix = `${invoicePrefix}-${currentYear}-`;
         const lastInvoice = (await db.prepare(`
             SELECT invoice_number FROM invoices 
             WHERE invoice_number LIKE ? 
@@ -127,8 +157,9 @@ export async function POST(request: Request) {
             const invoiceResult = (await db.prepare(`
                 INSERT INTO invoices (
                   business_id, invoice_number, customer_id, order_id, amount, status, generated_at, due_date,
-                  gst_rate, gst_amount, cgst_amount, sgst_amount, igst_amount, hsn_code, taxable_amount, place_of_supply, gst_type
-                ) VALUES (?, ?, ?, ?, ?, 'unpaid', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                  gst_rate, gst_amount, cgst_amount, sgst_amount, igst_amount, hsn_code, taxable_amount, place_of_supply, gst_type,
+                  billing_firm_id, firm_snapshot
+                ) VALUES (?, ?, ?, ?, ?, 'unpaid', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
             `).run(
                             payload.businessId,
                             invoiceNumber, 
@@ -145,7 +176,9 @@ export async function POST(request: Request) {
                             hsnCode,
                             taxableAmount,
                             customerState,
-                            gstType
+                            gstType,
+                            order.billing_firm_id || null,
+                            firmSnapshot
                         ));
 
             // 2. Add column if it doesn't exist (silent fail) and update invoice_generated flag

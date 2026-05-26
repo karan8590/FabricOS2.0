@@ -32,6 +32,11 @@ export default function EmployeesPage() {
     const [activeTab, setActiveTab] = useState<'employees' | 'attendance' | 'salary' | 'advances'>('employees');
 
     useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const search = params.get('search');
+        if (search) {
+            setSearchTerm(search);
+        }
         fetchEmployees();
         fetchCurrentUser();
     }, []);

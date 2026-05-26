@@ -25,6 +25,7 @@ import {
     Shield
 } from 'lucide-react';
 import styles from './Sidebar.module.css';
+import FirmSwitcher from './FirmSwitcher';
 
 // Rebuilt Sidebar with direct navigation and zero event interference
 export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose?: () => void }) {
@@ -103,12 +104,18 @@ export default function Sidebar({ isOpen, onClose }: { isOpen?: boolean; onClose
             <aside 
                 className={`${styles.rebuiltSidebar} ${isOpen ? styles.rebuiltOpen : ''}`}
             >
-                <div className={styles.sidebarBrand}>
-                     <div className={styles.logoBox}>
-                         <Box size={24} color="#0071E3" />
-                     </div>
-                     <h1>FabricOS</h1>
-                </div>
+                {(!user || user.role === 'customer' || user.isSuperAdmin) ? (
+                    <div className={styles.sidebarBrand}>
+                         <div className={styles.logoBox}>
+                             <Box size={24} color="#0071E3" />
+                         </div>
+                         <h1>FabricOS</h1>
+                    </div>
+                ) : (
+                    <div style={{ paddingTop: '20px' }}>
+                        <FirmSwitcher />
+                    </div>
+                )}
 
                 <div className={styles.navWrapper}>
                     <nav className={styles.rebuiltNav}>
