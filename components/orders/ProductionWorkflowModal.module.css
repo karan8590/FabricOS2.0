@@ -147,17 +147,19 @@
     padding: 0 16px;
     height: 40px;
     border-radius: 8px;
-    border: 1px solid #D1D5DB;
+    border: 1px solid #E5E7EB;
     background: #FFFFFF;
     color: #374151;
     font-weight: 500;
     font-size: 0.875rem;
     cursor: pointer;
     transition: all 0.2s;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
 }
 
 .btnCancel:hover {
     background: #F9FAFB;
+    border-color: #D1D5DB;
 }
 
 .btnSubmit {
@@ -165,7 +167,7 @@
     height: 40px;
     border-radius: 8px;
     border: none;
-    background: #4F46E5;
+    background: #0EA5E9;
     color: #FFFFFF;
     font-weight: 500;
     font-size: 0.875rem;
@@ -174,14 +176,75 @@
     align-items: center;
     gap: 8px;
     transition: all 0.2s;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 
 .btnSubmit:hover {
-    background: #4338CA;
+    background: #0284C7;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
 }
 
 .btnSubmit:disabled {
-    opacity: 0.7;
+    opacity: 0.6;
+    cursor: not-allowed;
+    background: #9CA3AF;
+    box-shadow: none;
+}
+
+.workflowPrimary {
+    padding: 0 20px;
+    height: 40px;
+    border-radius: 8px;
+    border: none;
+    background: #0EA5E9;
+    color: #FFFFFF;
+    font-weight: 500;
+    font-size: 0.875rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+
+.workflowPrimary:hover:not(:disabled) {
+    background: #0284C7;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.workflowPrimary:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    background: #9CA3AF;
+    box-shadow: none;
+}
+
+.workflowSecondary {
+    padding: 0 16px;
+    height: 40px;
+    border-radius: 8px;
+    border: 1px solid #E5E7EB;
+    background: #FFFFFF;
+    color: #374151;
+    font-weight: 500;
+    font-size: 0.875rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+
+.workflowSecondary:hover:not(:disabled) {
+    background: #F9FAFB;
+    border-color: #D1D5DB;
+}
+
+.workflowSecondary:disabled {
+    opacity: 0.6;
     cursor: not-allowed;
 }
 
@@ -194,3 +257,125 @@
     from { opacity: 0; transform: scale(0.95); }
     to { opacity: 1; transform: scale(1); }
 }
+
+/* Workflow Stage Colors */
+
+/* Purple (Embroidery) */
+.btnPurple {
+    padding: 0 20px;
+    height: 40px;
+    border-radius: 8px;
+    border: none;
+    background: #8B5CF6;
+    color: #FFFFFF;
+    font-weight: 500;
+    font-size: 0.875rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.btnPurple:hover:not(:disabled) {
+    background: #7C3AED;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+.btnPurple:disabled { opacity: 0.6; cursor: not-allowed; background: #9CA3AF; box-shadow: none; }
+
+/* Cyan (Dyeing / Vendor) */
+.btnCyan {
+    padding: 0 20px;
+    height: 40px;
+    border-radius: 8px;
+    border: none;
+    background: #0EA5E9;
+    color: #FFFFFF;
+    font-weight: 500;
+    font-size: 0.875rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.btnCyan:hover:not(:disabled) {
+    background: #0284C7;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+.btnCyan:disabled { opacity: 0.6; cursor: not-allowed; background: #9CA3AF; box-shadow: none; }
+
+/* Orange (Printing) */
+.btnOrange {
+    padding: 0 20px;
+    height: 40px;
+    border-radius: 8px;
+    border: 1px solid #FDBA74;
+    background: #FFF1E6;
+    color: #C2410C;
+    font-weight: 500;
+    font-size: 0.875rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+.btnOrange:hover:not(:disabled) {
+    background: #FFE4CC;
+    border-color: #FB923C;
+}
+.btnOrange:disabled { opacity: 0.6; cursor: not-allowed; background: #F3F4F6; color: #9CA3AF; border-color: #E5E7EB; box-shadow: none; }
+
+/* Green (Dispatch/Delivery) */
+.btnGreen {
+    padding: 0 20px;
+    height: 40px;
+    border-radius: 8px;
+    border: none;
+    background: #10B981;
+    color: #FFFFFF;
+    font-weight: 500;
+    font-size: 0.875rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1), 0 1px 2px rgba(0, 0, 0, 0.06);
+}
+.btnGreen:hover:not(:disabled) {
+    background: #059669;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+.btnGreen:disabled { opacity: 0.6; cursor: not-allowed; background: #9CA3AF; box-shadow: none; }
+
+/* Amber/Yellow (Approval) */
+.btnAmber {
+    padding: 0 20px;
+    height: 40px;
+    border-radius: 8px;
+    border: 1px solid rgba(180, 83, 9, 0.15);
+    background: #FFFBEB;
+    color: #92400E;
+    font-weight: 500;
+    font-size: 0.875rem;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    transition: all 0.2s;
+    box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+}
+.btnAmber:hover:not(:disabled) {
+    background: #FEF3C7;
+    border-color: rgba(180, 83, 9, 0.25);
+}
+.btnAmber:disabled { opacity: 0.6; cursor: not-allowed; background: #F3F4F6; color: #9CA3AF; border-color: #E5E7EB; box-shadow: none; }

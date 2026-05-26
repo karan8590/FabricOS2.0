@@ -191,10 +191,10 @@ export default function ProductionWorkflowModal({ isOpen, onClose, onSuccess, or
                     </div>
 
                     <div className={styles.formFooter}>
-                        <button type="button" className={styles.btnCancel} onClick={onClose}>
+                        <button type="button" className={styles.workflowSecondary} onClick={onClose}>
                             Cancel
                         </button>
-                        <button type="submit" className={styles.btnSubmit} disabled={isSubmitting}>
+                        <button type="submit" className={action === 'send_to_embroidery' ? styles.btnPurple : styles.btnCyan} disabled={isSubmitting}>
                             <Send size={16} />
                             {isSubmitting ? 'Sending...' : 'Send Fabric'}
                         </button>

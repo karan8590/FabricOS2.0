@@ -330,6 +330,7 @@ CREATE TABLE IF NOT EXISTS inventory_fabric (
   metres_ordered NUMERIC NOT NULL,
   metres_received NUMERIC NOT NULL,
   metres_used NUMERIC NOT NULL DEFAULT 0,
+  metres_reserved NUMERIC NOT NULL DEFAULT 0,
   balance NUMERIC NOT NULL,
   purchase_cost NUMERIC NOT NULL,
   rate_per_metre NUMERIC NOT NULL,
@@ -487,7 +488,7 @@ CREATE TABLE IF NOT EXISTS vendor_payments (
   vendor_phone TEXT NOT NULL,
   order_id INTEGER,
   order_number TEXT,
-  work_type TEXT NOT NULL CHECK(work_type IN ('embroidery', 'dyeing')),
+  work_type TEXT NOT NULL,
   total_amount NUMERIC NOT NULL,
   amount_paid NUMERIC NOT NULL DEFAULT 0,
   balance NUMERIC NOT NULL,
@@ -684,6 +685,7 @@ CREATE TABLE IF NOT EXISTS dispatch_batches (
   notes TEXT,
   status TEXT,
   transport_vendor_id INTEGER,
+  delivery_cost NUMERIC DEFAULT 0,
   created_at INTEGER NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()))::integer
 );
 
@@ -762,3 +764,20 @@ ALTER TABLE orders ADD COLUMN IF NOT EXISTS queued_at INTEGER;
 
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS embroidery_status TEXT;
 ALTER TABLE orders ADD COLUMN IF NOT EXISTS dyeing_status TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS printing_status TEXT;
+
+-- Fabric Inventory History
+CREATE TABLE IF NOT EXISTS inventory_fabric_history (
+  id SERIAL PRIMARY KEY,
+  business_id TEXT DEFAULT 'business_001',
+  fabric_id INTEGER NOT NULL,
+  action_type TEXT NOT NULL,
+  quantity NUMERIC NOT NULL,
+  prev_balance NUMERIC NOT NULL,
+  new_balance NUMERIC NOT NULL,
+  reason TEXT,
+  linked_order_id INTEGER,
+  vendor_id INTEGER,
+  created_at INTEGER NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()))::integer
+);
+

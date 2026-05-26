@@ -29,6 +29,7 @@ export default function OrdersPage() {
     const customerIdParam = searchParams.get('customerId');
     
     const [allOrders, setAllOrders] = useState<any[]>([]);
+    const [paymentIssuesCount, setPaymentIssuesCount] = useState<number>(0);
     const [selectedCustomer, setSelectedCustomer] = useState<any | null>(null);
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
@@ -143,13 +144,21 @@ export default function OrdersPage() {
     const fetchOrders = useCallback(async () => {
         setLoading(true);
         try {
-            const res = await fetch('/api/orders');
+            const [res, overdueRes] = await Promise.all([
+                fetch('/api/orders'),
+                fetch('/api/vendor-payments/overdue-count')
+            ]);
             if (res.ok) {
                 const data = await res.json();
                 setAllOrders(data.orders || []);
+                setSelectedIds(new Set()); // Auto-clear selection on any refresh/workflow update
             } else {
                 const errData = await res.json().catch(() => ({}));
                 console.error('Orders fetch failed:', res.status, errData);
+            }
+            if (overdueRes.ok) {
+                const overdueData = await overdueRes.json();
+                setPaymentIssuesCount(overdueData.overdueCount || 0);
             }
         } catch (error) {
             console.error('Orders fetch error:', error);
@@ -160,6 +169,7 @@ export default function OrdersPage() {
 
     const handleApplyFilters = (filters: FilterRow[]) => {
         setActiveFilters(filters);
+        setSelectedIds(new Set()); // Auto-clear selections when filters change
     };
 
     const handleRemoveFilter = (id: string) => {
@@ -176,7 +186,7 @@ export default function OrdersPage() {
         } else if (!isNaN(Number(decodedText))) {
             router.push(`/orders/${decodedText}`);
         } else {
-            alert(`Scanned: ${decodedText}`);
+            console.log(`Scanned: ${decodedText}`);
         }
     };
 
@@ -339,17 +349,12 @@ export default function OrdersPage() {
     const stats = useMemo(() => {
         const totalOrders = filteredOrders.length;
         const totalRevenue = filteredOrders.reduce((sum, o) => sum + (parseFloat(o.total_price) || 0), 0);
-        const pendingCount = filteredOrders.filter(o => o.status.toLowerCase() === ORDER_STATUSES.CREATED).length;
-        const productionCount = filteredOrders.filter(o => isProductionStatus(o.status)).length;
-        const now = Math.floor(Date.now() / 1000);
-        const overdueCount = filteredOrders.filter(o => {
-            const isFinished = isFinishedStatus(o);
-            const deliveryDeadline = o.created_at + (7 * 24 * 60 * 60);
-            return !isFinished && now > deliveryDeadline;
-        }).length;
+        const pendingCount = filteredOrders.filter(o => o.order_stage === 'order_added').length;
+        const productionCount = filteredOrders.filter(o => ['embroidery', 'printing', 'dyeing', 'ready', 'out_for_delivery'].includes(o.order_stage)).length;
+        const overdueCount = paymentIssuesCount;
 
         return { totalOrders, totalRevenue, pendingCount, productionCount, overdueCount };
-    }, [filteredOrders]);
+    }, [filteredOrders, paymentIssuesCount]);
 
     const groupedOrders = useMemo(() => {
         const groups: Record<string, { month: number; year: number; monthName: string; orders: any[]; revenue: number; pending: number; approved: number }> = {};
@@ -420,11 +425,11 @@ export default function OrdersPage() {
                 fetchOrders();
             } else {
                 const data = await res.json();
-                alert(data.error || 'Failed to generate invoice');
+                console.log(data.error || 'Failed to generate invoice');
             }
         } catch (error) {
             console.error('Invoice generation error:', error);
-            alert('Failed to generate invoice');
+            console.log('Failed to generate invoice');
         } finally {
             setProcessingInvoice(false);
         }
@@ -456,12 +461,12 @@ export default function OrdersPage() {
             document.body.removeChild(a);
             window.URL.revokeObjectURL(url);
             
-            alert('Challan generated successfully!');
+            // Silent success - UI will update
             fetchOrders();
             clearSelection();
         } catch (error: any) {
             console.error('Error generating challan:', error);
-            alert(error.message || 'Error generating challan. Please check console.');
+            console.log(error.message || 'Error generating challan. Please check console.');
         }
     };
 
@@ -556,13 +561,19 @@ export default function OrdersPage() {
                     <Input
                         placeholder="Search orders..."
                         value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
+                        onChange={(e) => {
+                            setSearchTerm(e.target.value);
+                            setSelectedIds(new Set());
+                        }}
                         icon={<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>}
                     />
                 </div>
                 <AdvancedFilter 
                     availableFilters={availableFilters}
-                    onApply={handleApplyFilters}
+                    onApply={(filters) => {
+                        handleApplyFilters(filters);
+                        setSelectedIds(new Set());
+                    }}
                     activeFilters={activeFilters}
                     resultsCount={finalOrders.length}
                     resultsLabel="orders"
@@ -732,90 +743,7 @@ export default function OrdersPage() {
                 }}
             />
 
-            {/* Bulk Action Toolbar */}
-            {selectedIds.size > 0 && (() => {
-                const selectedOrderObjs = allOrders.filter(o => selectedIds.has(o.id));
-                const totalMetres = selectedOrderObjs.reduce((sum, o) => sum + (parseFloat(o.quantity_meters) || 0), 0);
-                return (
-                    <div style={{
-                        position: 'fixed',
-                        bottom: '28px',
-                        left: '50%',
-                        transform: 'translateX(-50%)',
-                        background: 'rgba(255,255,255,0.95)',
-                        backdropFilter: 'blur(12px)',
-                        border: '1px solid rgba(226,232,240,0.8)',
-                        borderRadius: '20px',
-                        padding: '10px 20px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '0',
-                        boxShadow: '0 20px 40px -8px rgba(0,0,0,0.15), 0 8px 16px -4px rgba(0,0,0,0.08)',
-                        zIndex: 999,
-                        minWidth: '460px',
-                    }}>
-                        {/* Left: Selection Info */}
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', paddingRight: '20px', borderRight: '1px solid #E2E8F0', minWidth: '90px' }}>
-                            <span style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', lineHeight: 1.2 }}>
-                                {selectedIds.size} {selectedIds.size === 1 ? 'order' : 'orders'}
-                            </span>
-                            <span style={{ fontSize: '12px', fontWeight: 500, color: '#64748B' }}>
-                                {totalMetres.toFixed(1)}m selected
-                            </span>
-                        </div>
-
-                        {/* Center: Action Buttons */}
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 20px' }}>
-                            <button
-                                onClick={generateChallan}
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: '6px',
-                                    padding: '8px 16px', borderRadius: '10px', fontSize: '13px',
-                                    fontWeight: 600, cursor: 'pointer', border: '1px solid #E2E8F0',
-                                    background: '#FFFFFF', color: '#374151',
-                                    transition: 'all 0.15s ease', whiteSpace: 'nowrap'
-                                }}
-                                onMouseEnter={e => { (e.target as HTMLElement).closest('button')!.style.background = '#F8FAFC'; (e.target as HTMLElement).closest('button')!.style.borderColor = '#CBD5E1'; }}
-                                onMouseLeave={e => { (e.target as HTMLElement).closest('button')!.style.background = '#FFFFFF'; (e.target as HTMLElement).closest('button')!.style.borderColor = '#E2E8F0'; }}
-                            >
-                                📄 Generate Challan
-                            </button>
-                            <button
-                                onClick={() => setBulkDispatchModalType('customer')}
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: '6px',
-                                    padding: '8px 18px', borderRadius: '10px', fontSize: '13px',
-                                    fontWeight: 600, cursor: 'pointer', border: 'none',
-                                    background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
-                                    color: '#FFFFFF',
-                                    boxShadow: '0 2px 8px rgba(15,23,42,0.3)',
-                                    transition: 'all 0.15s ease', whiteSpace: 'nowrap'
-                                }}
-                            >
-                                🚚 Deliver
-                            </button>
-                        </div>
-
-                        {/* Right: Clear */}
-                        <div style={{ paddingLeft: '16px', borderLeft: '1px solid #E2E8F0' }}>
-                            <button
-                                onClick={clearSelection}
-                                style={{
-                                    display: 'flex', alignItems: 'center', gap: '4px',
-                                    padding: '6px 12px', borderRadius: '8px', fontSize: '13px',
-                                    fontWeight: 500, cursor: 'pointer', border: '1px solid transparent',
-                                    background: 'transparent', color: '#94A3B8',
-                                    transition: 'all 0.15s ease'
-                                }}
-                                onMouseEnter={e => { (e.currentTarget).style.color = '#EF4444'; (e.currentTarget).style.background = '#FFF5F5'; }}
-                                onMouseLeave={e => { (e.currentTarget).style.color = '#94A3B8'; (e.currentTarget).style.background = 'transparent'; }}
-                            >
-                                <X size={14} /> Clear
-                            </button>
-                        </div>
-                    </div>
-                );
-            })()}
+            {/* Bulk Action Toolbar moved to OrdersTable */}
             {bulkDispatchModalType === 'customer' && (
                 <CreateDispatchModal
                     isOpen={true}

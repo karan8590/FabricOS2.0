@@ -227,6 +227,7 @@ export default function VendorPaymentsPage() {
     // Helper: Due Date split styling and relative timing Left
     const getDaysRemaining = (dueDateStr: string, status: string) => {
         if (status === 'paid') return { text: 'Paid', color: '#34C759', bold: false };
+        if (status === 'pending_cost') return { text: 'Pending Cost', color: '#F59E0B', bold: false };
         if (!dueDateStr) return { text: '-', color: 'var(--text-tertiary)', bold: false };
         
         const today = new Date();
@@ -308,7 +309,7 @@ export default function VendorPaymentsPage() {
         if (!selectedPayment || payingAmount <= 0) return;
 
         if (payingAmount > selectedPayment.balance) {
-            alert(`Amount paying cannot exceed outstanding balance of ₹${selectedPayment.balance}`);
+            console.log(`Amount paying cannot exceed outstanding balance of ₹${selectedPayment.balance}`);
             return;
         }
 
@@ -330,16 +331,16 @@ export default function VendorPaymentsPage() {
                 if (selectedPayment.balance - payingAmount <= 0) {
                     celebrateSmall(`confetti_vendorpay_${selectedPayment.id}`);
                 }
-                alert(`Payment of ₹${payingAmount.toLocaleString('en-IN')} successfully recorded!`);
+                // Silent success
                 setIsPayModalOpen(false);
                 fetchPaymentsData();
             } else {
                 const data = await res.json();
-                alert(data.error || 'Failed to record vendor payment.');
+                console.log(data.error || 'Failed to record vendor payment.');
             }
         } catch (err) {
             console.error('Submit payment error:', err);
-            alert('An unexpected network error occurred.');
+            console.log('An unexpected network error occurred.');
         } finally {
             setProcessingPayment(false);
         }
@@ -348,7 +349,7 @@ export default function VendorPaymentsPage() {
     const handleAddVendorSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         if (!vendorName || !vendorPhone || !vendorWorkCategory) {
-            alert('Please fill out all required fields.');
+            console.log('Please fill out all required fields.');
             return;
         }
 
@@ -385,7 +386,7 @@ export default function VendorPaymentsPage() {
             });
 
             if (res.ok) {
-                alert('Vendor profile successfully created! ✓');
+                console.log('Vendor profile successfully created! ✓');
                 setIsAddVendorModalOpen(false);
                 
                 // Clear state
@@ -410,11 +411,11 @@ export default function VendorPaymentsPage() {
                 fetchVendorsList(); // Re-fetch all vendors to update UI
             } else {
                 const data = await res.json();
-                alert(data.error || 'Failed to create vendor.');
+                console.log(data.error || 'Failed to create vendor.');
             }
         } catch (err) {
             console.error('Vendor creation error:', err);
-            alert('Unexpected error creating vendor.');
+            console.log('Unexpected error creating vendor.');
         } finally {
             setSavingVendor(false);
         }
@@ -454,16 +455,16 @@ export default function VendorPaymentsPage() {
             });
 
             if (res.ok) {
-                alert('Due date successfully updated!');
+                // Silent success - rely on UI refresh via fetchPayments()
                 setIsEditDateModalOpen(false);
                 fetchPaymentsData();
             } else {
                 const data = await res.json();
-                alert(data.error || 'Failed to save new due date.');
+                console.log(data.error || 'Failed to save new due date.');
             }
         } catch (err) {
             console.error('Submit due date error:', err);
-            alert('Failed to update due date due to network error.');
+            console.log('Failed to update due date due to network error.');
         } finally {
             setSavingDueDate(false);
         }
@@ -576,9 +577,9 @@ export default function VendorPaymentsPage() {
 
             groups[key].payments.push(p);
             groups[key].stats.count += 1;
-            groups[key].stats.totalAmount += p.total_amount;
-            groups[key].stats.amountPaid += p.amount_paid;
-            groups[key].stats.balance += p.balance;
+            groups[key].stats.totalAmount += Number(p.total_amount || 0);
+            groups[key].stats.amountPaid += Number(p.amount_paid || 0);
+            groups[key].stats.balance += Number(p.balance || 0);
             if (p.status === 'overdue') {
                 groups[key].stats.overdueCount += 1;
             }
@@ -717,31 +718,39 @@ export default function VendorPaymentsPage() {
 
                                 {/* AMOUNT */}
                                 <td className={`${tableStyles.td} ${styles.amount}`} style={{ textAlign: 'right' }}>
-                                    {formatCurrency(p.total_amount)}
+                                    {p.status === 'pending_cost' ? (
+                                        <span style={{ display: 'inline-flex', padding: '4px 8px', borderRadius: '6px', background: '#FEF3C7', color: '#D97706', fontSize: '11px', fontWeight: 600 }}>Cost Pending</span>
+                                    ) : (
+                                        formatCurrency(p.total_amount)
+                                    )}
                                 </td>
 
                                 {/* PAYMENT PROGRESS */}
                                 <td className={tableStyles.td}>
-                                    <div className={styles.progressContainer}>
-                                        <div className={styles.progressText}>
-                                            <span>{formatCurrency(p.amount_paid)} paid</span>
-                                            <span className={styles.progressTotal}>/ {formatCurrency(p.total_amount)}</span>
+                                    {p.status === 'pending_cost' ? (
+                                        <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic', fontSize: '13px' }}>Awaiting Transport Cost</span>
+                                    ) : (
+                                        <div className={styles.progressContainer}>
+                                            <div className={styles.progressText}>
+                                                <span>{formatCurrency(p.amount_paid)} paid</span>
+                                                <span className={styles.progressTotal}>/ {formatCurrency(p.total_amount)}</span>
+                                            </div>
+                                            <div className={styles.progressBar}>
+                                                <div 
+                                                    className={styles.progressFill} 
+                                                    style={{ 
+                                                        width: `${progressPercent}%`,
+                                                        backgroundColor: '#16A34A'
+                                                    }}
+                                                />
+                                            </div>
                                         </div>
-                                        <div className={styles.progressBar}>
-                                            <div 
-                                                className={styles.progressFill} 
-                                                style={{ 
-                                                    width: `${progressPercent}%`,
-                                                    backgroundColor: '#16A34A'
-                                                }}
-                                            />
-                                        </div>
-                                    </div>
+                                    )}
                                 </td>
 
                                 {/* BALANCE */}
                                 <td className={tableStyles.td} style={{ textAlign: 'right', fontWeight: '600', color: p.balance > 0 ? '#FF3B30' : 'var(--text-disabled)' }}>
-                                    {p.balance > 0 ? formatCurrency(p.balance) : '—'}
+                                    {p.status === 'pending_cost' ? '—' : p.balance > 0 ? formatCurrency(p.balance) : '—'}
                                 </td>
 
                                 {/* DUE DATE */}
@@ -757,7 +766,7 @@ export default function VendorPaymentsPage() {
                                 {/* ACTIONS */}
                                 <td className={tableStyles.td} style={{ textAlign: 'right' }}>
                                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center' }}>
-                                        {p.status !== 'paid' && (
+                                        {p.status !== 'paid' && p.status !== 'pending_cost' && (
                                             <button 
                                                 className={`${actionBtnStyles.btn} ${actionBtnStyles.themeIndigo}`}
                                                 onClick={() => openPayModal(p)}

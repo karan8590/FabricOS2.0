@@ -209,10 +209,10 @@ export default function DispatchOrderModal({ isOpen, onClose, onSuccess, order }
                     </div>
 
                     <div className={styles.formFooter}>
-                        <button type="button" className={styles.btnCancel} onClick={onClose}>
+                        <button type="button" className={styles.workflowSecondary} onClick={onClose}>
                             Cancel
                         </button>
-                        <button type="submit" className={styles.btnSubmit} disabled={isSubmitting}>
+                        <button type="submit" className={styles.btnGreen} disabled={isSubmitting}>
                             <Truck size={16} />
                             {isSubmitting ? 'Dispatching...' : 'Dispatch'}
                         </button>

@@ -47,7 +47,7 @@ export default function PrintQRModal({ isOpen, onClose, order }: PrintQRModalPro
                 }
             `}</style>
             <div className={styles.modalContent} onClick={e => e.stopPropagation()} style={{ maxWidth: '450px' }}>
-                <div className={styles.modalHeader} className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', borderBottom: '1px solid #E5E7EB' }}>
+                <div className={`${styles.modalHeader} no-print`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', borderBottom: '1px solid #E5E7EB' }}>
                     <div>
                         <h2 className={styles.title} style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>Print QR Label</h2>
                         <p className={styles.subtitle} style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#6B7280' }}>
@@ -91,11 +91,11 @@ export default function PrintQRModal({ isOpen, onClose, order }: PrintQRModalPro
                     </p>
                 </div>
 
-                <div className={styles.formFooter} className="no-print" style={{ padding: '16px 20px', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'flex-end', gap: '12px', background: '#F9FAFB', borderRadius: '0 0 12px 12px' }}>
-                    <button type="button" className={styles.btnCancel} onClick={onClose} style={{ padding: '8px 16px', border: '1px solid #D1D5DB', background: '#fff', borderRadius: '8px', cursor: 'pointer', fontWeight: 500, color: '#374151' }}>
+                <div className={`${styles.formFooter} no-print`} style={{ padding: '16px 20px', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'flex-end', gap: '12px', background: '#F9FAFB', borderRadius: '0 0 12px 12px' }}>
+                    <button type="button" className={styles.workflowSecondary} onClick={onClose}>
                         Cancel
                     </button>
-                    <button type="button" className={styles.btnSubmit} onClick={handlePrint} style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: '#2563EB', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 500 }}>
+                    <button type="button" className={styles.workflowPrimary} onClick={handlePrint}>
                         <Printer size={16} />
                         Print Label
                     </button>

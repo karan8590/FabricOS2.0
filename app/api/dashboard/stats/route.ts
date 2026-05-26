@@ -25,6 +25,8 @@ export async function GET(req: Request) {
         const range = searchParams.get('range') || 'year';
 
         const db = getDatabase();
+        const nowEpoch = Math.floor(Date.now() / 1000);
+        const todayDateStr = new Date().toISOString().split('T')[0];
 
         let startTs, endTs, prevStartTs, prevEndTs;
 

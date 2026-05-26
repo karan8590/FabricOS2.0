@@ -82,12 +82,12 @@ export default function BusinessDetailPage({ params }: { params: { id: string } 
         if (res.ok) {
             setShowPasswordModal(false);
             setNewPassword('');
-            alert('Password reset successfully');
+            console.log('Password reset successfully');
         }
     };
 
     const removeUser = async (userId: string) => {
-        if (!confirm('Are you sure you want to completely remove this admin?')) return;
+        
         const res = await fetch(`/api/super-admin/businesses/${params.id}/users`, {
             method: 'PATCH',
             headers: { 'Content-Type': 'application/json' },
@@ -110,11 +110,11 @@ export default function BusinessDetailPage({ params }: { params: { id: string } 
                 fetchData();
             } else {
                 const data = await res.json();
-                alert(`Failed to add admin: ${data.error}`);
+                console.log(`Failed to add admin: ${data.error}`);
             }
         } catch (err) {
             console.error('Add admin error:', err);
-            alert('Failed to add admin');
+            console.log('Failed to add admin');
         }
     };
 
@@ -130,11 +130,11 @@ export default function BusinessDetailPage({ params }: { params: { id: string } 
                 setShowEditModal(false);
                 fetchData();
             } else {
-                alert('Failed to update business details');
+                console.log('Failed to update business details');
             }
         } catch (err) {
             console.error('Update details error:', err);
-            alert('Failed to update business details');
+            console.log('Failed to update business details');
         }
     };
 

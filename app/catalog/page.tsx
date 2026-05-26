@@ -152,7 +152,7 @@ export default function CatalogPage() {
     };
 
     const handleDeleteDesign = async (designId: number) => {
-        if (!confirm('Are you sure you want to delete this design?')) return;
+        
 
         try {
             const res = await fetch(`/api/designs/${designId}`, {
@@ -182,7 +182,7 @@ export default function CatalogPage() {
             // Get customer ID for this user
             const customerRes = await fetch('/api/customers');
             if (!customerRes.ok) {
-                alert('Please complete your customer profile first');
+                console.log('Please complete your customer profile first');
                 return;
             }
 
@@ -190,7 +190,7 @@ export default function CatalogPage() {
             const customer = customerData.customers.find((c: any) => c.user_id === user.id);
 
             if (!customer) {
-                alert('Customer profile not found');
+                console.log('Customer profile not found');
                 return;
             }
 
@@ -206,13 +206,13 @@ export default function CatalogPage() {
 
             if (res.ok) {
                 setShowOrderModal(false);
-                alert('Order placed successfully! Check "My Orders" to track your order.');
+                console.log('Order placed successfully! Check "My Orders" to track your order.');
             } else {
-                alert('Failed to place order. Please try again.');
+                console.log('Failed to place order. Please try again.');
             }
         } catch (error) {
             console.error('Order submission error:', error);
-            alert('Failed to place order. Please try again.');
+            console.log('Failed to place order. Please try again.');
         }
     };
 

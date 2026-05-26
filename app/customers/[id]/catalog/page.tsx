@@ -74,15 +74,15 @@ export default function CustomerCatalogPage() {
                 // Success
                 setShowOrderModal(false);
                 setSelectedDesign(null);
-                alert('Success! Your manufacturing order has been placed.');
+                console.log('Success! Your manufacturing order has been placed.');
                 router.push(`/customers/${id}/orders`);
             } else {
                 const err = await res.json();
-                alert(`Error: ${err.error || 'Failed to place order'}`);
+                console.log(`Error: ${err.error || 'Failed to place order'}`);
             }
         } catch (error) {
             console.error('Ordering failed:', error);
-            alert('Something went wrong. Please try again.');
+            console.log('Something went wrong. Please try again.');
         } finally {
             setOrdering(false);
         }

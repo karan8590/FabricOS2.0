@@ -229,10 +229,10 @@ export default function ConfirmReceivedModal({ isOpen, onClose, onSuccess, order
                     </div>
 
                     <div className={styles.formFooter}>
-                        <button type="button" className={styles.btnCancel} onClick={onClose}>
+                        <button type="button" className={styles.workflowSecondary} onClick={onClose}>
                             Cancel
                         </button>
-                        <button type="submit" className={styles.btnSubmit} disabled={isSubmitting}>
+                        <button type="submit" className={action === 'mark_printing' ? styles.btnOrange : styles.btnCyan} disabled={isSubmitting}>
                             <CheckCircle2 size={16} />
                             {isSubmitting ? 'Processing...' : 'Confirm Received'}
                         </button>

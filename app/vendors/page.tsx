@@ -269,12 +269,12 @@ export default function VendorsPage() {
                 fetchVendors(activeFilters);
                 setVendorToDelete(null);
             } else {
-                alert(data.error || 'Failed to delete vendor');
+                console.log(data.error || 'Failed to delete vendor');
                 setVendorToDelete(null);
             }
         } catch (error) {
             console.error('Delete vendor error:', error);
-            alert('Something went wrong while trying to delete.');
+            console.log('Something went wrong while trying to delete.');
             setVendorToDelete(null);
         } finally {
             setIsDeleting(false);

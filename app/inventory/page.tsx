@@ -7,6 +7,7 @@ import AddPurchaseModal from '@/components/inventory/AddPurchaseModal';
 import InventoryHistoryModal from '@/components/inventory/InventoryHistoryModal';
 import ReorderSuggestions from './ReorderSuggestions';
 import StatWidget from '@/components/ui/StatWidget';
+import { getAvailableInventory } from '@/lib/inventory';
 
 interface Vendor {
     id: number;
@@ -92,7 +93,7 @@ export default function InventoryPage() {
     };
 
     const handleDeleteMaterial = async (id: number) => {
-        if (!confirm('Are you sure you want to delete this material? This will delete all its history as well.')) return;
+        
         try {
             const res = await fetch('/api/inventory', {
                 method: 'POST',
@@ -103,7 +104,7 @@ export default function InventoryPage() {
                 fetchInventory();
             } else {
                 const err = await res.json();
-                alert(err.error || 'Failed to delete material');
+                console.log(err.error || 'Failed to delete material');
             }
         } catch (e) {
             console.error('Delete error', e);
@@ -119,11 +120,11 @@ export default function InventoryPage() {
             
             let matchesStatus = true;
             if (statusFilter === 'Low Stock') {
-                matchesStatus = Number(item.available_stock) <= Number(item.min_stock) && Number(item.min_stock) > 0;
+                matchesStatus = getAvailableInventory(item) <= Number(item.min_stock) && Number(item.min_stock) > 0;
             } else if (statusFilter === 'Out of Stock') {
-                matchesStatus = Number(item.available_stock) <= 0;
+                matchesStatus = getAvailableInventory(item) <= 0;
             } else if (statusFilter === 'In Stock') {
-                matchesStatus = Number(item.available_stock) > Number(item.min_stock) || Number(item.min_stock) === 0;
+                matchesStatus = getAvailableInventory(item) > Number(item.min_stock) || Number(item.min_stock) === 0;
             }
             
             return matchesSearch && matchesVendor && matchesStatus;
@@ -239,9 +240,9 @@ export default function InventoryPage() {
             {/* Material Cards Grid */}
             <div className={styles.cardsGrid}>
                 {filteredData.map(item => {
-                    const isLowStock = Number(item.available_stock) <= Number(item.min_stock) && Number(item.min_stock) > 0;
-                    const isOutOfStock = Number(item.available_stock) <= 0;
-                    const availableSafe = Math.max(0, Number(item.available_stock));
+                    const availableSafe = getAvailableInventory(item);
+                    const isLowStock = availableSafe <= Number(item.min_stock) && Number(item.min_stock) > 0;
+                    const isOutOfStock = availableSafe <= 0;
                     const totalInvValue = (availableSafe + Math.max(0, Number(item.reserved_stock))) * Math.max(0, Number(item.rate_per_unit));
 
                     return (

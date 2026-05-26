@@ -45,10 +45,10 @@
 
 /* 1. PENDING APPROVAL (YELLOW) */
 .rowPending {
-    border-left-color: rgba(255, 204, 0, 0.45);
+    border-left-color: #F3D9A4 !important;
 }
 .rowPending:hover {
-    background: rgba(255, 204, 0, 0.04) !important;
+    background: rgba(254, 247, 232, 0.5) !important;
 }
 
 /* 2. IN PRODUCTION (BLUE) */
@@ -503,8 +503,8 @@
     }
     
     .rowPending .mobileStatusBadge {
-        background: rgba(255, 204, 0, 0.12);
-        color: #E2B200;
+        background: #FEF7E8;
+        color: #9A6B1F;
     }
     .rowInProduction .mobileStatusBadge {
         background: rgba(59, 130, 246, 0.12);

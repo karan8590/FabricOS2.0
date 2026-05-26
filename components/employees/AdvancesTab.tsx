@@ -132,12 +132,7 @@ export default function AdvancesTab({ employees }: AdvancesTabProps) {
         );
 
         if (activeAdvance) {
-            const confirmed = window.confirm(
-                `This employee already has an active advance of ₹${activeAdvance.totalAmount.toLocaleString('en-IN')} (₹${activeAdvance.remainingBalance.toLocaleString('en-IN')} remaining). The new amount will be added to their existing advance.`
-            );
-            if (!confirmed) {
-                return;
-            }
+            // Silently proceed
         }
 
         try {
@@ -165,7 +160,7 @@ export default function AdvancesTab({ employees }: AdvancesTabProps) {
                 fetchAdvances();
             } else {
                 const err = await res.json();
-                alert(err.error || 'Failed to create advance.');
+                console.log(err.error || 'Failed to create advance.');
             }
         } catch (error) {
             console.error('Create advance error:', error);
@@ -202,7 +197,7 @@ export default function AdvancesTab({ employees }: AdvancesTabProps) {
                 if (adv && adv.remainingBalance - parseFloat(inlineData.amount) <= 0) {
                     celebrateMedium(`confetti_advance_${advanceId}`);
                     // We can use a small delay so the alert doesn't block confetti instantly
-                    setTimeout(() => alert(`${adv.employeeName}'s advance has been fully repaid!`), 100);
+                    setTimeout(() => console.log(`${adv.employeeName}'s advance has been fully repaid!`), 100);
                 }
 
                 setInlineData({
@@ -214,7 +209,7 @@ export default function AdvancesTab({ employees }: AdvancesTabProps) {
                 fetchAdvances();
             } else {
                 const err = await res.json();
-                alert(err.error || 'Failed to add instalment.');
+                console.log(err.error || 'Failed to add instalment.');
             }
         } catch (error) {
             console.error('Add instalment error:', error);

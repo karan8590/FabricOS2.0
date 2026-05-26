@@ -130,38 +130,14 @@ export async function DELETE(
         }
 
         // Cleanup Inventory Reservations / Consumptions
-        const inventoryRecords = await db.prepare(`
-            SELECT id, material_id, action_type, quantity 
-            FROM inventory_history 
-            WHERE linked_order_id = ? AND (action_type = 'Reserved' OR action_type = 'Consumed')
-        `).all(params.id) as any[];
-
-        for (const record of inventoryRecords) {
-            const material = await db.prepare('SELECT available_stock, reserved_stock, used_stock FROM inventory_materials WHERE id = ? AND business_id = ?').get(record.material_id, businessId) as any;
-            if (material) {
-                let newAvailable = Number(material.available_stock);
-                let newReserved = Number(material.reserved_stock);
-                let newUsed = Number(material.used_stock);
-
-                if (record.action_type === 'Reserved') {
-                    newAvailable += Number(record.quantity);
-                    newReserved -= Number(record.quantity);
-                } else if (record.action_type === 'Consumed') {
-                    newReserved += Number(record.quantity);
-                    newUsed -= Number(record.quantity);
-                }
-
-                await db.prepare(`
-                    UPDATE inventory_materials 
-                    SET available_stock = ?, reserved_stock = ?, used_stock = ?
-                    WHERE id = ? AND business_id = ?
-                `).run(newAvailable, newReserved, newUsed, record.material_id, businessId);
-            }
-        }
-        
-        // Delete orphaned inventory history rows
+        // Simply delete the linked inventory history rows, then dynamically resync.
         const invDeleted = await db.prepare('DELETE FROM inventory_history WHERE linked_order_id = ?').run(params.id);
 
+        const { syncAllMaterialStocks } = await import('@/lib/inventory/sync');
+        await syncAllMaterialStocks(db, businessId);
+
+        
+        // (Inventory history already deleted above)
         // Delete vendor jobs and payables
         const jobCostsDeleted = await db.prepare('DELETE FROM order_job_costs WHERE order_id = ? AND business_id = ?').run(params.id, businessId);
         const vendorPayablesDeleted = await db.prepare('DELETE FROM vendor_payments WHERE order_id = ? AND business_id = ?').run(params.id, businessId);

@@ -111,7 +111,7 @@ export default function AddPurchaseModal({ isOpen, onClose, onSave, vendors, edi
                 onSave();
             } else {
                 const err = await res.json();
-                alert(err.error || 'Failed to save purchase');
+                console.log(err.error || 'Failed to save purchase');
             }
         } catch (error) {
             console.error(error);

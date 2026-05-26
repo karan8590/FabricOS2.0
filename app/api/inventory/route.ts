@@ -66,6 +66,29 @@ export async function GET(request: Request) {
 
         const materials = (await db.prepare(query).all(...params)) as any[];
 
+        // Dynamically compute inventory from history instead of relying on DB columns
+        const allHistory = (await db.prepare(`SELECT * FROM inventory_history WHERE business_id = ? AND COALESCE(is_deleted, false) = false`).all(businessId)) as any[];
+        const { computeInventory } = await import('@/lib/inventory');
+        
+        const historyByMaterial = allHistory.reduce((acc: any, h: any) => {
+            if (!acc[h.material_id]) acc[h.material_id] = [];
+            acc[h.material_id].push(h);
+            return acc;
+        }, {});
+
+        for (const m of materials) {
+            const h = historyByMaterial[m.id] || [];
+            const computed = computeInventory(h);
+            
+            // Override the raw DB columns so the UI gets the guaranteed live numbers
+            m.available_stock = computed.available;
+            m.reserved_stock = computed.reserved;
+            m.used_stock = computed.used;
+            m.purchased_stock = computed.purchased;
+            m.computed_available = computed.available; // Explicit flag that this is computed
+        }
+
+
         // 3. Compute dashboard widgets from filtered materials
         let totalValue = 0;
         let totalAvailableFabric = 0;
@@ -410,8 +433,8 @@ export async function POST(request: Request) {
                 ORDER BY h.created_at DESC
             `).all(materialId, businessId)) as any[];
             
-            const { calculateMaterialSummary } = await import('@/lib/inventory/sync');
-            const summary = calculateMaterialSummary(history);
+            const { computeInventory } = await import('@/lib/inventory');
+            const summary = computeInventory(history);
             
             return NextResponse.json({ history, summary });
         }

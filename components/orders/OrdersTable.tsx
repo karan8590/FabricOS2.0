@@ -10,16 +10,20 @@ import { createPortal } from 'react-dom';
 import IntelligentChip from './IntelligentChip';
 import CreateDispatchModal from './CreateDispatchModal';
 import SendToVendorModal from './SendToVendorModal';
+import CompletePrintingModal from './CompletePrintingModal';
 import ConfirmReceivedModal from './ConfirmReceivedModal';
 import DispatchOrderModal from './DispatchOrderModal';
 import ConfirmDeliveryModal from './ConfirmDeliveryModal';
 import PrintQRModal from './PrintQRModal';
+import ApproveOrderModal from './ApproveOrderModal';
 import { ORDER_STATUSES, ORDER_STATUS_LABELS } from '@/lib/constants';
 
-// Checkboxes ONLY for orders queued for customer dispatch
-const isEligibleForDispatch = (order: any): boolean => {
-    const s = (order.status || '').toLowerCase();
-    return s === 'queued_for_dispatch';
+const isEligibleForBulkAction = (order: any): boolean => {
+    const isEmbroideryQueue = order.order_stage === 'embroidery' && order.embroidery_status === 'queued_delivery';
+    const isDyeingQueue = order.order_stage === 'dyeing' && order.dyeing_status === 'queued_delivery';
+    const isReadyForDelivery = order.order_stage === 'ready';
+    
+    return isEmbroideryQueue || isDyeingQueue || isReadyForDelivery;
 };
 
 interface OrdersTableProps {
@@ -41,7 +45,9 @@ const OrderTableRow = React.memo(({
     highlightClass, 
     handleCustomerClick,
     isSelected,
-    onToggleSelect
+    onToggleSelect,
+    setIsCompletePrintingModalOpen,
+    setSelectedOrderForPrinting
 }: { 
     order: any; 
     onUpdate: () => void; 
@@ -52,14 +58,20 @@ const OrderTableRow = React.memo(({
     handleCustomerClick: (id: number) => void; 
     isSelected?: boolean;
     onToggleSelect?: (id: number) => void;
+    setIsCompletePrintingModalOpen: (val: boolean) => void;
+    setSelectedOrderForPrinting: (order: any) => void;
 }) => {
     const [isHovered, setIsHovered] = useState(false);
     
-    const status = order.status?.toLowerCase() || ORDER_STATUSES.CREATED;
+    const orderStage = order.order_stage || 'order_added';
+    
+    // VERIFY NEWLY CREATED ORDERS LOG
+    console.log("ORDER STAGE:", order.id, orderStage);
+    
     const now = Math.floor(Date.now() / 1000);
-    const isFinished = status === 'completed' || status === 'invoiced' || (status === ORDER_STATUSES.DELIVERED && order.invoice_generated);
-    const isPending = status === ORDER_STATUSES.CREATED;
-    const isInProduction = [ORDER_STATUSES.APPROVED, ORDER_STATUSES.EMBROIDERY, ORDER_STATUSES.PRINTING, ORDER_STATUSES.DYEING, ORDER_STATUSES.READY, ORDER_STATUSES.DISPATCHED].includes(status);
+    const isFinished = orderStage === 'delivered';
+    const isPending = orderStage === 'order_added';
+    const isInProduction = ['approved', 'embroidery', 'printing', 'dyeing', 'ready', 'out_for_delivery'].includes(orderStage);
     
     const effectiveDate = order.order_date || order.created_at;
     const deliveryDeadline = effectiveDate + (7 * 24 * 60 * 60);
@@ -72,7 +84,7 @@ const OrderTableRow = React.memo(({
     else if (isInProduction) rowStatusClass = styles.rowInProduction;
     else if (isPending) rowStatusClass = styles.rowPending;
 
-    const isReady = status === ORDER_STATUSES.READY;
+    const isReady = orderStage === 'ready';
 
     return (
         <tr 
@@ -81,42 +93,8 @@ const OrderTableRow = React.memo(({
             onMouseLeave={() => setIsHovered(false)}
         >
             <td className={styles.tdCheckbox}>
-                {isEligibleForDispatch(order) && (
+                {isEligibleForBulkAction(order) && (
                     <input 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-                    
                         type="checkbox"
                         className={styles.rowCheckbox}
                         checked={isSelected || false}
@@ -188,6 +166,8 @@ const OrderTableRow = React.memo(({
                             order={order} 
                             onUpdate={onUpdate} 
                             onWorkflowAction={(action) => onWorkflowAction(action, order)}
+                            setIsCompletePrintingModalOpen={setIsCompletePrintingModalOpen}
+                            setSelectedOrderForPrinting={setSelectedOrderForPrinting}
                         />
                         <OrderActionMenu 
                             order={order} 
@@ -210,7 +190,9 @@ const OrderMobileCard = React.memo(({
     onEdit, 
     onWorkflowAction,
     highlightClass, 
-    handleCustomerClick 
+    handleCustomerClick,
+    setIsCompletePrintingModalOpen,
+    setSelectedOrderForPrinting
 }: { 
     order: any; 
     onUpdate: () => void; 
@@ -218,7 +200,9 @@ const OrderMobileCard = React.memo(({
     onEdit?: (order: any) => void;
     onWorkflowAction: (action: string, order: any) => void; 
     highlightClass: string; 
-    handleCustomerClick: (id: number) => void; 
+    handleCustomerClick: (id: number) => void;
+    setIsCompletePrintingModalOpen: (val: boolean) => void;
+    setSelectedOrderForPrinting: (order: any) => void;
 }) => {
     const [isHovered, setIsHovered] = useState(false);
 
@@ -314,6 +298,8 @@ const OrderMobileCard = React.memo(({
                             order={order} 
                             onUpdate={onUpdate} 
                             onWorkflowAction={(action) => onWorkflowAction(action, order)}
+                            setIsCompletePrintingModalOpen={setIsCompletePrintingModalOpen}
+                            setSelectedOrderForPrinting={setSelectedOrderForPrinting}
                         />
                         <OrderActionMenu 
                             order={order} 
@@ -339,11 +325,19 @@ export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdi
     const [workflowActionState, setWorkflowActionState] = useState<{isOpen: boolean, action: string, order: any}>({isOpen: false, action: '', order: null});
     
     const [showDispatchModal, setShowDispatchModal] = useState(false);
+    const [isCompletePrintingModalOpen, setIsCompletePrintingModalOpen] = useState(false);
+    const [selectedOrderForPrinting, setSelectedOrderForPrinting] = useState<any>(null);
     const rowsPerPage = 20;
 
     useEffect(() => {
-        // Reset page if needed via parent
-    }, [orders]);
+        // Keep the modal's order reference up-to-date if the parent re-fetches
+        if (workflowActionState.isOpen && workflowActionState.order) {
+            const updatedOrder = orders.find((o: any) => o.id === workflowActionState.order.id);
+            if (updatedOrder && JSON.stringify(updatedOrder) !== JSON.stringify(workflowActionState.order)) {
+                setWorkflowActionState(prev => ({ ...prev, order: updatedOrder }));
+            }
+        }
+    }, [orders, workflowActionState.isOpen, workflowActionState.order]);
 
     const handleCustomerClick = React.useCallback((customerId: number) => {
         router.push(`/customers/${customerId}`);
@@ -363,7 +357,7 @@ export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdi
 
     const highlightClass = getHighlightClass();
 
-    const readyOrders = orders.filter(o => isEligibleForDispatch(o));
+    const readyOrders = orders.filter(o => isEligibleForBulkAction(o));
     
     const allReadySelected = readyOrders.length > 0 && readyOrders.every(o => selectedIds?.has(o.id));
 
@@ -395,31 +389,38 @@ export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdi
     return (
         <div className={styles.tableContainer}>
             {/* Vendor Modals */}
+            <ApproveOrderModal
+                isOpen={workflowActionState.isOpen && workflowActionState.action === 'approve'}
+                onClose={closeWorkflowModal}
+                onSuccess={handleModalSuccess}
+                order={workflowActionState.order || selectedOrders[0]}
+                onEdit={onEdit}
+            />
             <SendToVendorModal
                 isOpen={workflowActionState.isOpen && (workflowActionState.action === 'send_to_embroidery' || workflowActionState.action === 'send_to_dyeing')}
                 onClose={closeWorkflowModal}
                 onSuccess={handleModalSuccess}
-                orders={workflowActionState.order ? [workflowActionState.order] : []}
+                orders={workflowActionState.order ? [workflowActionState.order] : selectedOrders}
                 action={workflowActionState.action as any}
             />
             <ConfirmReceivedModal
                 isOpen={workflowActionState.isOpen && (workflowActionState.action === 'mark_printing' || workflowActionState.action === 'mark_ready')}
                 onClose={closeWorkflowModal}
                 onSuccess={handleModalSuccess}
-                order={workflowActionState.order}
+                order={workflowActionState.order || selectedOrders[0]}
                 action={workflowActionState.action as any}
             />
             <DispatchOrderModal
                 isOpen={workflowActionState.isOpen && workflowActionState.action === 'dispatch'}
                 onClose={closeWorkflowModal}
                 onSuccess={handleModalSuccess}
-                order={workflowActionState.order}
+                order={workflowActionState.order || selectedOrders[0]}
             />
             <ConfirmDeliveryModal
                 isOpen={workflowActionState.isOpen && workflowActionState.action === 'mark_delivered'}
                 onClose={closeWorkflowModal}
                 onSuccess={handleModalSuccess}
-                order={workflowActionState.order}
+                order={workflowActionState.order || selectedOrders[0]}
             />
 
             <CreateDispatchModal
@@ -432,7 +433,21 @@ export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdi
                 selectedOrders={selectedOrders}
             />
 
-            
+            {isCompletePrintingModalOpen && selectedOrderForPrinting && (
+                <CompletePrintingModal 
+                    isOpen={isCompletePrintingModalOpen}
+                    order={selectedOrderForPrinting}
+                    onClose={() => {
+                        setIsCompletePrintingModalOpen(false);
+                        setSelectedOrderForPrinting(null);
+                    }}
+                    onSuccess={() => {
+                        setIsCompletePrintingModalOpen(false);
+                        setSelectedOrderForPrinting(null);
+                        onUpdate();
+                    }}
+                />
+            )}
 
             <table className={styles.table}>
                 <thead>
@@ -444,7 +459,7 @@ export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdi
                                     className={styles.rowCheckbox}
                                     checked={allReadySelected}
                                     onChange={toggleSelectAll}
-                                    title="Select all ready orders"
+                                    title="Select all"
                                 />
                             )}
                         </th>
@@ -472,6 +487,8 @@ export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdi
                             handleCustomerClick={handleCustomerClick}
                             isSelected={selectedIds?.has(order.id)}
                             onToggleSelect={onToggleSelect}
+                            setIsCompletePrintingModalOpen={setIsCompletePrintingModalOpen}
+                            setSelectedOrderForPrinting={setSelectedOrderForPrinting}
                         />
                     ))}
                 </tbody>
@@ -491,6 +508,8 @@ export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdi
                             onEdit={onEdit}
                             highlightClass={highlightClass}
                             handleCustomerClick={handleCustomerClick}
+                            setIsCompletePrintingModalOpen={setIsCompletePrintingModalOpen}
+                            setSelectedOrderForPrinting={setSelectedOrderForPrinting}
                         />
                 ))}
             </div>
@@ -516,6 +535,106 @@ export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdi
                     </button>
                 </div>
             )}
+            {selectedOrders.length > 0 && (() => {
+                const totalMetres = selectedOrders.reduce((sum, o) => sum + (parseFloat(o.quantity_meters) || 0), 0);
+                const uniqueStages = [...new Set(selectedOrders.map(o => {
+                    return `${o.order_stage || 'order_added'}-${o.embroidery_status || ''}-${o.printing_status || ''}-${o.dyeing_status || ''}`;
+                }))];
+                const isMixed = uniqueStages.length > 1;
+                const sample = selectedOrders[0];
+                const sStage = sample.order_stage || 'order_added';
+                const sEmb = sample.embroidery_status;
+                const sPrint = sample.printing_status;
+                const sDye = sample.dyeing_status;
+                
+                let bulkActionProps = null;
+                if (!isMixed) {
+                    if (sStage === 'approved') {
+                        bulkActionProps = { label: 'Send to Embroidery', icon: 'ti-needle', onClick: () => setWorkflowActionState({ isOpen: true, action: 'send_to_embroidery', order: null }) };
+                    } else if (sStage === 'embroidery' && sEmb === 'queued_delivery') {
+                        bulkActionProps = { label: 'Deliver Orders', icon: 'ti-truck', onClick: () => setShowDispatchModal(true) };
+                    } else if (sStage === 'printing' && sPrint === 'in_progress') {
+                        bulkActionProps = { label: 'Send to Dyeing', icon: 'ti-droplet', onClick: () => setWorkflowActionState({ isOpen: true, action: 'send_to_dyeing', order: null }) };
+                    } else if (sStage === 'dyeing' && sDye === 'queued_delivery') {
+                        bulkActionProps = { label: 'Deliver Orders', icon: 'ti-truck', onClick: () => setShowDispatchModal(true) };
+                    } else if (sStage === 'ready') {
+                        bulkActionProps = { label: 'Deliver Orders', icon: 'ti-truck', onClick: () => setShowDispatchModal(true) };
+                    }
+                }
+
+                return (
+                    <div style={{
+                        position: 'fixed',
+                        bottom: '28px',
+                        left: '50%',
+                        transform: 'translateX(-50%)',
+                        background: 'rgba(255,255,255,0.95)',
+                        backdropFilter: 'blur(12px)',
+                        border: '1px solid rgba(226,232,240,0.8)',
+                        borderRadius: '20px',
+                        padding: '10px 20px',
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '0',
+                        boxShadow: '0 20px 40px -8px rgba(0,0,0,0.15), 0 8px 16px -4px rgba(0,0,0,0.08)',
+                        zIndex: 999,
+                        minWidth: '460px',
+                    }}>
+                        {/* Left: Selection Info */}
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', paddingRight: '20px', borderRight: '1px solid #E2E8F0', minWidth: '90px' }}>
+                            <span style={{ fontSize: '15px', fontWeight: 700, color: '#0F172A', lineHeight: 1.2 }}>
+                                {selectedOrders.length} {selectedOrders.length === 1 ? 'order' : 'orders'}
+                            </span>
+                            <span style={{ fontSize: '12px', fontWeight: 500, color: '#64748B' }}>
+                                {totalMetres.toFixed(1)}m selected
+                            </span>
+                        </div>
+
+                        {/* Center: Action Buttons */}
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 20px', flex: 1, justifyContent: 'center' }}>
+                            {isMixed ? (
+                                <span style={{ color: '#EF4444', fontSize: '13px', fontWeight: 600 }}>Mixed stages selected - Bulk actions disabled</span>
+                            ) : bulkActionProps ? (
+                                <button
+                                    onClick={bulkActionProps.onClick}
+                                    style={{
+                                        display: 'flex', alignItems: 'center', gap: '6px',
+                                        padding: '8px 18px', borderRadius: '10px', fontSize: '13px',
+                                        fontWeight: 600, cursor: 'pointer', border: 'none',
+                                        background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
+                                        color: '#FFFFFF',
+                                        boxShadow: '0 2px 8px rgba(15,23,42,0.3)',
+                                        transition: 'all 0.15s ease', whiteSpace: 'nowrap'
+                                    }}
+                                >
+                                    <i className={`ti ${bulkActionProps.icon}`}></i> {bulkActionProps.label}
+                                </button>
+                            ) : (
+                                <span style={{ color: '#64748B', fontSize: '13px', fontWeight: 600 }}>No bulk actions for this stage</span>
+                            )}
+                        </div>
+
+                        {/* Right: Clear */}
+                        <div style={{ paddingLeft: '16px', borderLeft: '1px solid #E2E8F0' }}>
+                            <button
+                                onClick={() => { if (onToggleSelect && selectedIds) { selectedOrders.forEach(o => onToggleSelect(o.id)); } }}
+                                style={{
+                                    display: 'flex', alignItems: 'center', gap: '4px',
+                                    padding: '6px 12px', borderRadius: '8px', fontSize: '13px',
+                                    fontWeight: 500, cursor: 'pointer', border: '1px solid transparent',
+                                    background: 'transparent', color: '#94A3B8',
+                                    transition: 'all 0.15s ease'
+                                }}
+                                onMouseEnter={e => { (e.currentTarget).style.color = '#EF4444'; (e.currentTarget).style.background = '#FFF5F5'; }}
+                                onMouseLeave={e => { (e.currentTarget).style.color = '#94A3B8'; (e.currentTarget).style.background = 'transparent'; }}
+                            >
+                                <X size={14} /> Clear
+                            </button>
+                        </div>
+                    </div>
+                );
+            })()}
+
         </div>
     );
 }
@@ -558,10 +677,10 @@ function OrderActionMenu({ order, onUpdate, onGenerateInvoice, onEdit }: { order
                 setShowDeleteModal(false);
             } else {
                 const data = await res.json();
-                alert(data.error || 'Failed to delete order');
+                console.log(data.error || 'Failed to delete order');
             }
         } catch (error) {
-            alert('Failed to delete order');
+            console.log('Failed to delete order');
         } finally {
             setIsDeleting(false);
         }
@@ -712,150 +831,56 @@ function OrderActionMenu({ order, onUpdate, onGenerateInvoice, onEdit }: { order
     );
 }
 
-const ACTION_CONFIG: Record<string, { label: string, icon: string, color: string, bg: string, border: string, hoverBg: string, hoverBorder: string }> = {
-  draft:      { label: '✓ Review & Approve',  icon: 'ti ti-eye',          color: '#D97706', bg: 'rgba(217, 119, 6, 0.05)', border: 'rgba(217, 119, 6, 0.15)', hoverBg: 'rgba(217, 119, 6, 0.1)', hoverBorder: 'rgba(217, 119, 6, 0.3)' },
-  created:    { label: '✓ Approve Order',     icon: 'ti ti-circle-check', color: '#D97706', bg: 'rgba(217, 119, 6, 0.05)', border: 'rgba(217, 119, 6, 0.15)', hoverBg: 'rgba(217, 119, 6, 0.1)', hoverBorder: 'rgba(217, 119, 6, 0.3)' },
-  approved:   { label: '↗ Send To Embroidery',icon: 'ti ti-needle',       color: '#AF52DE', bg: 'rgba(175, 82, 222, 0.08)', border: 'rgba(175, 82, 222, 0.2)', hoverBg: 'rgba(175, 82, 222, 0.15)', hoverBorder: 'rgba(175, 82, 222, 0.4)' },
-  embroidery: { label: '→ Mark Printing',     icon: 'ti ti-printer',      color: '#4F46E5', bg: 'rgba(79, 70, 229, 0.05)', border: 'rgba(79, 70, 229, 0.15)', hoverBg: 'rgba(79, 70, 229, 0.1)', hoverBorder: 'rgba(79, 70, 229, 0.3)' },
-  printing:   { label: '↗ Send To Dyeing',    icon: 'ti ti-droplet',      color: '#0EA5E9', bg: 'rgba(14, 165, 233, 0.05)', border: 'rgba(14, 165, 233, 0.15)', hoverBg: 'rgba(14, 165, 233, 0.1)', hoverBorder: 'rgba(14, 165, 233, 0.3)' },
-  dyeing:     { label: '✓ Mark Ready',        icon: 'ti ti-package',      color: '#EA580C', bg: 'rgba(234, 88, 12, 0.05)', border: 'rgba(234, 88, 12, 0.15)', hoverBg: 'rgba(234, 88, 12, 0.1)', hoverBorder: 'rgba(234, 88, 12, 0.3)' },
-  ready:      { label: '↗ Dispatch',          icon: 'ti ti-truck',        color: '#EA580C', bg: 'rgba(234, 88, 12, 0.05)', border: 'rgba(234, 88, 12, 0.15)', hoverBg: 'rgba(234, 88, 12, 0.1)', hoverBorder: 'rgba(234, 88, 12, 0.3)' },
-  dispatched: { label: '✓ Mark Delivered',    icon: 'ti ti-circle-check', color: '#16A34A', bg: 'rgba(22, 163, 74, 0.05)', border: 'rgba(22, 163, 74, 0.15)', hoverBg: 'rgba(22, 163, 74, 0.1)', hoverBorder: 'rgba(22, 163, 74, 0.3)' },
-};
-
 function OrderActionButton({ 
     order, 
     onUpdate, 
     onWorkflowAction,
+    setIsCompletePrintingModalOpen,
+    setSelectedOrderForPrinting
 }: { 
     order: any; 
     onUpdate: () => void; 
-    onWorkflowAction: (action: string) => void;
+    onWorkflowAction: (action: string, order: any) => void;
+    setIsCompletePrintingModalOpen: (val: boolean) => void;
+    setSelectedOrderForPrinting: (order: any) => void;
 }) {
-    const status = order.status?.toLowerCase() || ORDER_STATUSES.CREATED;
+    const stage = order.order_stage || 'order_added';
+    const embStatus = order.embroidery_status;
+    const printStatus = order.printing_status;
+    const dyeStatus = order.dyeing_status;
+    
     const [isProcessing, setIsProcessing] = useState(false);
-    const [showApproveModal, setShowApproveModal] = useState(false);
     const [isHovered, setIsHovered] = useState(false);
 
-    if (status === ORDER_STATUSES.DELIVERED || status === 'completed' || status === 'invoiced') {
-        return (
-            <div style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                background: 'rgba(22, 163, 74, 0.08)',
-                color: '#16A34A',
-                border: '1px solid rgba(22, 163, 74, 0.2)',
-                borderRadius: '12px',
-                padding: '6px 14px',
-                fontSize: '13px',
-                fontWeight: 600,
-            }}>
-                <i className="ti ti-check"></i> ✓ Completed
-            </div>
-        );
-    }
-
-    if (order.dispatch_status === 'queued') {
-        return (
-            <div style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                background: 'rgba(175, 82, 222, 0.08)',
-                color: '#AF52DE',
-                border: '1px solid rgba(175, 82, 222, 0.2)',
-                borderRadius: '12px',
-                padding: '8px 16px',
-                fontSize: '13px',
-                fontWeight: 600,
-                width: '100%',
-                justifyContent: 'center',
-                opacity: 0.8,
-                cursor: 'default'
-            }}>
-                <i className="ti ti-clock"></i> Queued For Dispatch
-            </div>
-        );
-    }
-
-    const config = ACTION_CONFIG[status];
-    if (!config) return null;
-
-    const confirmApprove = async () => {
+    const handleApi = (actionKey: string) => {
         setIsProcessing(true);
-        try {
-            const res = await fetch(`/api/orders/${order.id}/workflow`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ action: 'approve' })
-            });
-
-            if (res.ok) {
-                setShowApproveModal(false);
+        fetch(`/api/orders/${order.id}/workflow`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ action: actionKey })
+        })
+        .then(res => res.json().then(data => ({ok: res.ok, data})))
+        .then(({ok, data}) => {
+            if (ok) {
                 if (onUpdate) onUpdate();
             } else {
-                const data = await res.json();
-                alert(`❌ Failed to approve order: ${data.error || 'Unknown error'}`);
+                console.log(`❌ Failed: ${data.error || 'Unknown error'}`);
             }
-        } catch (error: any) {
-            alert(`❌ Failed to approve order: ${error.message || error}`);
-        } finally {
-            setIsProcessing(false);
-        }
+        })
+        .catch(err => console.log(`❌ Error: ${err.message}`))
+        .finally(() => setIsProcessing(false));
     };
 
-    const handleAction = (e: React.MouseEvent) => {
-        e.stopPropagation();
-        console.log('SEND TO EMBROIDERY CLICKED', order.id, 'Status:', status);
-        if (status === ORDER_STATUSES.CREATED || status === 'pending' || status === 'waiting_approval') {
-            setShowApproveModal(true);
-        } else {
-            let actionKey = '';
-            if (status === ORDER_STATUSES.APPROVED) actionKey = 'send_to_embroidery';
-            else if (status === ORDER_STATUSES.EMBROIDERY || status === 'embroidery_in_progress') actionKey = 'mark_printing';
-            else if (status === ORDER_STATUSES.PRINTING || status === 'printing_in_factory') actionKey = 'send_to_dyeing';
-            else if (status === ORDER_STATUSES.DYEING || status === 'dyeing_in_progress') actionKey = 'mark_ready';
-            else if (status === ORDER_STATUSES.READY) actionKey = 'dispatch';
-            else if (status === ORDER_STATUSES.DISPATCHED) actionKey = 'mark_delivered';
-            
-            if (actionKey === 'dispatch') {
-                setIsProcessing(true);
-                fetch(`/api/orders/${order.id}/workflow`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ action: actionKey })
-                })
-                .then(res => res.json().then(data => ({ok: res.ok, data})))
-                .then(({ok, data}) => {
-                    if (ok) {
-                        if (onUpdate) onUpdate();
-                    } else {
-                        alert(`❌ Failed to queue order: ${data.error || 'Unknown error'}`);
-                    }
-                })
-                .catch(err => alert(`❌ Error: ${err.message}`))
-                .finally(() => setIsProcessing(false));
-            } else {
-                if (actionKey) {
-                    console.log('Calling onWorkflowAction with actionKey:', actionKey);
-                    onWorkflowAction(actionKey);
-                }
-            }
-        }
-    };
-
-    return (
-        <>
+    const renderButton = (label: string, icon: string, color: string, bg: string, border: string, onClick: () => void, hoverBg?: string, hoverBorder?: string) => (
         <button 
-            onClick={handleAction}
+            onClick={(e) => { e.stopPropagation(); onClick(); }}
             disabled={isProcessing}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
             style={{
-                border: `1px solid ${isHovered ? config.hoverBorder : config.border}`,
-                color: config.color,
-                background: isHovered ? config.hoverBg : config.bg,
+                border: `1px solid ${isHovered ? (hoverBorder || border.replace('0.15', '0.3').replace('0.2', '0.4')) : border}`,
+                color: color,
+                background: isHovered ? (hoverBg || bg.replace('0.05', '0.1').replace('0.08', '0.15')) : bg,
                 padding: '8px 16px',
                 borderRadius: '12px',
                 fontSize: '13px',
@@ -868,52 +893,39 @@ function OrderActionButton({
                 width: '100%',
                 justifyContent: 'center',
                 opacity: isProcessing ? 0.7 : 1,
-                boxShadow: isHovered ? `0 4px 12px ${config.bg.replace('0.05', '0.2').replace('0.08', '0.2')}` : '0 2px 4px rgba(0,0,0,0.02)',
+                boxShadow: isHovered ? `0 4px 12px ${hoverBg || bg.replace('0.05', '0.2').replace('0.08', '0.2')}` : '0 2px 4px rgba(0,0,0,0.02)',
                 transform: isHovered && !isProcessing ? 'translateY(-1px)' : 'none'
             }}
         >
-            {isProcessing ? <i className="ti ti-loader ti-spin"></i> : null}
-            {isProcessing ? 'Processing...' : config.label}
+            {isProcessing ? <i className="ti ti-loader ti-spin"></i> : <i className={icon}></i>}
+            {isProcessing ? 'Processing...' : label}
         </button>
-
-        {showApproveModal && createPortal(
-            <div className="global-modal-overlay" onClick={() => setShowApproveModal(false)}>
-                <div className={styles.modal} onClick={e => e.stopPropagation()}>
-                    <div className={styles.modalIcon} style={{ background: 'rgba(217, 119, 6, 0.1)' }}>
-                        <i className="ti ti-circle-check" style={{ fontSize: '28px', color: '#D97706' }}></i>
-                    </div>
-                    <h3 className={styles.modalTitle}>Approve Order?</h3>
-                    <p className={styles.modalText}>
-                        Are you sure you want to approve Order <strong>#{order.order_number || order.id}</strong> for production? This will move it to the next workflow stage.
-                    </p>
-                    <div className={styles.modalActions}>
-                        <button className={styles.cancelBtn} onClick={() => setShowApproveModal(false)} disabled={isProcessing}>
-                            Cancel
-                        </button>
-                        <button 
-                            className={styles.primaryActionBtn}
-                            onClick={confirmApprove}
-                            disabled={isProcessing}
-                            style={{
-                                flex: 1,
-                                background: '#D97706',
-                                color: '#ffffff',
-                                border: 'none',
-                                justifyContent: 'center',
-                                padding: '12px',
-                                fontSize: '14px',
-                                borderRadius: '12px',
-                                opacity: isProcessing ? 0.7 : 1
-                            }}
-                        >
-                            {isProcessing ? <i className="ti ti-loader ti-spin"></i> : <i className="ti ti-circle-check"></i>}
-                            {isProcessing ? 'Approving...' : 'Confirm Approval'}
-                        </button>
-                    </div>
-                </div>
-            </div>,
-            document.body
-        )}
-        </>
     );
+
+    const renderBadge = (label: string, icon: string, color: string, bg: string, border: string) => (
+        <div style={{
+            display: 'inline-flex', alignItems: 'center', gap: '6px',
+            background: bg, color: color, border: `1px solid ${border}`,
+            borderRadius: '12px', padding: '6px 14px', fontSize: '13px', fontWeight: 600,
+            width: '100%', justifyContent: 'center'
+        }}>
+            <i className={icon}></i> {label}
+        </div>
+    );
+
+    if (stage === 'order_added') return renderButton('Approve Order', 'ti ti-circle-check', '#92400E', '#FFFBEB', 'rgba(180, 83, 9, 0.15)', () => onWorkflowAction('approve', order), '#FEF3C7', 'rgba(180, 83, 9, 0.25)');
+    if (stage === 'approved') return renderButton('Send To Embroidery', 'ti ti-needle', '#8B5CF6', 'rgba(139,92,246,0.08)', 'rgba(139,92,246,0.2)', () => onWorkflowAction('send_to_embroidery', order));
+    if (stage === 'embroidery' && embStatus === 'queued_delivery') return renderBadge('Queued for Embroidery', 'ti ti-truck-loading', '#8B5CF6', 'rgba(139,92,246,0.05)', 'rgba(139,92,246,0.15)');
+    if (stage === 'embroidery' && embStatus === 'in_progress') return renderButton('Complete (Mark Printing)', 'ti ti-printer', '#C2410C', '#FFF1E6', '#FDBA74', () => {
+        setSelectedOrderForPrinting(order);
+        setIsCompletePrintingModalOpen(true);
+    }, '#FFE4CC', '#FB923C');
+    if (stage === 'printing' && printStatus === 'in_progress') return renderButton('Send To Dyeing', 'ti ti-droplet', '#0EA5E9', 'rgba(14,165,233,0.08)', 'rgba(14,165,233,0.2)', () => onWorkflowAction('send_to_dyeing', order));
+    if (stage === 'dyeing' && dyeStatus === 'queued_delivery') return renderBadge('Queued for Dyeing', 'ti ti-truck-loading', '#0EA5E9', 'rgba(14,165,233,0.05)', 'rgba(14,165,233,0.15)');
+    if (stage === 'dyeing' && dyeStatus === 'in_progress') return renderButton('Complete (Ready)', 'ti ti-check', '#047857', '#ECFDF5', '#A7F3D0', () => handleApi('mark_ready'), '#D1FAE5', '#6EE7B7');
+    if (stage === 'ready') return renderBadge('Ready For Delivery', 'ti ti-truck', '#10B981', 'rgba(16,185,129,0.05)', 'rgba(16,185,129,0.15)');
+    if (stage === 'out_for_delivery') return renderButton('Mark Delivered', 'ti ti-circle-check', '#10B981', 'rgba(16,185,129,0.08)', 'rgba(16,185,129,0.2)', () => handleApi('mark_delivered'));
+    if (stage === 'delivered') return renderBadge('Delivered', 'ti ti-check', '#6B7280', 'rgba(107,114,128,0.08)', 'rgba(107,114,128,0.2)');
+    
+    return null;
 }

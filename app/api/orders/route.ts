@@ -259,10 +259,10 @@ export async function POST(request: Request) {
         const result = (await db
                     .prepare(
                         `INSERT INTO orders (
-                            customer_id, design_id, quantity_meters, total_price, status, order_number, delivery_date, order_date, priority, notes, price_per_unit, business_id,
+                            customer_id, design_id, quantity_meters, total_price, status, order_stage, order_number, delivery_date, order_date, priority, notes, price_per_unit, business_id,
                             base_amount, printing_cost, embroidery_cost_charged, dyeing_cost_charged, additional_charges, discount, gst_rate, gst_amount, fabric_type
                         )
-                 VALUES (?, ?, ?, ?, 'created', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                 VALUES (?, ?, ?, ?, 'created', 'order_added', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
                     )
                     .run(
                         customerId, 

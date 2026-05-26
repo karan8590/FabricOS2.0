@@ -34,6 +34,7 @@ export default function CreateDispatchModal({ isOpen, onClose, onSuccess, select
         driverName: '',
         driverPhone: '',
         route: '',
+        deliveryCost: '',
         dispatchDate: new Date().toISOString().split('T')[0],
         notes: ''
     });
@@ -156,6 +157,10 @@ export default function CreateDispatchModal({ isOpen, onClose, onSuccess, select
             }
         }
 
+        if (formData.deliveryCost !== '' && Number(formData.deliveryCost) < 0) {
+            newErrors.deliveryCost = 'Delivery cost cannot be negative';
+        }
+
         if (Object.keys(newErrors).length > 0) {
             setErrors(newErrors);
             return;
@@ -163,11 +168,19 @@ export default function CreateDispatchModal({ isOpen, onClose, onSuccess, select
 
         setIsSubmitting(true);
         try {
+            const parsedDeliveryCost =
+                formData.deliveryCost === "" ||
+                formData.deliveryCost === null ||
+                formData.deliveryCost === undefined
+                    ? null
+                    : Number(formData.deliveryCost);
+
             const res = await fetch('/api/dispatch', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     ...formData,
+                    deliveryCost: parsedDeliveryCost,
                     orderIds: selectedOrders.map(o => o.id)
                 })
             });
@@ -175,18 +188,18 @@ export default function CreateDispatchModal({ isOpen, onClose, onSuccess, select
             if (res.ok) {
                 onSuccess();
                 setFormData({
-                    transportVendorId: '', vehicleNumber: '', driverName: '', driverPhone: '', route: '',
+                    transportVendorId: '', vehicleNumber: '', driverName: '', driverPhone: '', route: '', deliveryCost: '',
                     dispatchDate: new Date().toISOString().split('T')[0], notes: ''
                 });
                 setIsCreatingVendor(false);
                 setErrors({});
             } else {
                 const data = await res.json();
-                alert(data.error || 'Failed to create dispatch');
+                setErrors({ submit: data.error || 'Failed to create dispatch' });
             }
-        } catch (error) {
+        } catch (error: any) {
             console.error(error);
-            alert('An error occurred');
+            setErrors({ submit: error.message || 'An unexpected error occurred' });
         } finally {
             setIsSubmitting(false);
         }
@@ -226,6 +239,12 @@ export default function CreateDispatchModal({ isOpen, onClose, onSuccess, select
                         <div className={styles.bodyLayout}>
                             <div className={styles.leftPanel}>
                                 <div className={styles.grid}>
+
+                            {errors.submit && (
+                                <div style={{ gridColumn: '1 / -1', background: '#FEE2E2', color: '#B91C1C', padding: '12px 16px', borderRadius: '8px', fontSize: '14px', fontWeight: 500, marginBottom: '8px' }}>
+                                    {errors.submit}
+                                </div>
+                            )}
                                     
                                     {/* Transport Vendor Section */}
                             <div className={styles.field} style={{ gridColumn: '1 / -1' }}>
@@ -238,7 +257,7 @@ export default function CreateDispatchModal({ isOpen, onClose, onSuccess, select
                                                 value={formData.transportVendorId}
                                                 onChange={e => handleVendorSelect(e.target.value)}
                                                 className={errors.transportVendorId ? '!border-red-400 focus:!ring-red-500 !bg-red-50/30' : ''}
-                                                style={{ border: 'none', background: 'transparent', width: '100%', outline: 'none' }}
+                                                style={{ width: '100%', outline: 'none' }}
                                             >
                                                 <option value="">-- Select Driver / Tempo --</option>
                                                 {vendors.map(v => (
@@ -380,6 +399,20 @@ export default function CreateDispatchModal({ isOpen, onClose, onSuccess, select
                                 </div>
                             </div>
                             
+                            <div className={styles.field}>
+                                <label>Delivery Cost (₹) (Optional)</label>
+                                <div className={styles.inputWrapper}>
+                                    <span style={{position: 'absolute', left: '16px', color: '#64748B', fontWeight: 600, pointerEvents: 'none'}}>₹</span>
+                                    <input 
+                                        type="number" 
+                                        placeholder="Enter later if not confirmed"
+                                        value={formData.deliveryCost}
+                                        onChange={e => setFormData({...formData, deliveryCost: e.target.value})}
+                                    />
+                                </div>
+                                {errors.deliveryCost && <p className="text-red-500 text-xs mt-1">{errors.deliveryCost}</p>}
+                            </div>
+
                             <div className={styles.field}>
                                 <label>Dispatch Date *</label>
                                 <div className={styles.inputWrapper}>

@@ -2,29 +2,24 @@ import { NextResponse } from 'next/server';
 import getDatabase from '@/lib/db';
 import { checkPermission } from '@/lib/auth/permissions';
 import { getActiveBusinessId } from '@/lib/auth/business';
-import { sendTelegramMessage, sendTelegramDocument } from '@/lib/telegram';
-import { generateVendorChallanPDFServer } from '@/lib/pdf/generateVendorChallanServer';
-import { buildOrderAlertTemplate } from '@/lib/telegram-templates';
-import { ORDER_STATUSES } from '@/lib/constants';
+import { sendTelegramMessage } from '@/lib/telegram';
 
 export async function POST(
     request: Request,
     { params }: { params: { id: string } }
 ) {
     try {
-        const { authorized, error, status } = await checkPermission('orders.edit');
+        const { authorized, error, status, user } = await checkPermission('orders.edit');
         if (!authorized) return NextResponse.json({ error }, { status });
 
         const businessId = await getActiveBusinessId();
         if (!businessId) return NextResponse.json({ error: 'Unauthorized business access' }, { status: 401 });
 
         const body = await request.json();
-        const { action, transporterName, lrNumber, expectedDelivery, vendorId, rate, metres, expectedReturnDate, paymentDueDate, generateChallan, notes, dateDelivered, deliveredTo } = body;
+        let { action, notes } = body;
         const orderId = parseInt(params.id);
 
         const db = getDatabase();
-        let vendorDispatchId: number | null = null;
-        let vdspDetails: any = null;
 
         const order = (await db.prepare(`
             SELECT o.*, c.name as customer_name, d.name as design_name
@@ -36,46 +31,63 @@ export async function POST(
 
         if (!order) return NextResponse.json({ error: 'Order not found' }, { status: 404 });
 
-        let newStatus = order.status;
-        let activityTitle = '';
-        let activityDescription = '';
-        const now = new Date();
-        const localYear = now.getFullYear();
-        const localMonth = String(now.getMonth() + 1).padStart(2, '0');
-        const localDay = String(now.getDate()).padStart(2, '0');
-        const todayDate = `${localYear}-${localMonth}-${localDay}`;
+        const orderStage = order.order_stage || 'order_added';
+        const now = Math.floor(Date.now() / 1000);
 
-        try {
-            console.log("Approve API hit");
-            console.log("Order ID:", orderId);
-            console.log("User business_id:", businessId);
+        return await db.transaction(async () => {
+            let nextOrderStage = orderStage;
+            let nextEmbroideryStatus = order.embroidery_status;
+            let nextPrintingStatus = order.printing_status;
+            let nextDyeingStatus = order.dyeing_status;
+            let title = '';
 
             if (action === 'approve') {
-                newStatus = ORDER_STATUSES.APPROVED;
-                activityTitle = 'Order Approved';
-                activityDescription = `Order approved for production.`;
-                
-                // --- Reserve Inventory Stock ---
+                if (orderStage !== 'order_added') throw new Error(`Cannot approve order in stage: ${orderStage}`);
+                nextOrderStage = 'approved';
+                title = 'Order Approved';
+
                 const fabricType = order.fabric_type || 'Polyester';
                 const availableMaterials = (await db.prepare(`
-                    SELECT id, available_stock, reserved_stock 
+                    SELECT *
                     FROM inventory_materials 
-                    WHERE name = ? AND category = 'Fabric' AND business_id = ? AND available_stock > 0
+                    WHERE name = ? AND category = 'Fabric' AND business_id = ? AND COALESCE(is_deleted, false) = false
                     ORDER BY last_purchase_date ASC, id ASC
                 `).all(fabricType, businessId)) as any[];
 
-                const totalAvailable = availableMaterials.reduce((sum, m) => sum + Number(m.available_stock), 0);
+                const { computeInventory } = await import('@/lib/inventory');
+                
+                // Fetch history for these materials
+                const matIds = availableMaterials.map(m => m.id);
+                let historyByMat: Record<number, any[]> = {};
+                if (matIds.length > 0) {
+                    const placeholders = matIds.map(() => '?').join(',');
+                    const hist = (await db.prepare(`SELECT * FROM inventory_history WHERE material_id IN (${placeholders}) AND business_id = ? AND COALESCE(is_deleted, false) = false`).all(...matIds, businessId)) as any[];
+                    for (const h of hist) {
+                        if (!historyByMat[h.material_id]) historyByMat[h.material_id] = [];
+                        historyByMat[h.material_id].push(h);
+                    }
+                }
+                
+                for (const m of availableMaterials) {
+                    const calc = computeInventory(historyByMat[m.id] || []);
+                    m.real_available = calc.available;
+                    m.real_reserved = calc.reserved;
+                }
+
+                const totalAvailable = availableMaterials.reduce((sum, m) => sum + m.real_available, 0);
                 if (totalAvailable < order.quantity_meters) {
-                    return NextResponse.json({ success: false, error: `Not enough ${fabricType} fabric available. Required: ${order.quantity_meters}m, Available: ${totalAvailable}m` }, { status: 400 });
+                    throw new Error(`Not enough ${fabricType} fabric available. Required: ${order.quantity_meters}m, Available: ${totalAvailable}m`);
                 }
 
                 let remainingMetersToDeduct = order.quantity_meters;
                 for (const material of availableMaterials) {
                     if (remainingMetersToDeduct <= 0) break;
                     
-                    const reservation = Math.min(Number(material.available_stock), remainingMetersToDeduct);
-                    const newAvailable = Number(material.available_stock) - reservation;
-                    const newReserved = Number(material.reserved_stock) + reservation;
+                    if (material.real_available <= 0) continue;
+
+                    const reservation = Math.min(material.real_available, remainingMetersToDeduct);
+                    const newAvailable = material.real_available - reservation;
+                    const newReserved = material.real_reserved + reservation;
                     
                     await db.prepare(`
                         UPDATE inventory_materials 
@@ -86,160 +98,30 @@ export async function POST(
                     await db.prepare(`
                         INSERT INTO inventory_history (business_id, material_id, action_type, quantity, prev_stock, new_stock, reason, linked_order_id, user_id)
                         VALUES (?, ?, 'Reserved', ?, ?, ?, ?, ?, ?)
-                    `).run(businessId, material.id, reservation, material.available_stock, newAvailable, `Reserved for Order #${order.order_number}`, order.id, 1);
+                    `).run(businessId, material.id, reservation, material.real_available, newAvailable, `Reserved for Order #${order.order_number || order.id}`, order.id, user?.id || 1);
 
                     remainingMetersToDeduct -= reservation;
                 }
-            }
-            else if (action === 'send_to_embroidery' || action === 'send_to_dyeing') {
-                const type = action === 'send_to_embroidery' ? 'embroidery' : 'dyeing';
-                await db.prepare(`
-                    UPDATE orders 
-                    SET dispatch_status = 'queued',
-                        dispatch_stage = ?,
-                        queued_for_dispatch = true,
-                        queued_at = ?,
-                        queued_vendor_id = ?,
-                        queued_rate = ?,
-                        queued_expected_date = ?,
-                        queued_notes = ?,
-                        queued_generate_challan = ?
-                    WHERE id = ? AND business_id = ?
-                `).run(
-                    type,
-                    Math.floor(Date.now() / 1000),
-                    vendorId || null,
-                    rate || 0,
-                    expectedReturnDate || null,
-                    notes || null,
-                    generateChallan ? true : false,
-                    orderId,
-                    businessId
-                );
+            } else if (action === 'mark_printing') {
+                if (orderStage !== 'embroidery' || order.embroidery_status !== 'in_progress') throw new Error(`Cannot mark printing from current state`);
                 
-                // Set the embroidery/dyeing status explicitly
-                if (type === 'embroidery') {
-                    await db.prepare("UPDATE orders SET embroidery_status = 'sent' WHERE id = ?").run(orderId);
-                } else if (type === 'dyeing') {
-                    await db.prepare("UPDATE orders SET dyeing_status = 'sent' WHERE id = ?").run(orderId);
-                }
-
-                return NextResponse.json({ success: true, dispatch_status: 'queued', dispatch_stage: type });
-            }
-            // OLD LOGIC BELOW IS COMMENTED OUT OR REMOVED
-            /*
-                const workType = action === 'send_to_embroidery' ? 'embroidery' : 'dyeing';
-                newStatus = action === 'send_to_embroidery' ? ORDER_STATUSES.EMBROIDERY : ORDER_STATUSES.DYEING;
+                const { completionDate } = body;
                 
-                const vendor = (await db.prepare('SELECT name, contact FROM vendors WHERE id = ?').get(vendorId)) as any;
-                if (!vendor) throw new Error('Vendor not found');
+                nextOrderStage = 'printing';
+                nextEmbroideryStatus = 'completed';
+                nextPrintingStatus = 'in_progress';
+                title = 'Printing Completed';
 
-                const totalCost = (parseFloat(rate || 0) * parseFloat(metres || 0)).toFixed(2);
-                
-                // Generate Vendor Dispatch ID
-                const currentYear = new Date().getFullYear();
-                const vdspPrefix = `VDSP-${currentYear}-`;
-                const lastVdsp = (await db.prepare(`
-                    SELECT dispatch_number FROM vendor_dispatches 
-                    WHERE business_id = ? AND dispatch_number LIKE ? 
-                    ORDER BY id DESC LIMIT 1
-                `).get(businessId, `${vdspPrefix}%`)) as any;
+            } else if (action === 'mark_ready') {
+                if (orderStage !== 'dyeing' || order.dyeing_status !== 'in_progress') throw new Error(`Cannot mark ready from current state`);
+                nextOrderStage = 'ready';
+                nextDyeingStatus = 'completed';
+                title = 'Ready for Delivery';
+            } else if (action === 'mark_delivered') {
+                if (orderStage !== 'out_for_delivery') throw new Error(`Cannot mark delivered from current state`);
+                nextOrderStage = 'delivered';
+                title = 'Delivered';
 
-                let nextVdspNum = 1;
-                if (lastVdsp && lastVdsp.dispatch_number) {
-                    const parts = lastVdsp.dispatch_number.split('-');
-                    if (parts.length === 3) {
-                        nextVdspNum = parseInt(parts[2], 10) + 1;
-                    }
-                }
-                const newDispatchNumber = `${vdspPrefix}${nextVdspNum.toString().padStart(4, '0')}`;
-
-                const insertJobCost = (await db.prepare(`
-                    INSERT INTO order_job_costs (
-                        business_id, order_id, type, vendor_id, metres, rate_per_metre, 
-                        total_cost, date, payment_mode, status, notes
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'unpaid', ?)
-                `).run(
-                                    businessId, orderId, workType, vendorId, parseFloat(metres), parseFloat(rate),
-                                    parseFloat(totalCost), todayDate, 'Unpaid', notes || null
-                                ));
-
-                (await db.prepare(`
-                    INSERT INTO vendor_payments (
-                        business_id, vendor_id, vendor_name, vendor_phone, order_id, order_number,
-                        work_type, total_amount, amount_paid, balance, due_date, status, notes, linked_job_cost_id
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, 'unpaid', ?, ?)
-                `).run(
-                                    businessId, vendorId, vendor.name, vendor.contact, orderId, order.order_number,
-                                    workType, parseFloat(totalCost), parseFloat(totalCost), paymentDueDate || expectedReturnDate || todayDate, notes || null, insertJobCost.lastInsertRowid
-                                ));
-
-                const expReturnDateTs = expectedReturnDate ? Math.floor(new Date(expectedReturnDate).getTime() / 1000) : null;
-                const insertVdsp = (await db.prepare(`
-                    INSERT INTO vendor_dispatches (
-                        business_id, dispatch_number, order_id, vendor_id, process_type, 
-                        sent_date, expected_return_date, rate_per_meter, total_meters, total_cost, status
-                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'sent')
-                `).run(
-                                    businessId, newDispatchNumber, orderId, vendorId, workType, 
-                                    Math.floor(Date.now() / 1000), expReturnDateTs, parseFloat(rate), parseFloat(metres), parseFloat(totalCost)
-                                ));
-
-                vendorDispatchId = insertVdsp.lastInsertRowid;
-                vdspDetails = { 
-                    dispatch_number: newDispatchNumber, 
-                    vendor_name: vendor.name, 
-                    vendor_phone: vendor.contact,
-                    process_type: workType,
-                    rate_per_meter: parseFloat(rate),
-                    total_meters: parseFloat(metres),
-                    total_cost: parseFloat(totalCost),
-                    expected_return_date: expReturnDateTs,
-                    notes: notes
-                };
-
-                (await db.prepare('UPDATE vendors SET balance = balance + ? WHERE id = ?').run(parseFloat(totalCost), vendorId));
-
-                const columnToUpdate = workType === 'embroidery' ? 'embroidery_job_cost' : 'dyeing_job_cost';
-                (await db.prepare(`UPDATE orders SET ${columnToUpdate} = COALESCE(${columnToUpdate}, 0) + ? WHERE id = ?`).run(parseFloat(totalCost), orderId));
-
-                activityTitle = `Sent to ${workType === 'embroidery' ? 'Embroidery' : 'Dyeing'}`;
-                activityDescription = `Sent ${metres}m to ${vendor.name} at ₹${rate}/m = ₹${totalCost}.`;
-            } */
-            else if (action === 'dispatch') {
-                await db.prepare('UPDATE orders SET dispatch_stage = ? WHERE id = ? AND business_id = ?').run('queue_customer_dispatch', orderId, businessId);
-                return NextResponse.json({ success: true });
-            }
-            /*
-            else if (action === 'mark_printing') {
-                newStatus = ORDER_STATUSES.PRINTING;
-                activityTitle = 'Embroidery Received - Printing Started';
-                activityDescription = `Received ${metresReceived}m back. Quality: ${qualityResult}. ${notes || ''}`;
-                
-                (await db.prepare(`UPDATE vendor_dispatches SET status = 'returned', returned_at = ? WHERE order_id = ? AND process_type = 'embroidery' AND status = 'sent'`).run(Math.floor(Date.now() / 1000), orderId));
-            } 
-            else if (action === 'mark_ready') {
-                if (body.reworkNeeded) {
-                    activityTitle = 'Dyeing Quality Failed - Rework Needed';
-                    activityDescription = `Received ${metresReceived}m back. Quality: ${qualityResult}. Rework required. ${notes || ''}`;
-                } else {
-                    newStatus = ORDER_STATUSES.READY;
-                    activityTitle = 'Dyeing Received - Ready for Dispatch';
-                    activityDescription = `Received ${metresReceived}m back. Quality: ${qualityResult}. ${notes || ''}`;
-                }
-                (await db.prepare(`UPDATE vendor_dispatches SET status = 'returned', returned_at = ? WHERE order_id = ? AND process_type = 'dyeing' AND status = 'sent'`).run(Math.floor(Date.now() / 1000), orderId));
-            } 
-            else if (action === 'dispatch') {
-                newStatus = ORDER_STATUSES.DISPATCHED;
-                activityTitle = 'Order Dispatched';
-                activityDescription = `Dispatched ${metresDispatched}m via ${transporterName} (LR: ${lrNumber}). Expected delivery: ${expectedDelivery}.`;
-            } */
-            else if (action === 'mark_delivered') {
-                newStatus = ORDER_STATUSES.DELIVERED;
-                activityTitle = 'Order Delivered';
-                activityDescription = `Delivered to ${deliveredTo || 'Customer'} on ${dateDelivered}. ${notes || ''}`;
-                
-                // --- Consume Reserved Stock ---
                 const fabricType = order.fabric_type || 'Polyester';
                 const reservedMaterials = (await db.prepare(`
                     SELECT id, available_stock, reserved_stock, used_stock 
@@ -265,102 +147,40 @@ export async function POST(
                     await db.prepare(`
                         INSERT INTO inventory_history (business_id, material_id, action_type, quantity, prev_stock, new_stock, reason, linked_order_id, user_id)
                         VALUES (?, ?, 'Consumed', ?, ?, ?, ?, ?, ?)
-                    `).run(businessId, material.id, consumption, material.reserved_stock, newReserved, `Consumed for Order #${order.order_number}`, order.id, 1);
+                    `).run(businessId, material.id, consumption, material.reserved_stock, newReserved, `Consumed for Order #${order.order_number || order.id}`, order.id, user?.id || 1);
 
                     remainingMetersToConsume -= consumption;
                 }
-            }
-            else {
-                throw new Error('Invalid action');
-            }
-
-            console.log("Updating order status...");
-            const query = action === 'approve' 
-                ? 'UPDATE orders SET status = ?, approved_at = EXTRACT(EPOCH FROM NOW())::integer WHERE id = ? AND business_id = ?'
-                : 'UPDATE orders SET status = ? WHERE id = ? AND business_id = ?';
-                
-            const updateResult = await db.prepare(query).run(newStatus, orderId, businessId);
-            console.log("DB update result:", updateResult);
-
-            if (updateResult.changes === 0) {
-                console.error("No order updated");
-                return NextResponse.json({ success: false, error: 'Order not found or business mismatch' }, { status: 400 });
+            } else {
+                throw new Error(`Unknown workflow action: ${action}`);
             }
 
-            (await db.prepare(`
+            // Update order stages
+            await db.prepare(`
+                UPDATE orders 
+                SET order_stage = ?, embroidery_status = ?, printing_status = ?, dyeing_status = ?
+                WHERE id = ? AND business_id = ?
+            `).run(nextOrderStage, nextEmbroideryStatus, nextPrintingStatus, nextDyeingStatus, orderId, businessId);
+
+            // Log activity
+            await db.prepare(`
                 INSERT INTO activity (business_id, customer_id, type, title, description, meta, created_at)
                 VALUES (?, ?, ?, ?, ?, ?, ?)
             `).run(
-                            businessId, order.customer_id, 'production_workflow', activityTitle, activityDescription,
-                            JSON.stringify({ order_id: orderId, action, status: newStatus }), Math.floor(Date.now() / 1000)
-                        ));
+                businessId, order.customer_id, 'production_workflow', title, 
+                notes || `Order moved to ${nextOrderStage}`,
+                JSON.stringify({ order_id: orderId, action, from: orderStage, to: nextOrderStage }), 
+                now
+            );
 
-        } catch (txnError) {
-            throw txnError;
-        }
+            try {
+                const tgMsg = `🔄 *Status Updated*\nOrder #${order.order_number || order.id} (${order.customer_name})\nMoved to: *${title}*`;
+                sendTelegramMessage({ english: tgMsg, gujarati: tgMsg }, 'instant_order_alerts').catch(() => {});
+            } catch(e) {}
 
-        // Trigger Telegram Alerts
-        try {
-            const tgTemplates: Record<string, { english: string; gujarati: string }> = {
-                approve: { english: `✅ Order Approved — ${order.customer_name} ${order.quantity_meters}m ${order.design_name}`, gujarati: `✅ ઓર્ડર મંજૂર — ${order.customer_name} ${order.quantity_meters}m ${order.design_name}` },
-                send_to_embroidery: { english: `🪡 #${order.order_number || order.id} → Embroidery — ${metres}m back by ${expectedReturnDate}`, gujarati: `🪡 #${order.order_number || order.id} → ભરતકામ — ${metres}m ${expectedReturnDate} સુધીમાં પરત` },
-                mark_printing: { english: `🖨️ #${order.order_number || order.id} → Printing started — embroidery done`, gujarati: `🖨️ #${order.order_number || order.id} → પ્રિન્ટિંગ શરૂ — ભરતકામ પૂર્ણ` },
-                send_to_dyeing: { english: `🎨 #${order.order_number || order.id} → Dyeing — ${metres}m back by ${expectedReturnDate}`, gujarati: `🎨 #${order.order_number || order.id} → ડાઇંગ — ${metres}m ${expectedReturnDate} સુધીમાં પરત` },
-                mark_ready: { english: `✅ #${order.order_number || order.id} Ready for dispatch — ${order.customer_name} ${order.quantity_meters}m`, gujarati: `✅ #${order.order_number || order.id} ડિલિવરી માટે તૈયાર — ${order.customer_name} ${order.quantity_meters}m` },
-                dispatch: { english: `🚚 #${order.order_number || order.id} Dispatched — ${order.customer_name} LR:${lrNumber} via ${transporterName}`, gujarati: `🚚 #${order.order_number || order.id} મોકલવામાં આવ્યો — ${order.customer_name} LR:${lrNumber} મારફતે ${transporterName}` },
-                mark_delivered: { english: `📦 #${order.order_number || order.id} Delivered — ${order.customer_name} ${dateDelivered}`, gujarati: `📦 #${order.order_number || order.id} ડિલિવર થયું — ${order.customer_name} ${dateDelivered}` },
-            };
-            
-            if (tgTemplates[action]) {
-                if (action === 'send_to_embroidery' || action === 'send_to_dyeing') {
-                    // Send PDF instead of plain message
-                    if (vendorDispatchId && vdspDetails) {
-                        const business = (await db.prepare(`
-                            SELECT name, phone, gst_number as gstin, address, logo_url
-                            FROM businesses
-                            WHERE id = ?
-                        `).get(businessId)) as any;
+            return NextResponse.json({ success: true, order_stage: nextOrderStage });
 
-                        const pdfData = {
-                            dispatch_number: vdspDetails.dispatch_number,
-                            sent_date: Math.floor(Date.now() / 1000),
-                            vendor_name: vdspDetails.vendor_name,
-                            vendor_phone: vdspDetails.vendor_phone,
-                            process_type: vdspDetails.process_type,
-                            order_number: order.order_number,
-                            design_name: order.design_name,
-                            fabric_type: order.fabric_type,
-                            quantity: vdspDetails.total_meters,
-                            rate_per_meter: vdspDetails.rate_per_meter,
-                            total_cost: vdspDetails.total_cost,
-                            expected_return_date: vdspDetails.expected_return_date,
-                            notes: vdspDetails.notes,
-                            seller_name: business?.name,
-                            seller_phone: business?.phone,
-                            seller_gstin: business?.gstin,
-                            seller_address: business?.address,
-                            seller_logo: business?.logo_url
-                        };
-                        const { buffer } = await generateVendorChallanPDFServer(pdfData);
-                        const telegramSent = await sendTelegramDocument(
-                            buffer,
-                            `${vdspDetails.dispatch_number}.pdf`,
-                            tgTemplates[action],
-                            'vendor_alerts'
-                        );
-                        if (telegramSent) {
-                            await db.prepare('UPDATE vendor_dispatches SET telegram_sent = 1 WHERE id = ?').run(vendorDispatchId);
-                        }
-                    }
-                } else {
-                    sendTelegramMessage(tgTemplates[action], 'instant_order_alerts').catch(console.error);
-                }
-            }
-        } catch (tgErr) {
-            console.error('[Telegram ERROR]', tgErr);
-        }
-
-        return NextResponse.json({ success: true, newStatus });
+        })();
     } catch (error: any) {
         console.error('Workflow Error:', error);
         return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });

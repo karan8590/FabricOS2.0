@@ -69,10 +69,10 @@ export default function SuperAdminDashboard() {
                 fetchDashboardData(); // Refresh list
             } else {
                 const data = await res.json();
-                alert(`Error: ${data.error}`);
+                console.log(`Error: ${data.error}`);
             }
         } catch (err) {
-            alert('Failed to create business');
+            console.log('Failed to create business');
         }
     };
 

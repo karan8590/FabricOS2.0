@@ -2,130 +2,31 @@ import { NextResponse } from 'next/server';
 import getDatabase from '@/lib/db';
 import { checkPermission } from '@/lib/auth/permissions';
 import { getActiveBusinessId } from '@/lib/auth/business';
-import { generateChallanPDFServer, ChallanPDFData } from '@/lib/pdf/generateChallanServer';
 import { sendTelegramDocument } from '@/lib/telegram';
-
-export async function GET(request: Request) {
-    try {
-        const { authorized, error, status } = await checkPermission('orders.view');
-        if (!authorized) return NextResponse.json({ error }, { status });
-
-        const businessId = await getActiveBusinessId();
-        if (!businessId) return NextResponse.json({ error: 'Unauthorized business access' }, { status: 401 });
-
-        const db = getDatabase();
-
-        const dispatches = (await db.prepare(`
-            SELECT 
-                db.*,
-                (SELECT COUNT(*) FROM dispatch_orders WHERE dispatch_id = db.id) as total_orders,
-                (SELECT SUM(o.quantity_meters) 
-                 FROM dispatch_orders do 
-                 JOIN orders o ON do.order_id = o.id 
-                 WHERE do.dispatch_id = db.id) as total_meters,
-                 (SELECT COUNT(*) FROM dispatch_orders WHERE dispatch_id = db.id AND delivery_status = 'delivered') as delivered_orders
-            FROM dispatch_batches db
-            WHERE db.business_id = ?
-            ORDER BY db.created_at DESC
-        `).all(businessId));
-
-        // Fetch challans for these dispatches
-        if (dispatches.length > 0) {
-            const dispatchIds = dispatches.map((d: any) => d.id);
-            const placeholders = dispatchIds.map(() => '?').join(',');
-            const challans = (await db.prepare(`
-                SELECT c.id, c.dispatch_id, c.challan_number, c.customer_id, c.telegram_sent, cust.name as customer_name
-                FROM dispatch_challans c
-                JOIN customers cust ON c.customer_id = cust.id
-                WHERE c.dispatch_id IN (${placeholders})
-            `).all(...dispatchIds)) as any[];
-
-            const challansByDispatch: Record<number, any[]> = {};
-            challans.forEach(c => {
-                if (!challansByDispatch[c.dispatch_id]) {
-                    challansByDispatch[c.dispatch_id] = [];
-                }
-                challansByDispatch[c.dispatch_id].push(c);
-            });
-
-            dispatches.forEach((d: any) => {
-                d.challans = challansByDispatch[d.id] || [];
-            });
-        }
-
-        return NextResponse.json(dispatches);
-    } catch (error: any) {
-        console.error('Dispatch GET Error:', error);
-        return NextResponse.json({ error: 'Internal server error' }, { status: 500 });
-    }
-}
+import { generateChallanPDFServer } from '@/lib/pdf/generateChallanServer';
+import { ChallanPDFData } from '@/lib/pdf/pdf-generator';
+import crypto from 'crypto';
 
 export async function POST(request: Request) {
     try {
-        const { authorized, error, status } = await checkPermission('orders.edit');
+        const { authorized, error, status, user } = await checkPermission('orders.edit');
         if (!authorized) return NextResponse.json({ error }, { status });
 
         const businessId = await getActiveBusinessId();
         if (!businessId) return NextResponse.json({ error: 'Unauthorized business access' }, { status: 401 });
 
         const body = await request.json();
-        const { vehicleNumber, driverName, driverPhone, route, dispatchDate, notes, orderIds, transportVendorId } = body;
+        const { vehicleNumber, driverName, driverPhone, route, deliveryCost, dispatchDate, notes, orderIds, transportVendorId } = body;
 
-        if (!orderIds || !Array.isArray(orderIds) || orderIds.length === 0) {
-            return NextResponse.json({ error: 'No orders selected for dispatch' }, { status: 400 });
+        if (!orderIds || orderIds.length === 0) {
+            return NextResponse.json({ error: 'No orders selected' }, { status: 400 });
         }
 
         const db = getDatabase();
-        db.exec('BEGIN TRANSACTION');
-
-        try {
-            // Generate Dispatch Number
-            const currentYear = new Date().getFullYear();
-            const lastDispatch = (await db.prepare(`
-                SELECT dispatch_number FROM dispatch_batches 
-                WHERE business_id = ? AND dispatch_number LIKE ? 
-                ORDER BY id DESC LIMIT 1
-            `).get(businessId, `DSP-${currentYear}-%`)) as any;
-
-            let nextNum = 1;
-            if (lastDispatch) {
-                const parts = lastDispatch.dispatch_number.split('-');
-                if (parts.length === 3) {
-                    nextNum = parseInt(parts[2], 10) + 1;
-                }
-            }
-            const dispatchNumber = `DSP-${currentYear}-${nextNum.toString().padStart(4, '0')}`;
-
-            // Create Dispatch Batch
-            const result = (await db.prepare(`
-                INSERT INTO dispatch_batches (
-                    business_id, dispatch_number, vehicle_number, driver_name, driver_phone, route, dispatch_date, notes, status, transport_vendor_id
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'out_for_delivery', ?)
-            `).run(businessId, dispatchNumber, vehicleNumber, driverName, driverPhone || null, route || null, dispatchDate, notes || null, transportVendorId || null));
-
-            const dispatchId = result.lastInsertRowid;
-
-            // Assign Orders
-            const insertOrder = db.prepare(`
-                INSERT INTO dispatch_orders (business_id, dispatch_id, order_id, delivery_status)
-                VALUES (?, ?, ?, 'out_for_delivery')
-            `);
-
-            const updateOrder = db.prepare(`
-                UPDATE orders SET status = 'added_to_dispatch' WHERE id = ? AND business_id = ?
-            `);
-            
-            const logActivity = db.prepare(`
-                INSERT INTO activity (business_id, customer_id, type, title, description, meta, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-            `);
-
-            const now = Math.floor(Date.now() / 1000);
-
-            // Fetch order details for grouping by customer
+        const response = await db.transaction(async () => {
             const placeholders = orderIds.map(() => '?').join(',');
             const ordersData = await db.prepare(`
-                SELECT o.id, o.customer_id, o.order_number, o.quantity_meters, o.fabric_type, 
+                SELECT o.id, o.customer_id, o.order_number, o.quantity_meters, o.fabric_type, o.order_stage, o.embroidery_status, o.printing_status, o.dyeing_status,
                        c.name as customer_name, c.phone as customer_phone, c.state, c.state_code, c.gstin as customer_gstin,
                        d.name as design_name
                 FROM orders o
@@ -134,145 +35,216 @@ export async function POST(request: Request) {
                 WHERE o.id IN (${placeholders}) AND o.business_id = ?
             `).all(...orderIds, businessId) as any[];
 
-            const ordersByCustomer: Record<number, any[]> = {};
+            if (ordersData.length === 0) {
+                throw new Error('Orders not found');
+            }
+
+            let dispatchType = '';
+
             for (const order of ordersData) {
-                if (!ordersByCustomer[order.customer_id]) {
-                    ordersByCustomer[order.customer_id] = [];
+                if (order.order_stage === 'embroidery' && order.embroidery_status === 'queued_delivery') {
+                    if (dispatchType && dispatchType !== 'embroidery') throw new Error('Cannot mix dispatch types');
+                    dispatchType = 'embroidery';
+                } else if (order.order_stage === 'dyeing' && order.dyeing_status === 'queued_delivery') {
+                    if (dispatchType && dispatchType !== 'dyeing') throw new Error('Cannot mix dispatch types');
+                    dispatchType = 'dyeing';
+                } else if (order.order_stage === 'ready') {
+                    if (dispatchType && dispatchType !== 'ready') throw new Error('Cannot mix dispatch types');
+                    dispatchType = 'ready';
+                } else {
+                    throw new Error(`Order #${order.order_number || order.id} is in stage '${order.order_stage}' (Emb: ${order.embroidery_status}, Dye: ${order.dyeing_status}). Not eligible for delivery.`);
                 }
-                ordersByCustomer[order.customer_id].push(order);
             }
 
-            const createdChallans: Array<{ id: number; customerId: number; challanNumber: string; orders: any[] }> = [];
+            const currentYear = new Date().getFullYear();
+            const dispatchNumber = `DSP-${currentYear}-${crypto.randomUUID().slice(0, 8)}`;
 
-            for (const orderId of orderIds) {
-                insertOrder.run(businessId, dispatchId, orderId);
-                updateOrder.run(orderId, businessId);
-            }
+            // Create Dispatch Batch
+            const result = (await db.prepare(`
+                INSERT INTO dispatch_batches (
+                    business_id, dispatch_number, vehicle_number, driver_name, driver_phone, route, dispatch_date, delivery_cost, notes, status, transport_vendor_id
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'out_for_delivery', ?)
+            `).run(businessId, dispatchNumber, vehicleNumber, driverName, driverPhone || null, route || null, dispatchDate, deliveryCost === null || deliveryCost === undefined || deliveryCost === '' ? null : deliveryCost, notes || null, transportVendorId || null));
 
-            // Generate Challans per customer
-            const insertChallan = db.prepare(`
-                INSERT INTO dispatch_challans (business_id, challan_number, dispatch_id, customer_id, order_ids, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)
+            const dispatchId = result.lastInsertRowid;
+            const now = Math.floor(Date.now() / 1000);
+
+            const insertOrder = db.prepare(`
+                INSERT INTO dispatch_orders (business_id, dispatch_id, order_id, delivery_status)
+                VALUES (?, ?, ?, 'out_for_delivery')
             `);
 
-            for (const customerIdStr of Object.keys(ordersByCustomer)) {
-                const customerId = parseInt(customerIdStr, 10);
-                const custOrders = ordersByCustomer[customerId];
-                
-                // Generate Challan Number
-                const currentYear = new Date().getFullYear();
-                const lastChallan = (await db.prepare(`
-                    SELECT challan_number FROM dispatch_challans 
-                    WHERE business_id = ? AND challan_number LIKE ? 
-                    ORDER BY id DESC LIMIT 1
-                `).get(businessId, `DC-${currentYear}-%`)) as any;
+            const updateOrder = db.prepare(`
+                UPDATE orders SET 
+                    order_stage = ?,
+                    embroidery_status = ?,
+                    dyeing_status = ?
+                WHERE id = ? AND business_id = ?
+            `);
+            
+            const logActivity = db.prepare(`
+                INSERT INTO activity (business_id, customer_id, type, title, description, meta, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            `);
 
-                let nextNum = 1;
-                if (lastChallan) {
-                    const parts = lastChallan.challan_number.split('-');
-                    if (parts.length === 3) {
-                        nextNum = parseInt(parts[2], 10) + 1;
+            // Generate single Challan for the entire batch with robust retry
+            const cOrderIds = ordersData.map(o => o.id);
+            const customerIds = [...new Set(ordersData.map(o => o.customer_id))];
+
+            let challanNumber = '';
+            let challanInserted = false;
+            let attempts = 0;
+            let challanId = null;
+
+            while (!challanInserted && attempts < 5) {
+                const dateStr = new Date().toISOString().split('T')[0];
+                const shortId = Math.random().toString(36).substring(2, 7).toUpperCase();
+                challanNumber = `CH-${dateStr}-${shortId}`;
+                
+                try {
+                    const challanResult = (await db.prepare(`
+                        INSERT INTO dispatch_challans (business_id, challan_number, dispatch_id, customer_id, order_ids, created_at)
+                        VALUES (?, ?, ?, ?, ?, ?)
+                    `).run(businessId, challanNumber, dispatchId, customerIds[0], JSON.stringify(cOrderIds), now));
+                    
+                    challanId = challanResult.lastInsertRowid;
+                    challanInserted = true;
+                } catch (err: any) {
+                    if (err.message && err.message.includes('UNIQUE constraint failed')) {
+                        attempts++;
+                    } else {
+                        throw err;
                     }
                 }
-                const challanNumber = `DC-${currentYear}-${nextNum.toString().padStart(5, '0')}`;
-                
-                const cOrderIds = custOrders.map(o => o.id);
-                
-                const challanResult = insertChallan.run(businessId, challanNumber, dispatchId, customerId, JSON.stringify(cOrderIds), now);
-                createdChallans.push({
-                    id: challanResult.lastInsertRowid,
-                    customerId,
-                    challanNumber,
-                    orders: custOrders
-                });
-                
+            }
+
+            if (!challanInserted) {
+                throw new Error("Unable to generate unique dispatch challan. Please try again.");
+            }
+
+            for (const order of ordersData) {
+                insertOrder.run(businessId, dispatchId, order.id);
+
+                let nextOrderStage = order.order_stage;
+                let nextEmbroideryStatus = order.embroidery_status;
+                let nextDyeingStatus = order.dyeing_status;
+
+                if (dispatchType === 'embroidery') {
+                    nextEmbroideryStatus = 'in_progress';
+                } else if (dispatchType === 'dyeing') {
+                    nextDyeingStatus = 'in_progress';
+                } else if (dispatchType === 'ready') {
+                    nextOrderStage = 'out_for_delivery';
+                }
+
+                updateOrder.run(nextOrderStage, nextEmbroideryStatus, nextDyeingStatus, order.id, businessId);
+
                 logActivity.run(
                     businessId, 
-                    customerId, 
+                    order.customer_id, 
                     'production_workflow', 
-                    'Added to Dispatch', 
-                    `Orders assigned to tempo ${vehicleNumber} (Driver: ${driverName}). Dispatch ID: ${dispatchNumber}. Challan: ${challanNumber}`,
-                    JSON.stringify({ order_ids: cOrderIds, dispatch_id: dispatchId, challan_id: challanResult.lastInsertRowid, action: 'added_to_dispatch' }), 
+                    'Dispatched', 
+                    `Assigned to tempo ${vehicleNumber} (Driver: ${driverName}). Dispatch ID: ${dispatchNumber}. Challan: ${challanNumber}`,
+                    JSON.stringify({ order_ids: [order.id], dispatch_id: dispatchId, challan_id: challanId, action: 'added_to_dispatch' }), 
                     now
                 );
             }
 
-            db.exec('COMMIT');
-            
-            // Post-commit: Generate PDF and Send Telegram
-            // We do not await this to block the response, but Next.js serverless might kill it if not awaited.
-            // Since it's quick enough, we'll await it so UI gets accurate status or we can do it asynchronously.
-            // Wait, we need to send it safely.
+            // Create transport vendor payable
+            if (transportVendorId) {
+                const transportVendor = (await db.prepare('SELECT name, contact FROM vendors WHERE id = ?').get(transportVendorId)) as any;
+                
+                const cost = deliveryCost !== null && deliveryCost !== undefined && deliveryCost !== '' ? parseFloat(deliveryCost) : null;
+                const paymentStatus = 'unpaid';
+                const finalCost = cost === null ? 0 : cost;
+
+                await db.prepare(`
+                    INSERT INTO vendor_payments (
+                        business_id, vendor_id, vendor_name, vendor_phone, order_id, order_number,
+                        work_type, total_amount, amount_paid, balance, due_date, status, notes
+                    ) VALUES (?, ?, ?, ?, NULL, NULL, 'transport', ?, 0, ?, ?, ?, ?)
+                `).run(
+                    businessId, transportVendorId, transportVendor?.name || 'Unknown Transport', transportVendor?.contact || '', 
+                    finalCost, finalCost, 
+                    new Date(Date.now() + 86400000 * 30).toISOString().split('T')[0], 
+                    paymentStatus,
+                    `Delivery charges for ${orderIds.length} orders (Dispatch ${dispatchNumber})`
+                );
+
+                if (finalCost > 0) {
+                    await db.prepare(`
+                        UPDATE vendors
+                        SET balance = balance + ?
+                        WHERE id = ? AND business_id = ?
+                    `).run(finalCost, transportVendorId, businessId);
+                }
+            }
+
+            return { dispatchId, businessId, ordersData, dispatchDate, dispatchNumber, challanNumber, vehicleNumber, driverName, driverPhone, route, notes, challanId };
+        })();
+        
+        try {
+            const db = getDatabase();
             const business = (await db.prepare(`
                 SELECT name, phone, gst_number as gstin, address, logo_url
                 FROM businesses
                 WHERE id = ?
-            `).get(businessId)) as any;
+            `).get(response.businessId)) as any;
 
-            const telegramTasks = createdChallans.map(async (challan) => {
-                try {
-                    const firstOrder = challan.orders[0];
-                    const totalQty = challan.orders.reduce((sum, o) => sum + Number(o.quantity_meters), 0);
-                    
-                    const pdfData: ChallanPDFData = {
-                        challan_number: challan.challanNumber,
-                        dispatch_number: dispatchNumber,
-                        dispatch_date: new Date(dispatchDate).getTime() / 1000,
-                        customer_name: firstOrder.customer_name,
-                        customer_phone: firstOrder.customer_phone,
-                        customer_gstin: firstOrder.customer_gstin,
-                        driver_name: driverName || vehicleNumber,
-                        vehicle_number: vehicleNumber,
-                        driver_phone: driverPhone,
-                        route: route,
-                        orders: challan.orders.map(o => ({
-                            order_number: o.order_number,
-                            design_name: o.design_name,
-                            fabric_type: o.fabric_type,
-                            quantity: Number(o.quantity_meters)
-                        })),
-                        total_quantity: totalQty,
-                        notes: notes,
-                        seller_name: business?.name,
-                        seller_phone: business?.phone,
-                        seller_gstin: business?.gstin,
-                        seller_address: business?.address,
-                        seller_logo: business?.logo_url
-                    };
-                    
-                    const { buffer } = await generateChallanPDFServer(pdfData);
-                    
-                    const telegramText = `📦 *Dispatch Created*\n\n` +
-                        `*Challan:* ${challan.challanNumber}\n` +
-                        `*Customer:* ${firstOrder.customer_name}\n` +
-                        `*Orders:* ${challan.orders.length}\n` +
-                        `*Fabric:* ${totalQty.toFixed(2)}m\n` +
-                        `*Vehicle:* ${vehicleNumber}\n` +
-                        `*Driver:* ${driverName || 'N/A'}`;
-                        
-                    const telegramSent = await sendTelegramDocument(
-                        buffer, 
-                        `${challan.challanNumber}.pdf`, 
-                        { english: telegramText, gujarati: telegramText },
-                        'instant_order_alerts' // Or general alert type
-                    );
-                    
-                    if (telegramSent) {
-                        const db2 = getDatabase();
-                        await db2.prepare('UPDATE dispatch_challans SET telegram_sent = 1 WHERE id = ?').run(challan.id);
-                    }
-                } catch(e) {
-                    console.error('Failed to send challan to telegram', e);
-                }
-            });
+            const totalQty = response.ordersData.reduce((sum: any, o: any) => sum + Number(o.quantity_meters), 0);
+            const uniqueCustomerNames = [...new Set(response.ordersData.map((o: any) => o.customer_name))];
             
-            await Promise.allSettled(telegramTasks);
-
-            return NextResponse.json({ success: true, dispatchId });
-        } catch (txnError) {
-            db.exec('ROLLBACK');
-            throw txnError;
+            const pdfData: ChallanPDFData = {
+                challan_number: response.challanNumber,
+                dispatch_number: response.dispatchNumber,
+                dispatch_date: new Date(response.dispatchDate).getTime() / 1000,
+                customer_name: uniqueCustomerNames.join(', '),
+                customer_phone: response.ordersData[0].customer_phone,
+                customer_gstin: response.ordersData[0].customer_gstin,
+                driver_name: response.driverName || response.vehicleNumber,
+                vehicle_number: response.vehicleNumber,
+                driver_phone: response.driverPhone,
+                route: response.route,
+                orders: response.ordersData.map((o: any) => ({
+                    order_number: o.order_number,
+                    design_name: o.design_name,
+                    fabric_type: o.fabric_type,
+                    quantity: Number(o.quantity_meters)
+                })),
+                total_quantity: totalQty,
+                notes: response.notes,
+                seller_name: business?.name,
+                seller_phone: business?.phone,
+                seller_gstin: business?.gstin,
+                seller_address: business?.address,
+                seller_logo: business?.logo_url
+            };
+            
+            const { buffer } = await generateChallanPDFServer(pdfData);
+            
+            const telegramText = `📦 *Dispatch Created*\n\n` +
+                `*Challan:* ${response.challanNumber}\n` +
+                `*Orders:* ${response.ordersData.length}\n` +
+                `*Fabric:* ${totalQty.toFixed(2)}m\n\n` +
+                `*Customers:*\n- ${uniqueCustomerNames.join('\n- ')}\n\n` +
+                `*Vehicle:* ${response.vehicleNumber}\n` +
+                `*Driver:* ${response.driverName || 'N/A'}`;
+                
+            const telegramSent = await sendTelegramDocument(
+                buffer, 
+                `${response.challanNumber}.pdf`, 
+                { english: telegramText, gujarati: telegramText },
+                'instant_order_alerts'
+            );
+            
+            if (telegramSent) {
+                await db.prepare('UPDATE dispatch_challans SET telegram_sent = 1 WHERE id = ?').run(response.challanId);
+            }
+        } catch(e) {
+            console.error('Failed to send challan to telegram', e);
         }
+
+        return NextResponse.json({ success: true, dispatchId: response.dispatchId });
 
     } catch (error: any) {
         console.error('Dispatch POST Error:', error);

@@ -199,11 +199,11 @@ export default function EditOrderModal({ order, isOpen, onClose, onSuccess }: Ed
                 onClose();
             } else {
                 const data = await res.json();
-                alert(data.error || 'Failed to update order');
+                console.log(data.error || 'Failed to update order');
             }
         } catch (error) {
             console.error('Update error:', error);
-            alert('Failed to update order');
+            console.log('Failed to update order');
         } finally {
             setLoading(false);
         }

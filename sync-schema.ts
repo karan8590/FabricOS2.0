@@ -14,16 +14,21 @@ async function run() {
     const db = getDatabase();
     try {
         await db.exec(`
-            CREATE TABLE IF NOT EXISTS dispatch_challans (
-              id SERIAL PRIMARY KEY,
-              business_id TEXT DEFAULT 'business_001',
-              challan_number TEXT NOT NULL UNIQUE,
-              dispatch_id INTEGER NOT NULL,
-              customer_id INTEGER NOT NULL,
-              order_ids TEXT NOT NULL,
-              telegram_sent INTEGER DEFAULT 0,
-              created_at INTEGER NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()))::integer
+            ALTER TABLE orders 
+            ADD COLUMN IF NOT EXISTS current_stage TEXT NOT NULL DEFAULT 'approved';
+            
+            CREATE TABLE IF NOT EXISTS order_stage_history (
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+                business_id TEXT DEFAULT 'business_001',
+                order_id INTEGER NOT NULL,
+                from_stage TEXT,
+                to_stage TEXT NOT NULL,
+                changed_by INTEGER,
+                changed_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+                FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
             );
+
+            CREATE INDEX IF NOT EXISTS idx_order_stage_history_order_id ON order_stage_history(order_id);
         `);
         console.log("Schema applied successfully.");
     } catch(e) {

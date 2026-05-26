@@ -721,10 +721,10 @@ export default function TelegramCenterPage() {
                 setNewLangOverride(true);
                 setNewPreferredLang('english');
             } else {
-                alert('Failed to register recipient.');
+                console.log('Failed to register recipient.');
             }
         } catch (err) {
-            alert('Error registering recipient.');
+            console.log('Error registering recipient.');
         } finally {
             setAdding(false);
         }
@@ -863,15 +863,15 @@ export default function TelegramCenterPage() {
                 body: JSON.stringify({ type })
             });
             if (res.ok) {
-                alert('Diagnostic telegram alert dispatched.');
+                console.log('Diagnostic telegram alert dispatched.');
                 loadRecipientLogs(id);
                 fetchStatsSummary();
             } else {
                 const data = await res.json();
-                alert(`Error: ${data.error}`);
+                console.log(`Error: ${data.error}`);
             }
         } catch (err) {
-            alert('Failed to trigger test.');
+            console.log('Failed to trigger test.');
         }
     };
 

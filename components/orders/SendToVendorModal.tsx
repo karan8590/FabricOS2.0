@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Send, Plus } from 'lucide-react';
 import styles from './ProductionWorkflowModal.module.css';
+import { getAvailableInventory } from '@/lib/inventory';
 
 interface SendToVendorModalProps {
     isOpen: boolean;
@@ -17,7 +18,7 @@ export default function SendToVendorModal({ isOpen, onClose, onSuccess, orders, 
     const [rate, setRate] = useState<string>('');
     const [meters, setMeters] = useState<string>('');
     const [expectedDate, setExpectedDate] = useState<string>('');
-    const [daysUntilDue, setDaysUntilDue] = useState<string>('7');
+    const [daysUntilDue, setDaysUntilDue] = useState<string>('30');
     const [generateChallan, setGenerateChallan] = useState(true);
     const [notes, setNotes] = useState<string>('');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -57,7 +58,7 @@ export default function SendToVendorModal({ isOpen, onClose, onSuccess, orders, 
             const eDay = String(tomorrow.getDate()).padStart(2, '0');
             setExpectedDate(`${eYear}-${eMonth}-${eDay}`);
 
-            setDaysUntilDue('7');
+            setDaysUntilDue('30');
             
             fetchVendors();
         }
@@ -98,6 +99,15 @@ export default function SendToVendorModal({ isOpen, onClose, onSuccess, orders, 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
         
+        console.log("STEP 1 — submit started");
+        console.log({
+            selectedOrders: orders,
+            selectedVendorId,
+            meters,
+            rate,
+            generateChallan
+        });
+        
         const newErrors: Record<string, string> = {};
         if (!selectedVendorId) newErrors.vendorId = 'Vendor selection is required';
         if (!rate || parseFloat(rate) <= 0) newErrors.rate = 'Rate is required and must be greater than 0';
@@ -113,11 +123,16 @@ export default function SendToVendorModal({ isOpen, onClose, onSuccess, orders, 
             setErrors(newErrors);
             const firstErrorField = document.querySelector('[data-error="true"]') as HTMLElement;
             if (firstErrorField) firstErrorField.focus();
+            console.log("Validation failed");
             return;
         }
+        
+        console.log("STEP 2 — validation passed");
 
         setIsSubmitting(true);
         setError('');
+        
+        console.log("⏳ Processing vendor dispatch...");
 
         try {
             const res = await fetch('/api/orders/bulk-workflow', {
@@ -140,8 +155,12 @@ export default function SendToVendorModal({ isOpen, onClose, onSuccess, orders, 
                 throw new Error(data.error || 'Failed to update workflow');
             }
 
+            // Silent success - rely on UI refresh via onSuccess
+            // Success flow
             onSuccess();
         } catch (err: any) {
+            console.error("REAL ERROR:", err);
+            console.log("❌ " + (err.message || "Operation failed"));
             setError(err.message);
         } finally {
             setIsSubmitting(false);
@@ -241,7 +260,7 @@ export default function SendToVendorModal({ isOpen, onClose, onSuccess, orders, 
                                 data-error={!!errors.vendorName}
                                 autoFocus 
                             />
-                            {errors.vendorName && <p className="text-red-500 text-xs mt-1 transition-all duration-200">{errors.vendorName}</p>}
+                            {errors.vendorName && <p style={{ color: '#EF4444', fontSize: '12px', marginTop: '4px', transition: 'all 0.2s' }}>{errors.vendorName}</p>}
                         </div>
                         <div className={styles.grid}>
                             <div className={styles.formGroup}>
@@ -261,7 +280,7 @@ export default function SendToVendorModal({ isOpen, onClose, onSuccess, orders, 
                                     className={`${styles.input} ${errors.vendorPhone ? 'border-red-400 focus:ring-red-500 bg-red-50/30' : ''}`} 
                                     data-error={!!errors.vendorPhone}
                                 />
-                                {errors.vendorPhone && <p className="text-red-500 text-xs mt-1 transition-all duration-200">{errors.vendorPhone}</p>}
+                                {errors.vendorPhone && <p style={{ color: '#EF4444', fontSize: '12px', marginTop: '4px', transition: 'all 0.2s' }}>{errors.vendorPhone}</p>}
                             </div>
                         </div>
                         <div className={styles.formGroup}>
@@ -277,8 +296,8 @@ export default function SendToVendorModal({ isOpen, onClose, onSuccess, orders, 
                             <textarea value={newVendor.notes} onChange={e => setNewVendor({...newVendor, notes: e.target.value})} className={styles.textarea} rows={2} />
                         </div>
                         <div className={styles.formFooter}>
-                            <button type="button" className={styles.btnCancel} onClick={() => setIsCreatingVendor(false)}>Cancel</button>
-                            <button type="button" className={styles.btnSubmit} onClick={handleCreateVendor} disabled={isSubmittingVendor} style={{ background: themeColor, color: 'white', border: 'none' }}>
+                            <button type="button" className={styles.workflowSecondary} onClick={() => setIsCreatingVendor(false)}>Cancel</button>
+                            <button type="button" className={styles.workflowPrimary} onClick={handleCreateVendor} disabled={isSubmittingVendor}>
                                 {isSubmittingVendor ? 'Creating...' : 'Create Vendor'}
                             </button>
                         </div>
@@ -309,7 +328,7 @@ export default function SendToVendorModal({ isOpen, onClose, onSuccess, orders, 
                                             <option key={v.id} value={v.id}>{v.name}</option>
                                         ))}
                                     </select>
-                                    {errors.vendorId && <p className="text-red-500 text-xs mt-1 transition-all duration-200">{errors.vendorId}</p>}
+                                    {errors.vendorId && <p style={{ color: '#EF4444', fontSize: '12px', marginTop: '4px', transition: 'all 0.2s' }}>{errors.vendorId}</p>}
                                 </>
                             )}
                         </div>
@@ -323,10 +342,10 @@ export default function SendToVendorModal({ isOpen, onClose, onSuccess, orders, 
                                     step="0.1"
                                     value={meters}
                                     onChange={(e) => { setMeters(e.target.value); setErrors({...errors, meters: ''}); }}
-                                    className={`${styles.input} ${errors.meters ? 'border-red-400 focus:ring-red-500 bg-red-50/30' : ''}`}
+                                    className={styles.input} style={errors.meters ? { borderColor: '#FCA5A5', backgroundColor: '#FEF2F2' } : undefined}
                                     data-error={!!errors.meters}
                                 />
-                                {errors.meters && <p className="text-red-500 text-xs mt-1 transition-all duration-200">{errors.meters}</p>}
+                                {errors.meters && <p style={{ color: '#EF4444', fontSize: '12px', marginTop: '4px', transition: 'all 0.2s' }}>{errors.meters}</p>}
                             </div>
                             <div className={styles.formGroup}>
                                 <label className={styles.label}>Rate per Metre (₹) *</label>
@@ -340,7 +359,7 @@ export default function SendToVendorModal({ isOpen, onClose, onSuccess, orders, 
                                     placeholder="e.g. 12.50"
                                     data-error={!!errors.rate}
                                 />
-                                {errors.rate && <p className="text-red-500 text-xs mt-1 transition-all duration-200">{errors.rate}</p>}
+                                {errors.rate && <p style={{ color: '#EF4444', fontSize: '12px', marginTop: '4px', transition: 'all 0.2s' }}>{errors.rate}</p>}
                             </div>
                         </div>
 
@@ -376,7 +395,7 @@ export default function SendToVendorModal({ isOpen, onClose, onSuccess, orders, 
                                     className={`${styles.input} ${errors.expectedDate ? 'border-red-400 focus:ring-red-500 bg-red-50/30' : ''}`}
                                     data-error={!!errors.expectedDate}
                                 />
-                                {errors.expectedDate && <p className="text-red-500 text-xs mt-1 transition-all duration-200">{errors.expectedDate}</p>}
+                                {errors.expectedDate && <p style={{ color: '#EF4444', fontSize: '12px', marginTop: '4px', transition: 'all 0.2s' }}>{errors.expectedDate}</p>}
                             </div>
                             <div className={styles.formGroup}>
                                 <label className={styles.label}>Days Until Due *</label>
@@ -391,7 +410,7 @@ export default function SendToVendorModal({ isOpen, onClose, onSuccess, orders, 
                                     data-error={!!errors.daysUntilDue}
                                 />
                                 {errors.daysUntilDue ? (
-                                    <p className="text-red-500 text-xs mt-1 transition-all duration-200">{errors.daysUntilDue}</p>
+                                    <p style={{ color: '#EF4444', fontSize: '12px', marginTop: '4px', transition: 'all 0.2s' }}>{errors.daysUntilDue}</p>
                                 ) : (
                                     <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '4px' }}>
                                         Payment Due On: <strong style={{ color: 'var(--text-primary)' }}>{displayCalculatedDueDate}</strong>
@@ -425,10 +444,10 @@ export default function SendToVendorModal({ isOpen, onClose, onSuccess, orders, 
                         </div>
 
                         <div className={styles.formFooter}>
-                            <button type="button" className={styles.btnCancel} onClick={onClose}>
+                            <button type="button" className={styles.workflowSecondary} onClick={onClose}>
                                 Cancel
                             </button>
-                            <button type="submit" className={styles.btnSubmit} disabled={isSubmitting} style={{ background: themeColor, color: 'white', border: 'none' }}>
+                            <button type="submit" className={styles.workflowPrimary} disabled={isSubmitting}>
                                 {isSubmitting ? <span className="ti ti-loader ti-spin"></span> : <Send size={16} />}
                                 {isSubmitting ? ' Sending...' : ' Send to Vendor'}
                             </button>

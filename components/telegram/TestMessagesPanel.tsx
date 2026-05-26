@@ -66,7 +66,7 @@ export function TestMessagesPanel({ recipients }: TestMessagesPanelProps) {
 
     const handleSendTest = async () => {
         if (!selectedRecipientId) {
-            alert('Please select a recipient first.');
+            console.log('Please select a recipient first.');
             return;
         }
         setIsSending(true);
@@ -78,13 +78,13 @@ export function TestMessagesPanel({ recipients }: TestMessagesPanelProps) {
             });
             const data = await res.json();
             if (data.success) {
-                alert('Test message delivered successfully! ✅');
+                console.log('Test message delivered successfully! ✅');
                 fetchLogs(); // refresh logs
             } else {
-                alert(`Delivery failed: ${data.error} ❌`);
+                console.log(`Delivery failed: ${data.error} ❌`);
             }
         } catch (e) {
-            alert('Delivery failed ❌');
+            console.log('Delivery failed ❌');
         } finally {
             setIsSending(false);
         }

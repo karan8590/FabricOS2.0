@@ -128,11 +128,11 @@ export default function AddVendorModal({ isOpen, onClose, onSuccess }: AddVendor
                 onSuccess();
             } else {
                 const data = await res.json();
-                alert(data.error || 'Failed to create vendor');
+                console.log(data.error || 'Failed to create vendor');
             }
         } catch (error) {
             console.error('Error creating vendor:', error);
-            alert('An error occurred while creating vendor');
+            console.log('An error occurred while creating vendor');
         } finally {
             setIsSubmitting(false);
         }

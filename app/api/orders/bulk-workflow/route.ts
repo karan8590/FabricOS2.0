@@ -5,7 +5,7 @@ import { getActiveBusinessId } from '@/lib/auth/business';
 
 export async function POST(request: Request) {
     try {
-        const { authorized, error, status } = await checkPermission('orders.edit');
+        const { authorized, error, status, user } = await checkPermission('orders.edit');
         if (!authorized) return NextResponse.json({ error }, { status });
 
         const businessId = await getActiveBusinessId();
@@ -19,98 +19,131 @@ export async function POST(request: Request) {
         }
 
         const db = getDatabase();
-        
-        await db.prepare('BEGIN').run();
+        return await db.transaction(async () => {
+            const now = Math.floor(Date.now() / 1000);
 
-        try {
-            if (action === 'send_to_embroidery' || action === 'send_to_dyeing' || action === 'send_to_printing') {
-                const type = action === 'send_to_embroidery' ? 'embroidery' : (action === 'send_to_printing' ? 'printing' : 'dyeing');
-                
-                // 1. Create a combined challan if requested
-                let challanId = null;
-                if (generateChallan && vendorId) {
-                    const currentYear = new Date().getFullYear();
-                    const prefix = `VC-${currentYear}-`;
-                    const lastChallan = (await db.prepare(`SELECT challan_number FROM challans WHERE business_id = ? AND challan_number LIKE ? ORDER BY id DESC LIMIT 1`).get(businessId, `${prefix}%`)) as any;
-                    
-                    let nextNum = 1;
-                    if (lastChallan) {
-                        const parts = lastChallan.challan_number.split('-');
-                        if (parts.length === 3) nextNum = parseInt(parts[2], 10) + 1;
-                    }
-                    const challanNumber = `${prefix}${nextNum.toString().padStart(4, '0')}`;
-                    
-                    const res = await db.prepare(`
-                        INSERT INTO challans (business_id, challan_number, vendor_id, type, created_at)
-                        VALUES (?, ?, ?, ?, ?)
-                    `).run(businessId, challanNumber, vendorId, type, Math.floor(Date.now() / 1000));
-                    challanId = res.lastInsertRowid;
+            // Fetch orders and validate stages
+            const placeholders = orderIds.map(() => '?').join(',');
+            const orders = (await db.prepare(`SELECT id, order_stage, embroidery_status, printing_status, dyeing_status, quantity_meters, order_number FROM orders WHERE id IN (${placeholders}) AND business_id = ?`).all(...orderIds, businessId)) as any[];
+
+            for (const order of orders) {
+                const orderStage = order.order_stage || 'order_added';
+                if (action === 'send_to_embroidery') {
+                    if (orderStage !== 'approved') throw new Error(`Order #${order.order_number || order.id} is in stage '${orderStage}', cannot transition to embroidery. Expected: approved`);
+                } else if (action === 'send_to_dyeing') {
+                    if (orderStage !== 'printing' || order.printing_status !== 'in_progress') throw new Error(`Order #${order.order_number || order.id} is in stage '${orderStage}', cannot transition to dyeing. Expected: printing`);
+                } else {
+                    throw new Error(`Unknown bulk action: ${action}`);
                 }
-
-                const now = Math.floor(Date.now() / 1000);
-
-                // Update ALL selected orders and create vendor_dispatches
-                for (const orderId of orderIds) {
-                    const order = (await db.prepare('SELECT id, quantity_meters FROM orders WHERE id = ?').get(orderId)) as any;
-                    if (!order) continue;
-
-                    // Update order
-                    await db.prepare(`
-                        UPDATE orders 
-                        SET dispatch_status = 'sent',
-                            dispatch_stage = ?,
-                            queued_for_dispatch = false,
-                            embroidery_status = CASE WHEN ? = 'embroidery' THEN 'sent' ELSE embroidery_status END,
-                            dyeing_status = CASE WHEN ? = 'dyeing' THEN 'sent' ELSE dyeing_status END,
-                            printing_status = CASE WHEN ? = 'printing' THEN 'sent' ELSE printing_status END
-                        WHERE id = ? AND business_id = ?
-                    `).run(
-                        type, type, type, type, orderId, businessId
-                    );
-                    
-                    // Create vendor dispatch link
-                    const currentYear = new Date().getFullYear();
-                    const vdspPrefix = `VDSP-${currentYear}-`;
-                    const lastVdsp = (await db.prepare(`SELECT dispatch_number FROM vendor_dispatches WHERE business_id = ? AND dispatch_number LIKE ? ORDER BY id DESC LIMIT 1`).get(businessId, `${vdspPrefix}%`)) as any;
-                    
-                    let vdspNextNum = 1;
-                    if (lastVdsp) {
-                        const parts = lastVdsp.dispatch_number.split('-');
-                        if (parts.length === 3) vdspNextNum = parseInt(parts[2], 10) + 1;
-                    }
-                    const vdspNumber = `${vdspPrefix}${vdspNextNum.toString().padStart(4, '0')}`;
-                    
-                    const totalCost = (parseFloat(rate || 0) * parseFloat(order.quantity_meters || 0)).toFixed(2);
-
-                    await db.prepare(`
-                        INSERT INTO vendor_dispatches (
-                            business_id, dispatch_number, order_id, vendor_id, 
-                            work_type, rate, quantity, total_cost, 
-                            expected_return_date, payment_due_date, notes, 
-                            status, challan_id, created_at
-                        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', ?, ?)
-                    `).run(
-                        businessId, vdspNumber, orderId, vendorId,
-                        type, rate || 0, order.quantity_meters || 0, totalCost,
-                        expectedReturnDate || null, paymentDueDate || null, notes || null,
-                        challanId, now
-                    );
-                }
-
-                await db.prepare('COMMIT').run();
-                return NextResponse.json({ success: true });
             }
 
-            await db.prepare('ROLLBACK').run();
-            return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+            let challanId = null;
+            if (generateChallan && vendorId) {
+                const currentYear = new Date().getFullYear();
+                const prefix = `VC-${currentYear}-`;
+                const lastChallan = (await db.prepare(`SELECT challan_number FROM challans WHERE business_id = ? AND challan_number LIKE ? ORDER BY id DESC LIMIT 1`).get(businessId, `${prefix}%`)) as any;
+                
+                let nextNum = 1;
+                if (lastChallan) {
+                    const parts = lastChallan.challan_number.split('-');
+                    if (parts.length === 3) nextNum = parseInt(parts[2], 10) + 1;
+                }
+                const challanNumber = `${prefix}${nextNum.toString().padStart(4, '0')}`;
+                
+                const vendor = (await db.prepare('SELECT name, gst_no FROM vendors WHERE id = ? AND business_id = ?').get(vendorId, businessId)) as any;
+                const dateStr = new Date().toISOString().split('T')[0];
+                
+                const res = await db.prepare(`
+                    INSERT INTO challans (business_id, challan_number, challan_type, date, to_name, to_gstin, status)
+                    VALUES (?, ?, ?, ?, ?, ?, 'open')
+                `).run(businessId, challanNumber, 'jobwork', dateStr, vendor ? vendor.name : 'Vendor', vendor ? vendor.gst_no : '');
+                challanId = res.lastInsertRowid;
+            }
 
-        } catch (innerError) {
-            await db.prepare('ROLLBACK').run();
-            throw innerError;
-        }
+            for (const order of orders) {
+                const reqMetres = Number(order.quantity_meters || 0);
+                const currentStage = order.order_stage || 'order_added';
+                
+                let nextOrderStage = currentStage;
+                let nextEmbroideryStatus = order.embroidery_status;
+                let nextPrintingStatus = order.printing_status;
+                let nextDyeingStatus = order.dyeing_status;
+
+                if (action === 'send_to_embroidery') {
+                    nextOrderStage = 'embroidery';
+                    nextEmbroideryStatus = 'queued_delivery';
+                } else if (action === 'send_to_dyeing') {
+                    nextOrderStage = 'dyeing';
+                    nextPrintingStatus = 'completed';
+                    nextDyeingStatus = 'queued_delivery';
+                }
+
+                // Update order stage
+                await db.prepare(`
+                    UPDATE orders 
+                    SET order_stage = ?, embroidery_status = ?, printing_status = ?, dyeing_status = ?
+                    WHERE id = ? AND business_id = ?
+                `).run(nextOrderStage, nextEmbroideryStatus, nextPrintingStatus, nextDyeingStatus, order.id, businessId);
+
+                // Log stage history
+                await db.prepare(`
+                    INSERT INTO order_stage_history (business_id, order_id, from_stage, to_stage, changed_by)
+                    VALUES (?, ?, ?, ?, ?)
+                `).run(businessId, order.id, currentStage, nextOrderStage, user?.id || null);
+
+                // Create vendor dispatch
+                const currentYear = new Date().getFullYear();
+                const vdspPrefix = `VDSP-${currentYear}-`;
+                const lastVdsp = (await db.prepare(`SELECT dispatch_number FROM vendor_dispatches WHERE business_id = ? AND dispatch_number LIKE ? ORDER BY id DESC LIMIT 1`).get(businessId, `${vdspPrefix}%`)) as any;
+                
+                let vdspNextNum = 1;
+                if (lastVdsp) {
+                    const parts = lastVdsp.dispatch_number.split('-');
+                    if (parts.length === 3) vdspNextNum = parseInt(parts[2], 10) + 1;
+                }
+                const vdspNumber = `${vdspPrefix}${vdspNextNum.toString().padStart(4, '0')}`;
+                
+                const processType = action === 'send_to_embroidery' ? 'embroidery' : 'dyeing';
+                const totalCost = (parseFloat(rate || 0) * reqMetres).toFixed(2);
+
+                await db.prepare(`
+                    INSERT INTO vendor_dispatches (
+                        business_id, dispatch_number, order_id, vendor_id, 
+                        process_type, rate_per_meter, total_meters, total_cost, 
+                        expected_return_date, notes, 
+                        status, sent_date, created_at
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'sent', ?, ?)
+                `).run(
+                    businessId, vdspNumber, order.id, vendorId,
+                    processType, rate || 0, reqMetres, totalCost,
+                    expectedReturnDate ? Math.floor(new Date(expectedReturnDate).getTime() / 1000) : null, notes || null,
+                    now, now
+                );
+                
+                // Update vendor balance & payable
+                await db.prepare(`UPDATE vendors SET balance = balance + ? WHERE id = ? AND business_id = ?`).run(parseFloat(totalCost), vendorId, businessId);
+
+                const vendorInfo = (await db.prepare('SELECT name, contact FROM vendors WHERE id = ?').get(vendorId)) as any;
+                await db.prepare(`
+                    INSERT INTO vendor_payments (
+                        business_id, vendor_id, vendor_name, vendor_phone, order_id, order_number,
+                        work_type, total_amount, amount_paid, balance, due_date, status, notes
+                    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 0, ?, ?, 'unpaid', ?)
+                `).run(
+                    businessId, vendorId, vendorInfo?.name || 'Unknown', vendorInfo?.phone || vendorInfo?.contact || '', 
+                    order.id, order.order_number || order.id.toString(),
+                    processType, parseFloat(totalCost), parseFloat(totalCost), 
+                    paymentDueDate ? new Date(paymentDueDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0], 
+                    notes || null
+                );
+            }
+
+            return NextResponse.json({ success: true });
+
+        })();
 
     } catch (error: any) {
         console.error('Bulk Workflow Error:', error);
-        return NextResponse.json({ error: String(error) }, { status: 500 });
+        return NextResponse.json({ error: error.message || String(error) }, { status: 500 });
     }
 }

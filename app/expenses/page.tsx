@@ -340,11 +340,11 @@ export default function ExpensesPage() {
                 fetchTransactions();
             } else {
                 const data = await res.json();
-                alert(data.error || 'Failed to save transaction');
+                console.log(data.error || 'Failed to save transaction');
             }
         } catch (error) {
             console.error('Save transaction error:', error);
-            alert('Failed to save transaction. Please try again.');
+            console.log('Failed to save transaction. Please try again.');
         }
     };
 
@@ -371,16 +371,16 @@ export default function ExpensesPage() {
                 fetchTransactions();
             } else {
                 const data = await res.json();
-                alert(data.error || 'Failed to save transaction');
+                console.log(data.error || 'Failed to save transaction');
             }
         } catch (error) {
             console.error('Save transaction error:', error);
-            alert('Failed to save transaction. Please try again.');
+            console.log('Failed to save transaction. Please try again.');
         }
     };
 
     const handleDeleteTransaction = async (id: number) => {
-        if (!confirm('Are you sure you want to delete this transaction entry?')) return;
+        
         try {
             const res = await fetch(`/api/expenses/${id}`, {
                 method: 'DELETE',
@@ -390,11 +390,11 @@ export default function ExpensesPage() {
                 fetchTransactions();
             } else {
                 const data = await res.json();
-                alert(data.error || 'Failed to delete transaction');
+                console.log(data.error || 'Failed to delete transaction');
             }
         } catch (error) {
             console.error('Delete transaction error:', error);
-            alert('Failed to delete transaction. Please try again.');
+            console.log('Failed to delete transaction. Please try again.');
         }
     };
 

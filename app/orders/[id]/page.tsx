@@ -137,10 +137,10 @@ export default function OrderDetailsPage() {
             if (res.ok) {
                 fetchOrder(); // refresh order details
             } else {
-                alert('Failed to record payment');
+                console.log('Failed to record payment');
             }
         } catch (error) {
-            alert('Error recording payment');
+            console.log('Error recording payment');
         }
         setIsPaymentModalOpen(false);
     };
@@ -156,7 +156,7 @@ export default function OrderDetailsPage() {
             return;
         }
         
-        if (!confirm('Generate a new invoice for this order?')) return;
+        
         
         setGeneratingInvoice(true);
         try {
@@ -170,10 +170,10 @@ export default function OrderDetailsPage() {
                 fetchOrder();
                 if (data.pdfUrl) window.open(data.pdfUrl, '_blank');
             } else {
-                alert('Failed to generate invoice');
+                console.log('Failed to generate invoice');
             }
         } catch (err) {
-            alert('Error generating invoice');
+            console.log('Error generating invoice');
         }
         setGeneratingInvoice(false);
         setGeneratingInvoice(false);
@@ -188,9 +188,9 @@ export default function OrderDetailsPage() {
             });
             if (res.ok) {
                 fetchOrder();
-            } else alert('Failed to update recurring settings');
+            } else console.log('Failed to update recurring settings');
         } catch (err) {
-            alert('Error updating recurring settings');
+            console.log('Error updating recurring settings');
         }
     };
 
@@ -204,9 +204,9 @@ export default function OrderDetailsPage() {
             if (res.ok) {
                 fetchOrder();
                 setConfirmAction(null);
-            } else alert('Failed to update workflow');
+            } else console.log('Failed to update workflow');
         } catch (err) {
-            alert('Error updating workflow');
+            console.log('Error updating workflow');
         }
     };
     
@@ -218,9 +218,9 @@ export default function OrderDetailsPage() {
                 body: JSON.stringify({ status: newStatus })
             });
             if (res.ok) fetchOrder();
-            else alert('Failed to update order status');
+            else console.log('Failed to update order status');
         } catch (err) {
-            alert('Error updating status');
+            console.log('Error updating status');
         }
     };
 
@@ -231,7 +231,7 @@ export default function OrderDetailsPage() {
             setSelectedInvoice(unpaid);
             setIsPaymentModalOpen(true);
         } else {
-            alert('Please generate an invoice first before recording a payment.');
+            console.log('Please generate an invoice first before recording a payment.');
         }
     };
 
@@ -246,7 +246,7 @@ export default function OrderDetailsPage() {
         setMetres(order?.quantity_meters || 0);
         setRate('');
         setDate(new Date().toISOString().split('T')[0]);
-        setDueDate(new Date(Date.now() + 86400000 * 7).toISOString().split('T')[0]);
+        setDueDate(new Date(Date.now() + 86400000 * 30).toISOString().split('T')[0]);
         setPaymentMode('Cash');
         setReference('');
         setPaymentStatus('unpaid');
@@ -267,18 +267,18 @@ export default function OrderDetailsPage() {
 
         if (isAddNewVendor) {
             if (!newVendorName || !newVendorPhone) {
-                alert('Please fill in new vendor name and phone number.');
+                console.log('Please fill in new vendor name and phone number.');
                 return;
             }
         } else {
             if (!activeVendorId) {
-                alert('Please select an external vendor.');
+                console.log('Please select an external vendor.');
                 return;
             }
         }
 
         if (metres <= 0 || currentRate <= 0) {
-            alert('Metres and Rate per metre must be greater than zero.');
+            console.log('Metres and Rate per metre must be greater than zero.');
             return;
         }
 
@@ -333,22 +333,22 @@ export default function OrderDetailsPage() {
                 fetchOrder();
             } else {
                 const errorData = await res.json();
-                alert(errorData.error || 'Failed to save job cost');
+                console.log(errorData.error || 'Failed to save job cost');
             }
         } catch (err) {
             console.error('Save job cost error:', err);
-            alert('An unexpected error occurred while saving the job cost.');
+            console.log('An unexpected error occurred while saving the job cost.');
         } finally {
             setSubmitting(false);
         }
     };
 
     const handleDeleteJobCost = async (costId: number) => {
-        if (!confirm('Are you sure you want to permanently delete this job cost? This will also remove the associated Cash Book entry.')) return;
+        
         try {
             const res = await fetch(`/api/orders/${params.id}/job-costs?costId=${costId}`, { method: 'DELETE' });
             if (res.ok) fetchOrder();
-            else alert('Failed to delete job cost.');
+            else console.log('Failed to delete job cost.');
         } catch (err) {
             console.error('Delete job cost error:', err);
         }
@@ -649,7 +649,7 @@ export default function OrderDetailsPage() {
                             </div>
                             <div className={styles.draftBannerActions}>
                                 <button className={styles.btnPrimary} onClick={() => handleStatusChange(ORDER_STATUSES.CREATED)}>Approve Order</button>
-                                <button className={styles.btnSecondary} onClick={() => alert('Editing not implemented yet')}>Edit & Approve</button>
+                                <button className={styles.btnSecondary} onClick={() => console.log('Editing not implemented yet')}>Edit & Approve</button>
                                 <button className={styles.btnSecondary} style={{ color: '#DC2626', borderColor: '#FCA5A5' }} onClick={() => handleStatusChange('cancelled')}>Discard Draft</button>
                             </div>
                         </div>

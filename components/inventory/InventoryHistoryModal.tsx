@@ -81,7 +81,7 @@ export default function InventoryHistoryModal({ isOpen, onClose, materialId, mat
     };
 
     const handleDelete = async (recordId: number) => {
-        if (!confirm("Remove this procurement record? This will adjust stock and financials.")) return;
+        
         
         setDeletingId(recordId);
         try {
@@ -97,10 +97,10 @@ export default function InventoryHistoryModal({ isOpen, onClose, materialId, mat
                 }
             } else {
                 const data = await res.json();
-                alert(data.error || 'Failed to delete record.');
+                console.log(data.error || 'Failed to delete record.');
             }
         } catch (error) {
-            alert('An error occurred.');
+            console.log('An error occurred.');
         } finally {
             setDeletingId(null);
         }

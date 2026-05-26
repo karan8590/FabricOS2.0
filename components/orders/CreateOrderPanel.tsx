@@ -185,7 +185,7 @@ export default function CreateOrderPanel({ isOpen, onClose, onSuccess, initialCu
                 
                 if (data.totalOrders && data.totalOrders > 0 && data.totalOrders % 100 === 0) {
                     celebrateMilestone(`confetti_milestone_${data.totalOrders}`);
-                    setTimeout(() => alert(`🎉 Amazing! That was order #${data.totalOrders}!`), 100);
+                    // Silent success
                 } else if (data.totalCustomerOrders === 1) {
                     celebrateSmall(`confetti_newcust_${data.orderId}`);
                 }
@@ -202,11 +202,11 @@ export default function CreateOrderPanel({ isOpen, onClose, onSuccess, initialCu
                 resetForm();
             } else {
                 const data = await res.json();
-                alert(data.error || 'Failed to create order');
+                console.log(data.error || 'Failed to create order');
             }
         } catch (error) {
             console.error('Create order error:', error);
-            alert('Failed to create order');
+            console.log('Failed to create order');
         } finally {
             setLoading(false);
         }

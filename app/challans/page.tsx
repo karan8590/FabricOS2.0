@@ -56,7 +56,7 @@ export default function ChallansPage() {
     }, [filterType, filterStatus, searchQuery]);
 
     const handleCloseChallan = async (id: number) => {
-        if (!confirm('Are you sure you want to close this challan?')) return;
+        
         try {
             const res = await fetch(`/api/challans/${id}`, {
                 method: 'PUT',
@@ -66,7 +66,7 @@ export default function ChallansPage() {
             if (res.ok) {
                 fetchChallans();
             } else {
-                alert('Failed to close challan');
+                console.log('Failed to close challan');
             }
         } catch (e) {
             console.error(e);

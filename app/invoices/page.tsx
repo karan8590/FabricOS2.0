@@ -328,15 +328,15 @@ export default function InvoicesPage() {
         try {
             const res = await fetch(`/api/invoices/${invoice.id}/resend`, { method: 'POST' });
             if (res.ok) {
-                alert('Invoice PDF resent successfully via Telegram!');
+                console.log('Invoice PDF resent successfully via Telegram!');
                 fetchInvoices();
             } else {
                 const data = await res.json();
-                alert(data.error || 'Failed to resend Telegram notification');
+                console.log(data.error || 'Failed to resend Telegram notification');
             }
         } catch (error) {
             console.error('Telegram dispatch error:', error);
-            alert('Failed to connect to server');
+            console.log('Failed to connect to server');
         } finally {
             setSendingTelegramId(null);
         }
@@ -347,15 +347,15 @@ export default function InvoicesPage() {
         try {
             const res = await fetch(`/api/invoices/${invoice.id}/regenerate`, { method: 'POST' });
             if (res.ok) {
-                alert('Invoice PDF regenerated successfully!');
+                console.log('Invoice PDF regenerated successfully!');
                 fetchInvoices();
             } else {
                 const data = await res.json();
-                alert(data.error || 'Failed to regenerate invoice');
+                console.log(data.error || 'Failed to regenerate invoice');
             }
         } catch (error) {
             console.error('Regeneration error:', error);
-            alert('Failed to connect to server');
+            console.log('Failed to connect to server');
         } finally {
             setRegeneratingId(null);
         }
@@ -379,7 +379,7 @@ export default function InvoicesPage() {
             setPreviewPdfUrl(invoice.pdf_url);
             setPreviewInvoiceNum(invoice.invoice_number);
         } else {
-            alert('PDF file path not found. Try regenerating the invoice first.');
+            console.log('PDF file path not found. Try regenerating the invoice first.');
         }
     };
 
@@ -523,11 +523,11 @@ export default function InvoicesPage() {
                 setIsPaymentModalOpen(false);
             } else {
                 const errorData = await res.json();
-                alert(`Payment failed: ${errorData.error || 'Unknown error'}`);
+                console.log(`Payment failed: ${errorData.error || 'Unknown error'}`);
             }
         } catch (error) {
             console.error('Payment error:', error);
-            alert('Failed to connect to server');
+            console.log('Failed to connect to server');
         }
     };
 
