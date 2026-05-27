@@ -55,6 +55,7 @@ export default function CompletePrintingModal({ isOpen, onClose, onSuccess, orde
     return createPortal(
         <div className={styles.modalOverlay} onClick={onClose}>
             <div className={styles.modalContent} onClick={e => e.stopPropagation()} style={{ maxWidth: '600px' }}>
+                <div className={styles.mobileSheetHandle} />
                 <div className={styles.modalHeader}>
                     <div className={styles.headerLeft} style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                         <div className={styles.iconWrapper} style={{ backgroundColor: '#F0F9FF', color: '#0EA5E9', padding: '6px', borderRadius: '8px', display: 'flex' }}>

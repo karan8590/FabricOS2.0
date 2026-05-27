@@ -168,48 +168,58 @@
 
 /* Footer actions */
 .sheetFooter {
+    position: sticky;
+    bottom: 0;
+    background: rgba(255, 255, 255, 0.85);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    padding: 14px 16px calc(16px + env(safe-area-inset-bottom, 0px));
+    border-top: 1px solid rgba(226, 232, 240, 0.6);
     display: flex;
     gap: 12px;
-    padding: 16px 20px;
+    z-index: 10;
 }
 
 .resetBtn {
-    flex: 0 0 auto;
-    height: 50px;
-    padding: 0 20px;
-    border-radius: 14px;
-    border: 1.5px solid var(--border-primary);
-    background: var(--bg-grouped);
-    color: var(--text-secondary);
-    font-size: 14px;
+    flex: 1;
+    height: 48px;
+    border-radius: 16px;
+    border: 1px solid var(--border-subtle);
+    background: var(--bg-hover);
+    color: var(--text-primary);
+    font-size: 15px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.15s ease;
-}
-
-.resetBtn:active {
-    background: var(--bg-hover);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .applyBtn {
     flex: 1;
-    height: 50px;
-    border-radius: 14px;
+    height: 48px;
+    border-radius: 16px;
     border: none;
     background: var(--accent, #0071E3);
     color: #fff;
     font-size: 15px;
-    font-weight: 700;
+    font-weight: 600;
     cursor: pointer;
-    transition: all 0.15s ease;
     display: flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.applyBtn:active {
-    transform: scale(0.98);
+.resetBtn:active, .applyBtn:active {
+    filter: brightness(0.95);
 }
 
 /* Active count badge on apply button */

@@ -12,10 +12,11 @@ import StatWidget from '@/components/ui/StatWidget';
 import ViewingPeriodSelector from '@/components/ui/ViewingPeriodSelector';
 import styles from './Invoices.module.css';
 import tableStyles from '@/components/ui/Table.module.css';
-import { Calendar, ChevronRight, ChevronDown, Layers, Grid, FileText, CheckCircle, AlertTriangle, FileSearch, Eye, Download, Send, RefreshCw, Loader2, MoreHorizontal } from 'lucide-react';
+import { Calendar, ChevronRight, ChevronDown, Layers, Grid, FileText, CheckCircle, AlertTriangle, FileSearch, Eye, Download, Send, RefreshCw, Loader2, MoreHorizontal, MessageCircle } from 'lucide-react';
 import { formatCurrencySafe } from '@/lib/utils';
 import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import AnimatedNumber from '@/components/ui/AnimatedNumber';
 
 interface Invoice {
     id: number;
@@ -58,6 +59,17 @@ export default function InvoicesPage() {
     const [previewInvoiceNum, setPreviewInvoiceNum] = useState<string | null>(null);
     const [sendingTelegramId, setSendingTelegramId] = useState<number | null>(null);
     const [regeneratingId, setRegeneratingId] = useState<number | null>(null);
+    const [recentlyPaidInvoiceId, setRecentlyPaidInvoiceId] = useState<number | null>(null);
+
+    const [historyModalOpen, setHistoryModalOpen] = useState(false);
+    const [historyInvoiceId, setHistoryInvoiceId] = useState<number | null>(null);
+    const [historyInvoiceNum, setHistoryInvoiceNum] = useState<string | null>(null);
+
+    const handleViewHistory = (invoice: any) => {
+        setHistoryInvoiceId(invoice.id);
+        setHistoryInvoiceNum(invoice.invoice_number);
+        setHistoryModalOpen(true);
+    };
 
     const years = ['All Years', '2023', '2024', '2025', '2026'];
     const months = [
@@ -225,8 +237,9 @@ export default function InvoicesPage() {
     const stats = useMemo(() => {
         const totalInvoices = timeFilteredInvoices.length;
         const totalBilled = timeFilteredInvoices.reduce((s, i) => s + (i.amount || 0), 0);
-        const paidInvoices = timeFilteredInvoices.filter(i => i.status === 'paid');
-        const paidAmount = paidInvoices.reduce((s, i) => s + (i.amount || 0), 0);
+        const totalBase = timeFilteredInvoices.reduce((s, i) => s + (i.taxable_amount || 0), 0);
+        const totalTax = timeFilteredInvoices.reduce((s, i) => s + (i.gst_amount || 0), 0);
+        
         const outstandingAmount = timeFilteredInvoices
             .filter(i => i.status !== 'paid')
             .reduce((s, i) => s + (i.amount - (i.amount_paid || 0)), 0);
@@ -234,21 +247,29 @@ export default function InvoicesPage() {
         const overdueInvoices = timeFilteredInvoices.filter(i => 
             i.status !== 'paid' && i.due_date && i.due_date < now
         );
+        const nextWeek = now + (7 * 24 * 60 * 60);
+        const upcomingInvoices = timeFilteredInvoices.filter(i => 
+            i.status !== 'paid' && i.due_date && i.due_date >= now && i.due_date <= nextWeek
+        );
+        const overdueAmount = overdueInvoices.reduce((s, i) => s + (i.amount - (i.amount_paid || 0)), 0);
+        const upcomingAmount = upcomingInvoices.reduce((s, i) => s + (i.amount - (i.amount_paid || 0)), 0);
+        
         return { 
-            totalInvoices, 
-            totalBilled, 
-            paidCount: paidInvoices.length, 
-            paidAmount, 
-            outstandingAmount, 
-            overdueCount: overdueInvoices.length 
+            totalInvoices, totalBilled, outstandingAmount, 
+            overdueCount: overdueInvoices.length, overdueAmount,
+            upcomingCount: upcomingInvoices.length, upcomingAmount,
+            totalBase, totalTax
         };
     }, [timeFilteredInvoices]);
 
     const filteredInvoices = useMemo(() => {
         let result = timeFilteredInvoices;
 
-        if (activeWidget === 'paid') {
-            result = result.filter(i => i.status === 'paid');
+        if (activeWidget === 'due_week') {
+            const now = Math.floor(Date.now() / 1000);
+            const nextWeek = now + (7 * 24 * 60 * 60);
+            result = result.filter(i => i.status !== 'paid' && i.due_date && i.due_date >= now && i.due_date <= nextWeek)
+                .sort((a, b) => (a.due_date || 0) - (b.due_date || 0));
         } else if (activeWidget === 'outstanding') {
             result = result.filter(i => i.status !== 'paid')
                 .sort((a, b) => (b.amount - (b.amount_paid || 0)) - (a.amount - (a.amount_paid || 0)));
@@ -396,11 +417,30 @@ export default function InvoicesPage() {
         const progressPercent = Math.min(100, (paid / (invoice.amount || 1)) * 100);
 
         return (
-            <div key={invoice.id} className={styles.mobileCard}>
+            <motion.div 
+                key={invoice.id} 
+                className={styles.mobileCard}
+                animate={recentlyPaidInvoiceId === invoice.id ? { 
+                    backgroundColor: ['var(--bg-card)', 'rgba(52, 199, 89, 0.1)', 'var(--bg-card)'],
+                    scale: [1, 1.02, 1],
+                    boxShadow: ['var(--shadow-sm)', '0 0 0 2px rgba(52, 199, 89, 0.3)', 'var(--shadow-sm)']
+                } : {}}
+                transition={{ duration: 1.2, ease: "easeOut" }}
+            >
                 {/* Header: Badge & Amount */}
                 <div className={styles.mobileCardHeader}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                        <Badge status={invoice.status} />
+                        <AnimatePresence mode="popLayout">
+                            <motion.div
+                                key={invoice.status}
+                                initial={{ opacity: 0, scale: 0.8 }}
+                                animate={{ opacity: 1, scale: 1 }}
+                                exit={{ opacity: 0, scale: 0.8 }}
+                                transition={{ duration: 0.3 }}
+                            >
+                                <Badge status={invoice.status} />
+                            </motion.div>
+                        </AnimatePresence>
                         {invoice.telegram_delivered === 1 ? (
                             <span 
                                 title="Telegram delivered" 
@@ -418,7 +458,7 @@ export default function InvoicesPage() {
                         )}
                     </div>
                     <span className={styles.mobilePrice}>
-                        ₹{invoice.amount.toLocaleString('en-IN')}
+                        <AnimatedNumber value={invoice.amount} format="currency" prefix="₹" />
                     </span>
                 </div>
 
@@ -445,7 +485,9 @@ export default function InvoicesPage() {
                         <div className={styles.mobileMetaRow}>
                             <span>Balance Remaining:</span>
                             {balance > 0 ? (
-                                <span style={{ color: 'var(--color-warning)', fontWeight: 600 }}>₹{balance.toLocaleString('en-IN')}</span>
+                                <span style={{ color: 'var(--color-warning)', fontWeight: 600 }}>
+                                    <AnimatedNumber value={balance} format="currency" prefix="₹" />
+                                </span>
                             ) : (
                                 <span style={{ color: 'var(--color-success)', fontWeight: 600 }}>Fully Paid</span>
                             )}
@@ -455,15 +497,16 @@ export default function InvoicesPage() {
                     {/* Progress Bar Container */}
                     <div className={styles.mobileProgressContainer}>
                         <div className={styles.mobileProgressText}>
-                            <span>₹{paid.toLocaleString('en-IN')} paid</span>
-                            <span>{progressPercent.toFixed(0)}%</span>
+                            <span><AnimatedNumber value={paid} format="currency" prefix="₹" suffix=" paid" /></span>
+                            <span><AnimatedNumber value={progressPercent} format="percentage" suffix="%" /></span>
                         </div>
                         <div className={styles.mobileProgressBar}>
                             <div 
                                 className={styles.mobileProgressFill} 
                                 style={{ 
                                     width: `${progressPercent}%`, 
-                                    backgroundColor: invoice.status === 'paid' ? 'var(--color-success)' : 'var(--color-accent-primary)' 
+                                    backgroundColor: invoice.status === 'paid' ? 'var(--color-success)' : 'var(--color-accent-primary)',
+                                    transition: 'width 0.8s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.8s'
                                 }} 
                             />
                         </div>
@@ -478,18 +521,15 @@ export default function InvoicesPage() {
                         onPreview={() => handlePreviewPDF(invoice)}
                         onDownload={() => handleDownloadPDF(invoice)}
                         onResendTelegram={() => handleResendTelegram(invoice)}
+                        onViewHistory={() => handleViewHistory(invoice)}
                         onRegenerate={() => handleRegenerateInvoice(invoice)}
                         sendingTelegramId={sendingTelegramId}
                         regeneratingId={regeneratingId}
                     />
                 </div>
-            </div>
+            </motion.div>
         );
     };
-
-    const totalPages = Math.ceil(filteredInvoices.length / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const paginatedInvoices = filteredInvoices.slice(startIndex, startIndex + itemsPerPage);
 
     const handleApplyFilters = (filters: FilterRow[]) => {
         setActiveFilters(filters);
@@ -525,7 +565,26 @@ export default function InvoicesPage() {
                 body: JSON.stringify(data)
             });
             if (res.ok) {
-                fetchInvoices();
+                // Update state locally for smooth animation instead of fetching
+                setInvoices(prev => prev.map(inv => {
+                    if (inv.id === selectedInvoice.id) {
+                        const newPaid = Number(inv.amount_paid) + Number(data.amount);
+                        const newStatus = newPaid >= inv.amount ? 'paid' : 'partial';
+                        return {
+                            ...inv,
+                            amount_paid: newPaid,
+                            status: newStatus,
+                            paid_at: newStatus === 'paid' ? Math.floor(Date.now() / 1000) : inv.paid_at,
+                            last_payment_date: Math.floor(Date.now() / 1000)
+                        };
+                    }
+                    return inv;
+                }));
+                
+                // Also trigger glow effect
+                setRecentlyPaidInvoiceId(selectedInvoice.id);
+                setTimeout(() => setRecentlyPaidInvoiceId(null), 1500);
+
                 setIsPaymentModalOpen(false);
             } else {
                 const errorData = await res.json();
@@ -567,11 +626,18 @@ export default function InvoicesPage() {
     };
 
     const widgetConfig = [
-        { id: 'total', label: 'Total Invoices', value: stats.totalInvoices, color: 'blue', icon: 'file' },
-        { id: 'billed', label: 'Total Billed', value: formatCurrency(stats.totalBilled), color: 'green', icon: 'rupee' },
-        { id: 'paid', label: 'Paid', value: stats.paidCount, color: 'green', icon: 'check', secondary: `${formatCurrency(stats.paidAmount)} collected` },
-        { id: 'outstanding', label: 'Outstanding', value: formatCurrency(stats.outstandingAmount), color: 'orange', icon: 'clock' },
-        { id: 'overdue', label: 'Overdue', value: stats.overdueCount, color: 'red', icon: 'alert' },
+        { id: 'total', label: 'Total Invoices', value: <AnimatedNumber value={stats.totalInvoices} />, color: 'blue', icon: 'file' },
+        { 
+            id: 'billed', 
+            label: 'Total Billed', 
+            value: <AnimatedNumber value={stats.totalBilled} format="currency" prefix="₹" />, 
+            color: 'green', 
+            icon: 'rupee',
+            tooltip: `Base Order Value: ₹${formatCurrencySafe(stats.totalBase)} + GST: ₹${formatCurrencySafe(stats.totalTax)}`
+        },
+        { id: 'outstanding', label: 'Outstanding', value: <AnimatedNumber value={stats.outstandingAmount} format="currency" prefix="₹" />, color: 'orange', icon: 'clock' },
+        { id: 'due_week', label: 'Upcoming This Week', value: <AnimatedNumber value={stats.upcomingAmount} format="currency" prefix="₹" />, color: 'orange', icon: 'alert', secondary: <AnimatedNumber value={stats.upcomingCount} suffix=" invoices upcoming" />, badge: '' },
+        { id: 'overdue', label: 'Overdue', value: <AnimatedNumber value={stats.overdueCount} />, color: 'red', icon: 'alert' },
     ];
 
     return (
@@ -602,12 +668,12 @@ export default function InvoicesPage() {
                         pulse={w.id === 'overdue' && stats.overdueCount > 0}
                         badge={
                             w.id === 'overdue' ? (stats.overdueCount > 0 ? 'Action needed' : 'All clear') :
-                            w.id === 'paid' ? `${Math.round((stats.paidCount / (stats.totalInvoices || 1)) * 100)}% of total` :
-                            w.id === 'outstanding' ? `${stats.totalInvoices - stats.paidCount} invoices` : '▲ 12.5%'
+                            w.id === 'due_week' ? w.badge :
+                            w.id === 'outstanding' ? `${stats.totalInvoices} invoices` : '▲ 12.5%'
                         }
                         badgeType={
                             w.id === 'overdue' ? (stats.overdueCount > 0 ? 'urgent' : 'positive') :
-                            w.id === 'paid' ? (stats.paidCount / (stats.totalInvoices || 1) > 0.5 ? 'positive' : 'neutral') : 'neutral'
+                            w.id === 'due_week' ? 'neutral' : 'neutral'
                         }
                         icon={
                             w.icon === 'file' ? <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9l-7-7z"/><path d="M13 2v7h7"/></svg> :
@@ -766,8 +832,16 @@ export default function InvoicesPage() {
                                                             const remaining = getDaysRemaining(invoice.due_date, invoice.status);
                                                             const paid = invoice.amount_paid || 0;
                                                             const balance = Math.max(0, invoice.amount - paid);
+                                                            const progressPercent = Math.min(100, (paid / (invoice.amount || 1)) * 100);
                                                             return (
-                                                                <tr key={invoice.id} className={tableStyles.tr}>
+                                                                <motion.tr 
+                                                                    key={invoice.id} 
+                                                                    className={tableStyles.tr}
+                                                                    animate={recentlyPaidInvoiceId === invoice.id ? { 
+                                                                        backgroundColor: ['var(--bg-card)', 'rgba(52, 199, 89, 0.15)', 'var(--bg-card)'],
+                                                                    } : {}}
+                                                                    transition={{ duration: 1.2, ease: "easeOut" }}
+                                                                >
                                                                     <td className={tableStyles.td}>
                                                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                                                             <strong>{invoice.invoice_number}</strong>
@@ -790,17 +864,49 @@ export default function InvoicesPage() {
                                                                     </td>
                                                                     <td className={tableStyles.td}>{invoice.customer_name}<br /><span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-tertiary)' }}>{invoice.customer_phone}</span></td>
                                                                     <td className={tableStyles.td}>#{invoice.order_id}</td>
-                                                                    <td className={`${tableStyles.td} ${tableStyles.amount}`}>₹{invoice.amount.toLocaleString()}</td>
+                                                                    <td className={`${tableStyles.td} ${tableStyles.amount}`}>
+                                                                        <AnimatedNumber value={invoice.amount} format="currency" prefix="₹" />
+                                                                    </td>
                                                                     <td className={tableStyles.td}>
                                                                         <div className={styles.progressContainer}>
-                                                                            <div className={styles.progressText}><span>₹{paid.toLocaleString()}</span><span className={styles.progressTotal}> / ₹{invoice.amount.toLocaleString()}</span></div>
+                                                                            <div className={styles.progressText}>
+                                                                                <span><AnimatedNumber value={paid} format="currency" prefix="₹" /></span>
+                                                                                <span className={styles.progressTotal}> / <AnimatedNumber value={invoice.amount} format="currency" prefix="₹" /></span>
+                                                                            </div>
                                                                             <div className={styles.progressBar}>
-                                                                                <div className={styles.progressFill} style={{ width: `${Math.min(100, (paid / (invoice.amount || 1)) * 100)}%`, backgroundColor: '#16A34A' }} />
+                                                                                <div 
+                                                                                    className={styles.progressFill} 
+                                                                                    style={{ 
+                                                                                        width: `${progressPercent}%`, 
+                                                                                        backgroundColor: invoice.status === 'paid' ? 'var(--color-success)' : 'var(--color-accent-primary)',
+                                                                                        transition: 'width 0.8s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.8s'
+                                                                                    }} 
+                                                                                />
                                                                             </div>
                                                                         </div>
                                                                     </td>
-                                                                    <td className={`${tableStyles.td} ${tableStyles.amount}`}>{balance > 0 ? <span style={{ color: 'var(--color-warning)' }}>₹{balance.toLocaleString()}</span> : <span style={{ color: 'var(--color-success)' }}>-</span>}</td>
-                                                                    <td className={tableStyles.td}><Badge status={invoice.status} /></td>
+                                                                    <td className={`${tableStyles.td} ${tableStyles.amount}`}>
+                                                                        {balance > 0 ? (
+                                                                            <span style={{ color: 'var(--color-warning)' }}>
+                                                                                <AnimatedNumber value={balance} format="currency" prefix="₹" />
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span style={{ color: 'var(--color-success)' }}>-</span>
+                                                                        )}
+                                                                    </td>
+                                                                    <td className={tableStyles.td}>
+                                                                        <AnimatePresence mode="popLayout">
+                                                                            <motion.div
+                                                                                key={invoice.status}
+                                                                                initial={{ opacity: 0, scale: 0.8 }}
+                                                                                animate={{ opacity: 1, scale: 1 }}
+                                                                                exit={{ opacity: 0, scale: 0.8 }}
+                                                                                transition={{ duration: 0.3 }}
+                                                                            >
+                                                                                <Badge status={invoice.status} />
+                                                                            </motion.div>
+                                                                        </AnimatePresence>
+                                                                    </td>
                                                                     <td className={tableStyles.td}>{formatDate(invoice.generated_at)}</td>
                                                                     <td className={tableStyles.td}>{invoice.due_date ? formatDate(invoice.due_date) : '-'}</td>
                                                                     <td className={tableStyles.td}><span style={{ color: remaining.color, fontWeight: 500 }}>{remaining.text}</span></td>
@@ -812,13 +918,14 @@ export default function InvoicesPage() {
                                                                                 onPreview={() => handlePreviewPDF(invoice)}
                                                                                 onDownload={() => handleDownloadPDF(invoice)}
                                                                                 onResendTelegram={() => handleResendTelegram(invoice)}
+                                                                                onViewHistory={() => handleViewHistory(invoice)}
                                                                                 onRegenerate={() => handleRegenerateInvoice(invoice)}
                                                                                 sendingTelegramId={sendingTelegramId}
                                                                                 regeneratingId={regeneratingId}
                                                                             />
                                                                         </div>
                                                                     </td>
-                                                                </tr>
+                                                                </motion.tr>
                                                             );
                                                         })}
                                                     </tbody>
@@ -854,12 +961,20 @@ export default function InvoicesPage() {
                                         </tr>
                                     </thead>
                                     <tbody className={tableStyles.tbody}>
-                                        {paginatedInvoices.map((invoice) => {
+                                        {filteredInvoices.map((invoice) => {
                                             const remaining = getDaysRemaining(invoice.due_date, invoice.status);
                                             const paid = invoice.amount_paid || 0;
                                             const balance = Math.max(0, invoice.amount - paid);
+                                            const progressPercent = Math.min(100, (paid / (invoice.amount || 1)) * 100);
                                             return (
-                                                <tr key={invoice.id} className={tableStyles.tr}>
+                                                <motion.tr 
+                                                    key={invoice.id} 
+                                                    className={tableStyles.tr}
+                                                    animate={recentlyPaidInvoiceId === invoice.id ? { 
+                                                        backgroundColor: ['var(--bg-card)', 'rgba(52, 199, 89, 0.15)', 'var(--bg-card)'],
+                                                    } : {}}
+                                                    transition={{ duration: 1.2, ease: "easeOut" }}
+                                                >
                                                     <td className={tableStyles.td}>
                                                         <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                                                             <strong>{invoice.invoice_number}</strong>
@@ -882,17 +997,49 @@ export default function InvoicesPage() {
                                                     </td>
                                                     <td className={tableStyles.td}>{invoice.customer_name}<br /><span style={{ fontSize: 'var(--font-size-xs)', color: 'var(--color-text-tertiary)' }}>{invoice.customer_phone}</span></td>
                                                     <td className={tableStyles.td}>#{invoice.order_id}</td>
-                                                    <td className={`${tableStyles.td} ${tableStyles.amount}`}>₹{invoice.amount.toLocaleString()}</td>
+                                                    <td className={`${tableStyles.td} ${tableStyles.amount}`}>
+                                                        <AnimatedNumber value={invoice.amount} format="currency" prefix="₹" />
+                                                    </td>
                                                     <td className={tableStyles.td}>
                                                         <div className={styles.progressContainer}>
-                                                            <div className={styles.progressText}><span>₹{paid.toLocaleString()}</span><span className={styles.progressTotal}> / ₹{invoice.amount.toLocaleString()}</span></div>
+                                                            <div className={styles.progressText}>
+                                                                <span><AnimatedNumber value={paid} format="currency" prefix="₹" /></span>
+                                                                <span className={styles.progressTotal}> / <AnimatedNumber value={invoice.amount} format="currency" prefix="₹" /></span>
+                                                            </div>
                                                             <div className={styles.progressBar}>
-                                                                <div className={styles.progressFill} style={{ width: `${Math.min(100, (paid / (invoice.amount || 1)) * 100)}%`, backgroundColor: '#16A34A' }} />
+                                                                <div 
+                                                                    className={styles.progressFill} 
+                                                                    style={{ 
+                                                                        width: `${progressPercent}%`, 
+                                                                        backgroundColor: invoice.status === 'paid' ? 'var(--color-success)' : 'var(--color-accent-primary)',
+                                                                        transition: 'width 0.8s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.8s'
+                                                                    }} 
+                                                                />
                                                             </div>
                                                         </div>
                                                     </td>
-                                                    <td className={`${tableStyles.td} ${tableStyles.amount}`}>{balance > 0 ? <span style={{ color: 'var(--color-warning)' }}>₹{balance.toLocaleString()}</span> : <span style={{ color: 'var(--color-success)' }}>-</span>}</td>
-                                                    <td className={tableStyles.td}><Badge status={invoice.status} /></td>
+                                                    <td className={`${tableStyles.td} ${tableStyles.amount}`}>
+                                                        {balance > 0 ? (
+                                                            <span style={{ color: 'var(--color-warning)' }}>
+                                                                <AnimatedNumber value={balance} format="currency" prefix="₹" />
+                                                            </span>
+                                                        ) : (
+                                                            <span style={{ color: 'var(--color-success)' }}>-</span>
+                                                        )}
+                                                    </td>
+                                                    <td className={tableStyles.td}>
+                                                        <AnimatePresence mode="popLayout">
+                                                            <motion.div
+                                                                key={invoice.status}
+                                                                initial={{ opacity: 0, scale: 0.8 }}
+                                                                animate={{ opacity: 1, scale: 1 }}
+                                                                exit={{ opacity: 0, scale: 0.8 }}
+                                                                transition={{ duration: 0.3 }}
+                                                            >
+                                                                <Badge status={invoice.status} />
+                                                            </motion.div>
+                                                        </AnimatePresence>
+                                                    </td>
                                                     <td className={tableStyles.td}>{formatDate(invoice.generated_at)}</td>
                                                     <td className={tableStyles.td}>{invoice.due_date ? formatDate(invoice.due_date) : '-'}</td>
                                                     <td className={tableStyles.td}><span style={{ color: remaining.color, fontWeight: 500 }}>{remaining.text}</span></td>
@@ -904,13 +1051,14 @@ export default function InvoicesPage() {
                                                                                 onPreview={() => handlePreviewPDF(invoice)}
                                                                                 onDownload={() => handleDownloadPDF(invoice)}
                                                                                 onResendTelegram={() => handleResendTelegram(invoice)}
+                                                                                onViewHistory={() => handleViewHistory(invoice)}
                                                                                 onRegenerate={() => handleRegenerateInvoice(invoice)}
                                                                                 sendingTelegramId={sendingTelegramId}
                                                                                 regeneratingId={regeneratingId}
                                                                             />
                                                         </div>
                                                     </td>
-                                                </tr>
+                                                </motion.tr>
                                             );
                                         })}
                                     </tbody>
@@ -918,18 +1066,9 @@ export default function InvoicesPage() {
 
                                 {/* Mobile Cards View */}
                                 <div className={styles.mobileCardsList}>
-                                    {paginatedInvoices.map((invoice) => renderMobileInvoiceCard(invoice))}
+                                    {filteredInvoices.map((invoice) => renderMobileInvoiceCard(invoice))}
                                 </div>
                             </div>
-                            {totalPages > 1 && (
-                                <div className={tableStyles.pagination}>
-                                    <div className={tableStyles.paginationInfo}>Showing {startIndex + 1}-{Math.min(startIndex + itemsPerPage, filteredInvoices.length)} of {filteredInvoices.length}</div>
-                                    <div className={tableStyles.paginationButtons}>
-                                        <Button variant="ghost" size="small" onClick={() => setCurrentPage(currentPage - 1)} disabled={currentPage === 1}>Previous</Button>
-                                        <Button variant="ghost" size="small" onClick={() => setCurrentPage(currentPage + 1)} disabled={currentPage === totalPages}>Next</Button>
-                                    </div>
-                                </div>
-                            )}
                         </>
                     )}
                 </div>
@@ -937,6 +1076,14 @@ export default function InvoicesPage() {
             
             {/* Payment Modal */}
             <PaymentModal isOpen={isPaymentModalOpen} onClose={() => setIsPaymentModalOpen(false)} invoice={selectedInvoice} onSave={handleSavePayment} />
+
+            {/* History Modal */}
+            <HistoryModal 
+                isOpen={historyModalOpen} 
+                onClose={() => setHistoryModalOpen(false)} 
+                invoiceId={historyInvoiceId}
+                invoiceNum={historyInvoiceNum}
+            />
 
             {/* Premium PDF Preview Modal */}
             {previewPdfUrl && (
@@ -1070,7 +1217,7 @@ function InvoiceActionButton({ invoice, onPay }: { invoice: Invoice, onPay: () =
     );
 }
 
-function InvoiceActionMenu({ invoice, onPreview, onDownload, onResendTelegram, onRegenerate, sendingTelegramId, regeneratingId }: any) {
+function InvoiceActionMenu({ invoice, onPreview, onDownload, onResendTelegram, onViewHistory, onRegenerate, sendingTelegramId, regeneratingId }: any) {
     const [isOpen, setIsOpen] = useState(false);
     const menuRef = useRef<HTMLDivElement>(null);
     const [mounted, setMounted] = useState(false);
@@ -1109,10 +1256,48 @@ function InvoiceActionMenu({ invoice, onPreview, onDownload, onResendTelegram, o
         setIsOpen(!isOpen);
     };
 
+    const handleShareWhatsApp = async () => {
+        try {
+            const res = await fetch(`/api/share?type=invoice&id=${invoice.id}`);
+            if (!res.ok) {
+                alert('Failed to generate sharing URL');
+                return;
+            }
+            const shareData = await res.json();
+            const shareUrl = shareData.url;
+            const formattedAmount = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(invoice.amount);
+            const message = `Hi ${invoice.customer_name},\n\nPlease find your invoice ${invoice.invoice_number} for ${formattedAmount}.\n\nYou can download the PDF here: ${shareUrl}\n\nThank you!`;
+            window.open(`https://wa.me/${invoice.customer_phone?.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
+        } catch (err) {
+            console.error('Error sharing invoice:', err);
+        }
+    };
+
+    const handleSendReminder = async () => {
+        try {
+            const res = await fetch(`/api/share?type=invoice&id=${invoice.id}`);
+            if (!res.ok) {
+                alert('Failed to generate sharing URL');
+                return;
+            }
+            const shareData = await res.json();
+            const shareUrl = shareData.url;
+            const formattedAmount = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(invoice.amount);
+            const message = `Hi ${invoice.customer_name},\n\nFriendly reminder that invoice ${invoice.invoice_number} for ${formattedAmount} is due. Download here: ${shareUrl}`;
+            window.open(`https://wa.me/${invoice.customer_phone?.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
+        } catch (err) {
+            console.error('Error sharing reminder:', err);
+        }
+    };
+
     const menuItems = [
         { type: 'section', label: 'Documents & Delivery' },
         { label: 'View PDF', icon: <Eye size={16} />, onClick: onPreview, show: !!invoice.pdf_url },
         { label: 'Download PDF', icon: <Download size={16} />, onClick: onDownload },
+        { type: 'separator' },
+        { type: 'section', label: 'WhatsApp Share' },
+        { label: 'Share WhatsApp', icon: <MessageCircle size={16} />, onClick: handleShareWhatsApp, color: '#25D366' },
+        { label: 'Send Reminder', icon: <MessageCircle size={16} />, onClick: handleSendReminder, color: '#25D366', show: invoice.status !== 'paid' },
         { type: 'separator' },
         { type: 'section', label: 'Actions' },
         { 
@@ -1120,6 +1305,11 @@ function InvoiceActionMenu({ invoice, onPreview, onDownload, onResendTelegram, o
             icon: <Send size={16} style={{ opacity: sendingTelegramId === invoice.id ? 0.5 : 1 }} />, 
             onClick: onResendTelegram,
             disabled: sendingTelegramId === invoice.id
+        },
+        {
+            label: 'View History',
+            icon: <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>,
+            onClick: onViewHistory
         },
         { 
             label: regeneratingId === invoice.id ? 'Regenerating...' : 'Regenerate PDF', 
@@ -1193,5 +1383,105 @@ function InvoiceActionMenu({ invoice, onPreview, onDownload, onResendTelegram, o
                 document.body
             )}
         </div>
+    );
+}
+
+function HistoryModal({ isOpen, onClose, invoiceId, invoiceNum }: { isOpen: boolean; onClose: () => void; invoiceId: number | null; invoiceNum: string | null }) {
+    const [history, setHistory] = useState<any[]>([]);
+    const [loading, setLoading] = useState(true);
+
+    useEffect(() => {
+        if (isOpen && invoiceId) {
+            setLoading(true);
+            fetch(`/api/invoices/${invoiceId}/history`)
+                .then(res => res.json())
+                .then(data => {
+                    setHistory(data.history || []);
+                    setLoading(false);
+                })
+                .catch(err => {
+                    console.error(err);
+                    setLoading(false);
+                });
+        }
+    }, [isOpen, invoiceId]);
+
+    if (!isOpen) return null;
+
+    return createPortal(
+        <AnimatePresence>
+            <motion.div 
+                className="global-modal-overlay" 
+                style={{ position: 'fixed', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 10000, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(8px)' }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.2 }}
+                onClick={onClose}
+            >
+                <motion.div 
+                    style={{
+                        background: 'var(--bg-card)',
+                        borderRadius: '20px',
+                        width: '90%',
+                        maxWidth: '500px',
+                        maxHeight: '85vh',
+                        display: 'flex',
+                        flexDirection: 'column',
+                        boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+                        overflow: 'hidden'
+                    }}
+                    initial={{ scale: 0.95, y: 20, opacity: 0 }}
+                    animate={{ scale: 1, y: 0, opacity: 1 }}
+                    exit={{ scale: 0.95, y: 20, opacity: 0 }}
+                    transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                    onClick={e => e.stopPropagation()}
+                >
+                    <div style={{ padding: '24px 24px 16px', borderBottom: '1px solid rgba(0,0,0,0.05)', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                        <div>
+                            <h2 style={{ fontSize: '20px', fontWeight: 600, margin: '0 0 4px', color: 'var(--text-primary)' }}>Invoice History</h2>
+                            <p style={{ fontSize: '13px', margin: 0, color: 'var(--text-secondary)' }}>Track all activity for {invoiceNum}</p>
+                        </div>
+                        <button onClick={onClose} style={{ background: 'transparent', border: 'none', cursor: 'pointer', padding: '4px', color: 'var(--text-tertiary)' }}>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                        </button>
+                    </div>
+                    <div style={{ padding: '24px', overflowY: 'auto' }}>
+                        {loading ? (
+                            <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-secondary)' }}>Loading history...</div>
+                        ) : history.length === 0 ? (
+                            <div style={{ textAlign: 'center', padding: '40px 0', color: 'var(--text-secondary)' }}>No activity recorded yet</div>
+                        ) : (
+                            <div style={{ position: 'relative' }}>
+                                {/* Vertical line */}
+                                <div style={{ position: 'absolute', left: '11px', top: '24px', bottom: '24px', width: '2px', background: '#E5E7EB' }} />
+                                
+                                {history.map((event, idx) => {
+                                    const date = new Date(event.created_at * 1000);
+                                    const timeStr = date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' });
+                                    const dateStr = date.toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
+                                    return (
+                                        <div key={event.id} style={{ display: 'flex', gap: '16px', marginBottom: idx === history.length - 1 ? 0 : '24px', position: 'relative' }}>
+                                            <div style={{ 
+                                                width: '24px', height: '24px', borderRadius: '50%', background: 'var(--bg-card)', 
+                                                border: '2px solid #3B82F6', zIndex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' 
+                                            }}>
+                                                <div style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#3B82F6' }} />
+                                            </div>
+                                            <div style={{ flex: 1, paddingTop: '2px' }}>
+                                                <div style={{ fontSize: '14px', fontWeight: 600, color: 'var(--text-primary)', marginBottom: '4px' }}>{event.action_type}</div>
+                                                <div style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '4px', lineHeight: 1.4 }}>{event.description}</div>
+                                                <div style={{ fontSize: '12px', color: 'var(--text-tertiary)', fontWeight: 500 }}>{dateStr} • {timeStr}</div>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                </motion.div>
+            </motion.div>
+        </AnimatePresence>,
+        document.body
     );
 }

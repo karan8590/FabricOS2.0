@@ -216,6 +216,7 @@ export default function CreateDispatchModal({ isOpen, onClose, onSuccess, select
                     exit={{ opacity: 0, scale: 0.95, y: 20 }}
                     transition={{ type: 'spring', damping: 25, stiffness: 300 }}
                 >
+                    <div className={styles.mobileSheetHandle} />
                     <div className={styles.header}>
                         <div className={styles.titleGroup}>
                             <div className={styles.iconBox}>
@@ -254,6 +255,7 @@ export default function CreateDispatchModal({ isOpen, onClose, onSuccess, select
                                                 onChange={e => handleVendorSelect(e.target.value)}
                                                 className={errors.transportVendorId ? '!border-red-400 focus:!ring-red-500 !bg-red-50/30' : ''}
                                                 style={{ width: '100%', outline: 'none' }}
+                                                autoFocus
                                             >
                                                 <option value="">-- Select Driver / Tempo --</option>
                                                 {vendors.map(v => (
@@ -402,6 +404,7 @@ export default function CreateDispatchModal({ isOpen, onClose, onSuccess, select
                                     <input 
                                         type="number" 
                                         placeholder="Enter later if not confirmed"
+                                        inputMode="decimal"
                                         value={formData.deliveryCost}
                                         onChange={e => setFormData({...formData, deliveryCost: e.target.value})}
                                     />

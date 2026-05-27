@@ -963,6 +963,7 @@ export default function TelegramCenterPage() {
             {showAddModal && (
                 <div className={styles.modalOverlay}>
                     <div className={styles.modalContent}>
+                        <div className={styles.mobileSheetHandle} />
                         <div className={styles.modalHeader}>
                             <div className={styles.modalTitle}>
                                 <h3>Add New Recipient</h3>

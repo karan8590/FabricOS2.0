@@ -58,20 +58,25 @@ export async function GET(
 
         const placeholders = orderIds.map(() => '?').join(',');
         const ordersData = await db.prepare(`
-            SELECT o.order_number, o.quantity_meters as quantity, o.fabric_type, d.name as design_name
+            SELECT o.order_number, o.quantity_meters as quantity, o.fabric_type, d.name as design_name,
+                   c.name as customer_name, c.phone as customer_phone, c.gstin as customer_gstin,
+                   COALESCE(o.delivery_address, c.shipping_address, c.billing_address, c.state, 'Address pending') as customer_address
             FROM orders o
             JOIN designs d ON o.design_id = d.id
+            JOIN customers c ON o.customer_id = c.id
             WHERE o.id IN (${placeholders}) AND o.business_id = ?
         `).all(...orderIds, businessId) as any[];
 
         const totalQty = ordersData.reduce((sum, o) => sum + Number(o.quantity), 0);
 
+        const uniqueCustomerNames = [...new Set(ordersData.map((o: any) => o.customer_name))];
+
         const pdfData: ChallanPDFData = {
             challan_number: challan.challan_number,
             dispatch_number: challan.dispatch_number,
             dispatch_date: new Date(challan.dispatch_date).getTime() / 1000,
-            customer_name: customer.name,
-            customer_phone: customer.phone,
+            customer_name: uniqueCustomerNames.length > 1 ? 'MULTIPLE CUSTOMERS' : uniqueCustomerNames[0],
+            customer_phone: ordersData[0]?.customer_phone || customer.phone,
             customer_gstin: customer.gstin,
             customer_address: customer.address,
             driver_name: challan.driver_name || challan.vehicle_number,
@@ -82,7 +87,11 @@ export async function GET(
                 order_number: o.order_number,
                 design_name: o.design_name,
                 fabric_type: o.fabric_type,
-                quantity: Number(o.quantity)
+                quantity: Number(o.quantity),
+                customer_name: o.customer_name,
+                customer_phone: o.customer_phone,
+                customer_address: o.customer_address,
+                customer_gstin: o.customer_gstin
             })),
             total_quantity: totalQty,
             notes: challan.notes,

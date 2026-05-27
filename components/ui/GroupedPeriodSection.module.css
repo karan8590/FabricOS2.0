@@ -137,7 +137,6 @@
 .monthGroupContent {
     max-height: 0;
     overflow: hidden;
-    transition: max-height 120ms ease-out, padding 120ms ease-out;
     padding: 0 20px;
     background: var(--bg-card);
     border-bottom-left-radius: 14px;
@@ -145,10 +144,10 @@
 }
 
 .monthGroupContentExpanded {
-    max-height: 3500px; /* high enough to cover long lists */
+    max-height: none; /* Automatically expand based on table height */
+    height: auto;
     padding: 16px 20px;
-    overflow: visible;
-    transition: max-height 120ms ease-in, padding 120ms ease-in;
+    overflow: hidden;
 }
 
 @media (max-width: 768px) {

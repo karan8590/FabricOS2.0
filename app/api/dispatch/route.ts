@@ -27,7 +27,8 @@ export async function POST(request: Request) {
             const placeholders = orderIds.map(() => '?').join(',');
             const ordersData = await db.prepare(`
                 SELECT o.id, o.customer_id, o.order_number, o.quantity_meters, o.fabric_type, o.order_stage, o.embroidery_status, o.printing_status, o.dyeing_status,
-                       c.name as customer_name, c.phone as customer_phone, c.state, c.state_code, c.gstin as customer_gstin,
+                       c.name as customer_name, c.phone as customer_phone, c.state, c.state_code, c.gstin as customer_gstin, 
+                       COALESCE(o.delivery_address, c.shipping_address, c.billing_address, c.state, 'Address pending') as customer_address,
                        d.name as design_name
                 FROM orders o
                 JOIN customers c ON o.customer_id = c.id
@@ -155,20 +156,21 @@ export async function POST(request: Request) {
                 const transportVendor = (await db.prepare('SELECT name, contact FROM vendors WHERE id = ?').get(transportVendorId)) as any;
                 
                 const cost = deliveryCost !== null && deliveryCost !== undefined && deliveryCost !== '' ? parseFloat(deliveryCost) : null;
-                const paymentStatus = 'unpaid';
+                const paymentStatus = (cost === null || cost === 0) ? 'pending_cost' : 'unpaid';
                 const finalCost = cost === null ? 0 : cost;
 
                 await db.prepare(`
                     INSERT INTO vendor_payments (
                         business_id, vendor_id, vendor_name, vendor_phone, order_id, order_number,
-                        work_type, total_amount, amount_paid, balance, due_date, status, notes
-                    ) VALUES (?, ?, ?, ?, NULL, NULL, 'transport', ?, 0, ?, ?, ?, ?)
+                        work_type, total_amount, amount_paid, balance, due_date, status, notes, dispatch_id, source
+                    ) VALUES (?, ?, ?, ?, NULL, NULL, 'transport', ?, 0, ?, ?, ?, ?, ?, 'dispatch_transport')
                 `).run(
                     businessId, transportVendorId, transportVendor?.name || 'Unknown Transport', transportVendor?.contact || '', 
                     finalCost, finalCost, 
                     new Date(Date.now() + 86400000 * 30).toISOString().split('T')[0], 
                     paymentStatus,
-                    `Delivery charges for ${orderIds.length} orders (Dispatch ${dispatchNumber})`
+                    `Delivery charges for ${orderIds.length} orders (Dispatch ${dispatchNumber})`,
+                    dispatchId
                 );
 
                 if (finalCost > 0) {
@@ -198,7 +200,7 @@ export async function POST(request: Request) {
                 challan_number: response.challanNumber,
                 dispatch_number: response.dispatchNumber,
                 dispatch_date: new Date(response.dispatchDate).getTime() / 1000,
-                customer_name: uniqueCustomerNames.join(', '),
+                customer_name: uniqueCustomerNames.length > 1 ? 'MULTIPLE CUSTOMERS' : uniqueCustomerNames[0],
                 customer_phone: response.ordersData[0].customer_phone,
                 customer_gstin: response.ordersData[0].customer_gstin,
                 driver_name: response.driverName || response.vehicleNumber,
@@ -209,7 +211,11 @@ export async function POST(request: Request) {
                     order_number: o.order_number,
                     design_name: o.design_name,
                     fabric_type: o.fabric_type,
-                    quantity: Number(o.quantity_meters)
+                    quantity: Number(o.quantity_meters),
+                    customer_name: o.customer_name,
+                    customer_phone: o.customer_phone,
+                    customer_address: o.customer_address,
+                    customer_gstin: o.customer_gstin
                 })),
                 total_quantity: totalQty,
                 notes: response.notes,
@@ -249,5 +255,58 @@ export async function POST(request: Request) {
     } catch (error: any) {
         console.error('Dispatch POST Error:', error);
         return NextResponse.json({ error: error.message || 'Internal server error' }, { status: 500 });
+    }
+}
+
+export async function GET(request: Request) {
+    try {
+        const { authorized, error, status } = await checkPermission('orders.view');
+        if (!authorized) return NextResponse.json({ error }, { status });
+
+        const businessId = await getActiveBusinessId();
+        if (!businessId) return NextResponse.json({ error: 'Unauthorized business access' }, { status: 401 });
+
+        const db = getDatabase();
+
+        // 1. Fetch dispatch batches that are out_for_delivery
+        const activeBatches = await db.prepare(`
+            SELECT db.*, dc.id as challan_id, dc.challan_number 
+            FROM dispatch_batches db
+            LEFT JOIN dispatch_challans dc ON db.id = dc.dispatch_id
+            WHERE db.business_id = ? AND db.status = 'out_for_delivery'
+            ORDER BY db.dispatch_date DESC
+        `).all(businessId) as any[];
+
+        // 2. Fetch all orders nested inside each active batch
+        const batchesWithOrders = [];
+        for (const batch of activeBatches) {
+            const orders = await db.prepare(`
+                SELECT 
+                    do.id as dispatch_order_id,
+                    do.delivery_status,
+                    o.id as order_id,
+                    o.order_number,
+                    o.quantity_meters,
+                    o.total_price,
+                    c.name as customer_name,
+                    c.phone as customer_phone,
+                    d.name as design_name
+                FROM dispatch_orders do
+                JOIN orders o ON do.order_id = o.id
+                JOIN customers c ON o.customer_id = c.id
+                JOIN designs d ON o.design_id = d.id
+                WHERE do.dispatch_id = ? AND do.business_id = ?
+            `).all(batch.id, businessId) as any[];
+
+            batchesWithOrders.push({
+                ...batch,
+                orders
+            });
+        }
+
+        return NextResponse.json({ success: true, dispatches: batchesWithOrders });
+    } catch (err: any) {
+        console.error('Dispatch GET Error:', err);
+        return NextResponse.json({ error: err.message || 'Internal server error' }, { status: 500 });
     }
 }

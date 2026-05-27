@@ -796,3 +796,258 @@
     transform: translateY(-1px);
     box-shadow: 0 4px 14px rgba(14, 165, 233, 0.45);
 }
+
+.rowActiveDetail {
+    background: rgba(175, 82, 222, 0.08) !important;
+    border-left-color: #AF52DE !important;
+}
+
+/* ── DESKTOP BULK BAR ── */
+.desktopBulkBar {
+    position: fixed;
+    bottom: 28px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--bg-card);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-primary);
+    border-radius: 20px;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    box-shadow: 0 20px 40px -8px rgba(0,0,0,0.15), 0 8px 16px -4px rgba(0,0,0,0.08);
+    zIndex: 999;
+    minWidth: 460px;
+}
+
+@media (max-width: 767px) {
+    .desktopBulkBar {
+        display: none !important;
+    }
+}
+
+/* ── MOBILE BULK TRAY ── */
+.mobileBulkBar {
+    position: fixed;
+    left: 14px;
+    right: 14px;
+    bottom: calc(14px + env(safe-area-inset-bottom, 0px));
+    z-index: 10000;
+    background: var(--bg-card);
+    border: 1px solid var(--border-primary);
+    border-radius: 28px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.14);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
+    height: 64px;
+}
+
+@media (min-width: 768px) {
+    .mobileBulkBar {
+        display: none !important;
+    }
+}
+
+.mobileBulkLeft {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    min-width: 0;
+}
+
+.mobileBulkBadge {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    background: var(--accent);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.mobileBulkSummary {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+.mobileBulkSummary strong {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.mobileBulkSummary span {
+    font-size: 10.5px;
+    font-weight: 500;
+    color: var(--text-tertiary);
+    line-height: 1.1;
+}
+
+.mobileBulkRight {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+}
+
+.mobileBulkMsgMixed,
+.mobileBulkMsgNone {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.mobileBulkMsgMixed {
+    color: #EF4444;
+}
+
+.mobileBulkActionBtn {
+    height: 40px;
+    border-radius: 999px;
+    border: none;
+    background: var(--text-primary);
+    color: var(--bg-card);
+    font-size: 13px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 0 16px;
+    cursor: pointer;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    transition: transform 0.15s ease;
+}
+
+.mobileBulkActionBtn:active {
+    transform: scale(0.96);
+}
+
+.mobileBulkCloseBtn {
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--bg-grouped);
+    border: 1px solid var(--border-primary);
+    color: var(--text-secondary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.mobileBulkCloseBtn:active {
+    transform: scale(0.92);
+}
+
+@keyframes slideUpBulkBar {
+    from {
+        transform: translateY(120%);
+        opacity: 0.8;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideUpFloatingSheet {
+    from {
+        transform: translateY(calc(100% + 24px));
+        opacity: 0.6;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+@media (max-width: 768px) {
+    .modalOverlay {
+        align-items: flex-end !important;
+        padding: 0 !important;
+        backdrop-filter: blur(12px) !important;
+        -webkit-backdrop-filter: blur(12px) !important;
+        background: rgba(0,0,0,0.24) !important;
+    }
+
+    .modal {
+        margin: 0 12px calc(12px + env(safe-area-inset-bottom, 0px)) 12px !important;
+        width: calc(100% - 24px) !important;
+        max-width: 100% !important;
+        border-radius: 32px !important;
+        max-height: 92vh !important;
+        display: flex !important;
+        flex-direction: column !important;
+        animation: slideUpFloatingSheet 0.4s cubic-bezier(0.16, 1, 0.3, 1) !important;
+        box-shadow: 0 24px 80px rgba(0,0,0,0.22) !important;
+        position: relative !important;
+        top: auto !important;
+        left: auto !important;
+        transform: none !important;
+        padding: 24px 20px 0 20px !important;
+    }
+
+    .mobileSheetHandle {
+        width: 42px;
+        height: 5px;
+        background: #E5E7EB;
+        border-radius: 999px;
+        margin: 0 auto 16px auto;
+        flex-shrink: 0;
+        position: absolute;
+        top: 10px;
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .modalActions {
+        position: sticky !important;
+        bottom: 0 !important;
+        background: rgba(255, 255, 255, 0.85) !important;
+        backdrop-filter: blur(20px) !important;
+        -webkit-backdrop-filter: blur(20px) !important;
+        padding: 14px 16px calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+        border-top: 1px solid rgba(226, 232, 240, 0.6) !important;
+        margin: auto -20px 0 -20px !important;
+        z-index: 10 !important;
+        display: flex !important;
+        gap: 12px !important;
+    }
+
+    .cancelBtn, .deleteBtn {
+        height: 48px !important;
+        font-size: 15px !important;
+        font-weight: 600 !important;
+        border-radius: 16px !important;
+        display: flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+    }
+
+    .deleteBtn {
+        box-shadow: 0 4px 12px rgba(255, 59, 48, 0.2) !important;
+    }
+
+    .cancelBtn:active, .deleteBtn:active {
+        filter: brightness(0.95) !important;
+    }
+}

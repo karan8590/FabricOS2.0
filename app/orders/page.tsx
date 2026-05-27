@@ -1,9 +1,10 @@
 'use client';
 
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 import OrderCard from '@/components/orders/OrderCard';
 import OrdersTable from '@/components/orders/OrdersTable';
+import OrderDetailPreview from '@/components/orders/OrderDetailPreview';
 import Input from '@/components/ui/Input';
 import AdvancedFilter, { FilterDefinition, FilterRow } from '@/components/ui/AdvancedFilter';
 import StatWidget from '@/components/ui/StatWidget';
@@ -35,6 +36,42 @@ export default function OrdersPage() {
     const [loading, setLoading] = useState(true);
     const [searchTerm, setSearchTerm] = useState('');
     const [activeFilters, setActiveFilters] = useState<FilterRow[]>([]);
+    
+    // Pagination & Stats states
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const [globalStats, setGlobalStats] = useState({
+        totalOrders: 0,
+        totalRevenue: 0,
+        pendingCount: 0,
+        productionCount: 0,
+        overdueCount: 0
+    });
+    
+    const [selectedOrderId, setSelectedOrderId] = useState<number | undefined>(undefined);
+    const [isTablet, setIsTablet] = useState(false);
+    const [isDesktop, setIsDesktop] = useState(false);
+    const [sortOrder, setSortOrder] = useState<'desc' | 'asc'>('desc');
+
+    useEffect(() => {
+        const tabletQuery = window.matchMedia('(min-width: 768px) and (max-width: 1023px)');
+        const desktopQuery = window.matchMedia('(min-width: 1024px)');
+
+        setIsTablet(tabletQuery.matches);
+        setIsDesktop(desktopQuery.matches);
+
+        const tabletHandler = (e: MediaQueryListEvent) => setIsTablet(e.matches);
+        const desktopHandler = (e: MediaQueryListEvent) => setIsDesktop(e.matches);
+
+        tabletQuery.addEventListener('change', tabletHandler);
+        desktopQuery.addEventListener('change', desktopHandler);
+
+        return () => {
+            tabletQuery.removeEventListener('change', tabletHandler);
+            desktopQuery.removeEventListener('change', desktopHandler);
+        };
+    }, []);
     const [showRecurringOnly, setShowRecurringOnly] = useState(false);
     
     // New Year/Month Selection State (Global)
@@ -47,9 +84,16 @@ export default function OrdersPage() {
     const [challanOrderData, setChallanOrderData] = useState<any>(null);
     const [isQRScannerOpen, setIsQRScannerOpen] = useState(false);
 
-    // Bulk Actions State
     const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
     const [bulkDispatchModalType, setBulkDispatchModalType] = useState<string | null>(null);
+
+    useEffect(() => {
+        const hasSelected = selectedIds.size > 0;
+        window.dispatchEvent(new CustomEvent('set-mobile-bulk-mode', { detail: { active: hasSelected } }));
+        return () => {
+            window.dispatchEvent(new CustomEvent('set-mobile-bulk-mode', { detail: { active: false } }));
+        };
+    }, [selectedIds]);
 
     // Mobile filter sheet state
     const [isMobileFilterOpen, setIsMobileFilterOpen] = useState(false);
@@ -123,6 +167,71 @@ export default function OrdersPage() {
         }
     }, [searchParams]);
 
+    const fetchOrders = useCallback(async (reset = false, targetPage?: number) => {
+        if (reset) {
+            setLoading(true);
+            setPage(1);
+        } else {
+            setLoadingMore(true);
+        }
+        
+        const currentPage = reset ? 1 : (targetPage || 1);
+        
+        try {
+            const [res, overdueRes] = await Promise.all([
+                fetch(`/api/orders?page=${currentPage}&limit=50`),
+                fetch('/api/vendor-payments/overdue-count')
+            ]);
+            if (res.ok) {
+                const data = await res.json();
+                const fetchedOrders = data.orders || [];
+                
+                if (reset) {
+                    setAllOrders(fetchedOrders);
+                } else {
+                    setAllOrders(prev => {
+                        const newOrders = [...prev];
+                        fetchedOrders.forEach((o: any) => {
+                            if (!newOrders.find(ext => ext.id === o.id)) {
+                                newOrders.push(o);
+                            }
+                        });
+                        return newOrders;
+                    });
+                }
+                
+                setHasMore(fetchedOrders.length === 50);
+                
+                if (data.stats) {
+                    setGlobalStats(prev => ({
+                        ...prev,
+                        totalOrders: data.stats.totalOrders,
+                        totalRevenue: data.stats.totalRevenue,
+                        pendingCount: data.stats.pendingCount,
+                        productionCount: data.stats.productionCount
+                    }));
+                }
+                
+                if (reset) setSelectedIds(new Set()); // Auto-clear selection on full refresh
+            } else {
+                const errData = await res.json().catch(() => ({}));
+                console.error('Orders fetch failed:', res.status, errData);
+            }
+            if (overdueRes.ok) {
+                const overdueData = await overdueRes.json();
+                setGlobalStats(prev => ({
+                    ...prev,
+                    overdueCount: overdueData.overdueCount || 0
+                }));
+            }
+        } catch (error) {
+            console.error('Orders fetch error:', error);
+        } finally {
+            setLoading(false);
+            setLoadingMore(false);
+        }
+    }, []);
+
     useEffect(() => {
         const fetchFilterData = async () => {
             try {
@@ -151,34 +260,75 @@ export default function OrdersPage() {
         };
 
         fetchFilterData();
-        fetchOrders();
+        fetchOrders(true);
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, [customerIdParam]);
 
-    const fetchOrders = useCallback(async () => {
-        setLoading(true);
+    const loadMoreOrders = useCallback(() => {
+        if (!loading && !loadingMore && hasMore) {
+            setPage(prev => prev + 1);
+        }
+    }, [loading, loadingMore, hasMore]);
+
+    const refreshLoadedOrders = useCallback(async () => {
         try {
+            const currentLimit = page * 50;
             const [res, overdueRes] = await Promise.all([
-                fetch('/api/orders'),
+                fetch(`/api/orders?page=1&limit=${currentLimit}`),
                 fetch('/api/vendor-payments/overdue-count')
             ]);
+            
             if (res.ok) {
                 const data = await res.json();
                 setAllOrders(data.orders || []);
-                setSelectedIds(new Set()); // Auto-clear selection on any refresh/workflow update
-            } else {
-                const errData = await res.json().catch(() => ({}));
-                console.error('Orders fetch failed:', res.status, errData);
+                
+                if (data.stats) {
+                    setGlobalStats(prev => ({
+                        ...prev,
+                        totalOrders: data.stats.totalOrders,
+                        totalRevenue: data.stats.totalRevenue,
+                        pendingCount: data.stats.pendingCount,
+                        productionCount: data.stats.productionCount
+                    }));
+                }
             }
             if (overdueRes.ok) {
                 const overdueData = await overdueRes.json();
-                setPaymentIssuesCount(overdueData.overdueCount || 0);
+                setGlobalStats(prev => ({
+                    ...prev,
+                    overdueCount: overdueData.overdueCount || 0
+                }));
             }
         } catch (error) {
-            console.error('Orders fetch error:', error);
-        } finally {
-            setLoading(false);
+            console.error('Failed to refresh loaded orders:', error);
         }
-    }, []);
+    }, [page]);
+
+    useEffect(() => {
+        if (page > 1) {
+            fetchOrders(false, page);
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [page]);
+
+    const loaderRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            entries => {
+                if (entries[0].isIntersecting && hasMore && !loadingMore) {
+                    loadMoreOrders();
+                }
+            },
+            { threshold: 0.1, rootMargin: '100px' }
+        );
+
+        if (loaderRef.current) {
+            observer.observe(loaderRef.current);
+        }
+
+        return () => observer.disconnect();
+    }, [hasMore, loadingMore, loadMoreOrders]);
 
     const handleApplyFilters = (filters: FilterRow[]) => {
         setActiveFilters(filters);
@@ -363,24 +513,32 @@ export default function OrdersPage() {
             result = [...result].sort((a, b) => (b.total_price || 0) - (a.total_price || 0));
         }
 
+        if (activeWidget !== 'revenue') {
+            result = [...result].sort((a, b) => {
+                const dateA = a.order_date || a.created_at;
+                const dateB = b.order_date || b.created_at;
+                if (dateA !== dateB) {
+                    return sortOrder === 'desc' ? dateB - dateA : dateA - dateB;
+                }
+                return sortOrder === 'desc' ? b.id - a.id : a.id - b.id;
+            });
+        }
+
         return result;
-    }, [filteredOrders, activeWidget]);
+    }, [filteredOrders, activeWidget, sortOrder]);
+
+    useEffect(() => {
+        if (isTablet && finalOrders.length > 0) {
+            const exists = finalOrders.some(o => o.id === selectedOrderId);
+            if (!exists) {
+                setSelectedOrderId(finalOrders[0].id);
+            }
+        }
+    }, [isTablet, finalOrders, selectedOrderId]);
 
     const stats = useMemo(() => {
-        const totalOrders = filteredOrders.length;
-        const totalRevenue = filteredOrders.reduce((sum, o) => sum + (parseFloat(o.total_price) || 0), 0);
-        const pendingCount = filteredOrders.filter(o => o.status?.toLowerCase() === ORDER_STATUSES.CREATED).length;
-        const productionCount = filteredOrders.filter(o => isProductionStatus(o.status || '')).length;
-        
-        const now = Math.floor(Date.now() / 1000);
-        const overdueCount = filteredOrders.filter(o => {
-            const isFinished = isFinishedStatus(o);
-            const deliveryDeadline = (o.order_date || o.created_at) + (7 * 24 * 60 * 60);
-            return !isFinished && now > deliveryDeadline;
-        }).length;
-
-        return { totalOrders, totalRevenue, pendingCount, productionCount, overdueCount };
-    }, [filteredOrders]);
+        return globalStats;
+    }, [globalStats]);
 
     const groupedOrders = useMemo(() => {
         const groups: Record<string, { month: number; year: number; monthName: string; orders: any[]; revenue: number; pending: number; approved: number }> = {};
@@ -411,10 +569,10 @@ export default function OrdersPage() {
         });
         
         return Object.values(groups).sort((a, b) => {
-            if (a.year !== b.year) return b.year - a.year;
-            return b.month - a.month;
+            if (a.year !== b.year) return sortOrder === 'desc' ? b.year - a.year : a.year - b.year;
+            return sortOrder === 'desc' ? b.month - a.month : a.month - b.month;
         });
-    }, [finalOrders]);
+    }, [finalOrders, sortOrder]);
 
     const formatCurrency = formatCurrencySafe;
 
@@ -503,6 +661,16 @@ export default function OrdersPage() {
         { id: 'production', label: 'In Production', value: stats.productionCount, color: 'blue', icon: 'layers' },
         { id: 'overdue', label: 'Payment Issues', value: stats.overdueCount, color: 'red', icon: 'alert' },
     ];
+
+    const hasActiveOverlay = Boolean(
+        isCreatePanelOpen || 
+        isChallanModalOpen || 
+        isQRScannerOpen || 
+        showPaymentModal || 
+        isEditModalOpen || 
+        isMobileFilterOpen || 
+        bulkDispatchModalType !== null
+    );
 
     return (
         <>
@@ -719,53 +887,79 @@ export default function OrdersPage() {
                     {finalOrders.length === 0 ? (
                         <div className={styles.emptyState}><p>No orders found</p></div>
                     ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                            {groupedOrders.map((group) => {
-                                const key = `${group.month}-${group.year}`;
-                                const currentMonthKey = `${new Date().getMonth() + 1}-${new Date().getFullYear()}`;
-                                const isExpanded = collapsedMonths[key] !== undefined 
-                                    ? !collapsedMonths[key] 
-                                    : key === currentMonthKey;
+                        <div className={isTablet ? styles.splitLayoutContainer : undefined}>
+                            <div className={isTablet ? styles.leftListPane : undefined} style={!isTablet ? { display: 'flex', flexDirection: 'column', gap: '16px', width: '100%' } : undefined}>
+                                {groupedOrders.map((group) => {
+                                    const key = `${group.month}-${group.year}`;
+                                    const currentMonthKey = `${new Date().getMonth() + 1}-${new Date().getFullYear()}`;
+                                    const isExpanded = collapsedMonths[key] !== undefined 
+                                        ? !collapsedMonths[key] 
+                                        : key === currentMonthKey;
 
-                                const metrics: any[] = [
-                                    { value: group.orders.length, label: group.orders.length === 1 ? 'order' : 'orders' },
-                                    { value: formatCurrency(group.revenue), label: 'revenue', type: 'success' }
-                                ];
+                                    const metrics: any[] = [
+                                        { value: group.orders.length, label: group.orders.length === 1 ? 'order' : 'orders' },
+                                        { value: formatCurrency(group.revenue), label: 'revenue', type: 'success' }
+                                    ];
 
-                                if (group.pending > 0) {
-                                    metrics.push({ value: group.pending, label: 'waiting approval', type: 'warning' });
-                                }
-                                if (group.approved > 0) {
-                                    metrics.push({ value: group.approved, label: 'in production', type: 'info' });
-                                }
+                                    if (group.pending > 0) {
+                                        metrics.push({ value: group.pending, label: 'waiting approval', type: 'warning' });
+                                    }
+                                    if (group.approved > 0) {
+                                        metrics.push({ value: group.approved, label: 'in production', type: 'info' });
+                                    }
 
-                                return (
-                                    <GroupedPeriodSection
-                                        key={key}
-                                        monthName={group.monthName}
-                                        year={group.year.toString()}
-                                        metrics={metrics}
-                                        isExpanded={isExpanded}
-                                        onToggle={() => {
-                                            setCollapsedMonths(prev => ({
-                                                ...prev,
-                                                [key]: prev[key] === undefined ? true : !prev[key]
-                                            }));
-                                        }}
-                                    >
-                                        <OrdersTable
-                                            orders={group.orders}
-                                            onUpdate={fetchOrders}
-                                            onGenerateInvoice={handleGenerateInvoiceClick}
-                                            onEdit={handleEditClick}
-                                            activeWidget={activeWidget}
-                                            selectedIds={selectedIds}
-                                            onToggleSelect={toggleSelection}
-                                            onClearSelection={clearSelection}
-                                        />
-                                    </GroupedPeriodSection>
-                                );
-                            })}
+                                    return (
+                                        <GroupedPeriodSection
+                                            key={key}
+                                            monthName={group.monthName}
+                                            year={group.year.toString()}
+                                            metrics={metrics}
+                                            isExpanded={isExpanded}
+                                            onToggle={() => {
+                                                setCollapsedMonths(prev => ({
+                                                    ...prev,
+                                                    [key]: prev[key] === undefined ? true : !prev[key]
+                                                }));
+                                            }}
+                                        >
+                                            <OrdersTable
+                                                orders={group.orders}
+                                                onUpdate={refreshLoadedOrders}
+                                                onGenerateInvoice={handleGenerateInvoiceClick}
+                                                onEdit={handleEditClick}
+                                                activeWidget={activeWidget}
+                                                selectedIds={selectedIds}
+                                                onToggleSelect={toggleSelection}
+                                                onClearSelection={clearSelection}
+                                                selectedOrderId={isTablet ? selectedOrderId : undefined}
+                                                onSelectOrder={isTablet ? setSelectedOrderId : (isDesktop ? (id) => router.push(`/orders/${id}`) : undefined)}
+                                                hasActiveOverlay={hasActiveOverlay}
+                                                sortOrder={sortOrder}
+                                                onSortToggle={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
+                                            />
+                                        </GroupedPeriodSection>
+                                    );
+                                })}
+                                
+                                {hasMore && (
+                                    <div ref={loaderRef} style={{ padding: '24px', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+                                        {loadingMore ? (
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-secondary)' }}>
+                                                <Loader2 className="animate-spin" size={16} /> Loading more orders...
+                                            </div>
+                                        ) : null}
+                                    </div>
+                                )}
+                            </div>
+                            {isTablet && (
+                                <div className={styles.rightDetailPane}>
+                                    <OrderDetailPreview
+                                        orderId={selectedOrderId}
+                                        onUpdate={fetchOrders}
+                                        onGenerateInvoice={handleGenerateInvoiceClick}
+                                    />
+                                </div>
+                            )}
                         </div>
                     )}
                 </>
@@ -774,11 +968,20 @@ export default function OrdersPage() {
             {showPaymentModal && (
                 <div className="global-modal-overlay">
                     <div className={styles.modalCard}>
+                        <div className={styles.mobileSheetHandle} />
                         <h3 className={styles.modalTitle}>Set Payment Terms</h3>
                         <p className={styles.modalDescription}>Invoice due date will be calculated automatically based on payment terms.</p>
                         <div className={styles.inputGroup}>
                             <label>Days until due</label>
-                            <Input type="number" min="0" max="90" value={paymentTerms.toString()} onChange={(e) => setPaymentTerms(parseInt(e.target.value) || 0)} />
+                            <Input 
+                                type="number" 
+                                min="0" 
+                                max="90" 
+                                value={paymentTerms.toString()} 
+                                onChange={(e) => setPaymentTerms(parseInt(e.target.value) || 0)} 
+                                autoFocus
+                                inputMode="numeric"
+                            />
                         </div>
                         <div className={styles.modalActions}>
                             <button className={styles.btnGhost} onClick={() => setShowPaymentModal(false)} disabled={processingInvoice}>Cancel</button>
@@ -828,14 +1031,14 @@ export default function OrdersPage() {
                         setIsChallanModalOpen(false);
                         setChallanOrderData(null);
                     }}
-                    orderData={challanOrderData}
+                    linkedOrderData={challanOrderData}
                 />
             )}
         </div>
 
         {/* Mobile FAB — Add Order */}
         <button
-            className={styles.mobileFab}
+            className={`${styles.mobileFab} ${(selectedIds.size > 0 || hasActiveOverlay) ? styles.mobileFabHidden : ''}`}
             onClick={() => setIsCreatePanelOpen(true)}
             aria-label="Add Order"
         >

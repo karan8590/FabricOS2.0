@@ -8,7 +8,7 @@ import AdvancedFilter, { FilterDefinition, FilterRow } from '@/components/ui/Adv
 import StatWidget from '@/components/ui/StatWidget';
 import CustomerQuickView from '@/components/customers/CustomerQuickView';
 import CreateCustomerModal from '@/components/customers/CreateCustomerModal';
-import { Eye, Plus } from 'lucide-react';
+import { Eye, Plus, Phone, MessageCircle, Receipt, Share2 } from 'lucide-react';
 import styles from './Customers.module.css';
 import { formatCurrencySafe } from '@/lib/utils';
 
@@ -34,6 +34,50 @@ export default function CustomersPage() {
         { id: 'outstanding', label: 'Due Amount', type: 'number' },
     ]);
     const router = useRouter();
+
+    const handleShareLedger = async (customerId: number, name: string, phone: string) => {
+        try {
+            const res = await fetch(`/api/share?type=ledger&id=${customerId}`);
+            if (res.ok) {
+                const data = await res.json();
+                const shareUrl = data.url;
+                const message = `Hi ${name}, please find your ledger statement. View details here: ${shareUrl}`;
+                window.open(`https://wa.me/${phone?.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
+            } else {
+                alert('Failed to generate sharing URL');
+            }
+        } catch (err) {
+            console.error('Error sharing ledger:', err);
+        }
+    };
+
+    const handleShareInvoice = async (customerId: number, name: string, phone: string) => {
+        try {
+            const workspaceRes = await fetch(`/api/customers/${customerId}/workspace`);
+            if (!workspaceRes.ok) {
+                alert('Failed to retrieve customer invoices');
+                return;
+            }
+            const data = await workspaceRes.json();
+            const unpaidInvoices = data.invoices?.filter((i: any) => i.status !== 'paid') || [];
+            if (unpaidInvoices.length === 0) {
+                alert('No outstanding invoices found for this customer.');
+                return;
+            }
+            const invoice = unpaidInvoices[0];
+            const res = await fetch(`/api/share?type=invoice&id=${invoice.id}`);
+            if (res.ok) {
+                const shareData = await res.json();
+                const shareUrl = shareData.url;
+                const message = `Hi ${name}, here is your Tax Invoice ${invoice.invoice_number} for ₹${invoice.amount?.toLocaleString('en-IN')}. Please download here: ${shareUrl}`;
+                window.open(`https://wa.me/${phone?.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
+            } else {
+                alert('Failed to generate sharing URL');
+            }
+        } catch (err) {
+            console.error('Error sharing invoice:', err);
+        }
+    };
 
     useEffect(() => {
         fetchCustomers();
@@ -330,6 +374,34 @@ export default function CustomersPage() {
                                     <div className={styles.statBlock}><span className={`${styles.statValue} ${styles.textBlue}`}>{customer.total_orders}</span><span className={styles.statLabel}>Orders</span></div>
                                     <div className={styles.statBlock}><span className={styles.statValue}>₹{(customer.ltv || 0).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span><span className={styles.statLabel}>LTV</span></div>
                                     <div className={styles.statBlock}><span className={`${styles.statValue} ${customer.outstanding_amount > 0 ? styles.textOrange : ''}`}>₹{Math.max(0, customer.outstanding_amount).toLocaleString(undefined, { maximumFractionDigits: 0 })}</span><span className={styles.statLabel}>Due</span></div>
+                                </div>
+                                <div className={styles.cardActions} onClick={e => e.stopPropagation()}>
+                                    <a href={`tel:${customer.phone}`} className={styles.actionIconButton} title="Call">
+                                        <Phone size={13} />
+                                    </a>
+                                    <a 
+                                        href={`https://wa.me/${customer.phone?.replace(/\D/g, '')}`} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer" 
+                                        className={`${styles.actionIconButton} ${styles.waButton}`}
+                                        title="WhatsApp"
+                                    >
+                                        <MessageCircle size={13} />
+                                    </a>
+                                    <button 
+                                        onClick={() => handleShareInvoice(customer.id, customer.name, customer.phone)} 
+                                        className={styles.actionIconButton} 
+                                        title="Share Outstanding Invoice"
+                                    >
+                                        <Receipt size={13} />
+                                    </button>
+                                    <button 
+                                        onClick={() => handleShareLedger(customer.id, customer.name, customer.phone)} 
+                                        className={styles.actionIconButton} 
+                                        title="Share Ledger Statement"
+                                    >
+                                        <Share2 size={13} />
+                                    </button>
                                 </div>
                             </div>
                         ))

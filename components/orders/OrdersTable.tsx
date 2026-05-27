@@ -2,7 +2,8 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { 
     MoreHorizontal, Eye, Edit2, Copy, FileText, 
-    CheckCircle2, Trash2, AlertTriangle, Truck, X, QrCode, Printer
+    CheckCircle2, Trash2, AlertTriangle, Truck, X, QrCode, Printer,
+    MessageCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import styles from './OrdersTable.module.css';
@@ -30,6 +31,11 @@ interface OrdersTableProps {
     selectedIds?: Set<number>;
     onToggleSelect?: (id: number) => void;
     onClearSelection?: () => void;
+    selectedOrderId?: number;
+    onSelectOrder?: (id: number) => void;
+    hasActiveOverlay?: boolean;
+    sortOrder?: 'desc' | 'asc';
+    onSortToggle?: () => void;
 }
 
 const OrderTableRow = React.memo(({ 
@@ -43,7 +49,9 @@ const OrderTableRow = React.memo(({
     isSelected,
     onToggleSelect,
     setIsCompletePrintingModalOpen,
-    setSelectedOrderForPrinting
+    setSelectedOrderForPrinting,
+    selectedOrderId,
+    onSelectOrder
 }: { 
     order: any; 
     onUpdate: () => void; 
@@ -56,6 +64,8 @@ const OrderTableRow = React.memo(({
     onToggleSelect?: (id: number) => void;
     setIsCompletePrintingModalOpen: (val: boolean) => void;
     setSelectedOrderForPrinting: (order: any) => void;
+    selectedOrderId?: number;
+    onSelectOrder?: (id: number) => void;
 }) => {
     const [isHovered, setIsHovered] = useState(false);
     
@@ -83,9 +93,15 @@ const OrderTableRow = React.memo(({
 
     return (
         <tr 
-            className={`${styles.tr} ${rowStatusClass} ${highlightClass} ${isSelected ? styles.rowSelected : ''}`}
+            className={`${styles.tr} ${rowStatusClass} ${highlightClass} ${isSelected ? styles.rowSelected : ''} ${selectedOrderId === order.id ? styles.rowActiveDetail : ''}`}
             onMouseEnter={() => setIsHovered(true)}
             onMouseLeave={() => setIsHovered(false)}
+            onClick={() => {
+                if (onSelectOrder) {
+                    onSelectOrder(order.id);
+                }
+            }}
+            style={onSelectOrder ? { cursor: 'pointer' } : undefined}
         >
             <td className={styles.tdCheckbox}>
                 {isEligibleForBulkAction(order) && (
@@ -129,7 +145,7 @@ const OrderTableRow = React.memo(({
                 </div>
             </td>
             <td className={styles.td}>
-                <div className={styles.customerCell} onClick={() => handleCustomerClick(order.customer_id)} style={{ cursor: 'pointer' }}>
+                <div className={styles.customerCell} onClick={(e) => { e.stopPropagation(); handleCustomerClick(order.customer_id); }} style={{ cursor: 'pointer' }}>
                     <div className={styles.customerName}>{order.customer_name}</div>
                     <div className={styles.phone}>{order.customer_phone}</div>
                 </div>
@@ -312,17 +328,26 @@ OrderMobileCard.displayName = 'OrderMobileCard';
 
 
 
-export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdit, activeWidget, selectedIds, onToggleSelect, onClearSelection }: OrdersTableProps) {
+export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdit, activeWidget, selectedIds, onToggleSelect, onClearSelection, selectedOrderId, onSelectOrder, hasActiveOverlay, sortOrder, onSortToggle }: OrdersTableProps) {
     const router = useRouter();
-    const [currentPage, setCurrentPage] = useState(1);
-    
-    // Modals state
+
+    useEffect(() => {
+        // Prefetch inventory in the background when the table renders
+        import('@/lib/inventoryCache').then(mod => {
+            mod.prefetchFabricInventory();
+        }).catch(err => console.error(err));
+    }, []);
+
     const [workflowActionState, setWorkflowActionState] = useState<{isOpen: boolean, action: string, order: any}>({isOpen: false, action: '', order: null});
     
     const [showDispatchModal, setShowDispatchModal] = useState(false);
     const [isCompletePrintingModalOpen, setIsCompletePrintingModalOpen] = useState(false);
     const [selectedOrderForPrinting, setSelectedOrderForPrinting] = useState<any>(null);
-    const rowsPerPage = 20;
+    const rowsPerPage = 50;
+    const [currentPage, setCurrentPage] = useState(1);
+
+    const localHasActiveOverlay = workflowActionState.isOpen || showDispatchModal || isCompletePrintingModalOpen;
+    const isOverlayActive = hasActiveOverlay || localHasActiveOverlay;
 
     useEffect(() => {
         // Keep the modal's order reference up-to-date if the parent re-fetches
@@ -367,10 +392,10 @@ export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdi
 
     const selectedOrders = orders.filter(o => selectedIds?.has(o.id));
 
-    const needsPagination = orders.length > 50;
-    const startIndex = needsPagination ? (currentPage - 1) * rowsPerPage : 0;
-    const endIndex = needsPagination ? startIndex + rowsPerPage : orders.length;
-    const paginatedOrders = orders.slice(startIndex, endIndex);
+    const needsPagination = false; // Disabled internal pagination in favor of infinite scrolling in page.tsx
+    const startIndex = 0;
+    const endIndex = orders.length;
+    const paginatedOrders = orders;
     const totalPages = Math.ceil(orders.length / rowsPerPage);
 
     const closeWorkflowModal = () => setWorkflowActionState({isOpen: false, action: '', order: null});
@@ -461,7 +486,15 @@ export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdi
                                 />
                             )}
                         </th>
-                        <th>Order ID</th>
+                        <th 
+                            onClick={onSortToggle} 
+                            style={{ cursor: onSortToggle ? 'pointer' : 'default', userSelect: 'none' }}
+                            title={onSortToggle ? "Click to toggle sort order" : undefined}
+                        >
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
+                                Date {sortOrder ? (sortOrder === 'desc' ? '↓' : '↑') : ''}
+                            </div>
+                        </th>
                         <th>Customer</th>
                         <th>Design</th>
                         <th>Quantity</th>
@@ -486,6 +519,8 @@ export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdi
                             onToggleSelect={onToggleSelect}
                             setIsCompletePrintingModalOpen={setIsCompletePrintingModalOpen}
                             setSelectedOrderForPrinting={setSelectedOrderForPrinting}
+                            selectedOrderId={selectedOrderId}
+                            onSelectOrder={onSelectOrder}
                         />
                     ))}
                 </tbody>
@@ -506,6 +541,9 @@ export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdi
                         onToggleSelect={onToggleSelect}
                         setIsCompletePrintingModalOpen={setIsCompletePrintingModalOpen}
                         setSelectedOrderForPrinting={setSelectedOrderForPrinting}
+                        selectedOrderId={selectedOrderId}
+                        onSelectOrder={onSelectOrder}
+                        isSelectionModeActive={selectedIds && selectedIds.size > 0}
                     />
                 ))}
             </div>
@@ -533,9 +571,9 @@ export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdi
             )}
             {selectedOrders.length > 0 && (() => {
                 const totalMetres = selectedOrders.reduce((sum, o) => sum + (parseFloat(o.quantity_meters) || 0), 0);
-                const uniqueStages = [...new Set(selectedOrders.map(o =>
+                const uniqueStages = Array.from(new Set(selectedOrders.map(o =>
                     `${o.order_stage || 'order_added'}-${o.embroidery_status || ''}-${o.printing_status || ''}-${o.dyeing_status || ''}`
-                ))];
+                )));
                 const isMixed = uniqueStages.length > 1;
                 const sample = selectedOrders[0];
                 const sStage = sample.order_stage || 'order_added';
@@ -553,88 +591,104 @@ export default function OrdersTable({ orders, onUpdate, onGenerateInvoice, onEdi
                 }
 
                 return (
-                    <div style={{
-                        position: 'fixed',
-                        /* Mobile: full-width with safe margin; Desktop: centered pill */
-                        bottom: 0,
-                        left: 0,
-                        right: 0,
-                        zIndex: 999,
-                        padding: '12px 16px calc(12px + env(safe-area-inset-bottom, 0px))',
-                        background: 'var(--bg-card)',
-                        backdropFilter: 'blur(20px)',
-                        borderTop: '1px solid var(--border-primary)',
-                        boxShadow: '0 -4px 24px rgba(0,0,0,0.08)',
-                        display: 'flex',
-                        flexDirection: 'column',
-                        gap: '10px',
-                    }}>
-                        {/* Row 1: count + clear */}
-                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                                <div style={{
-                                    width: '28px', height: '28px', borderRadius: '8px',
-                                    background: '#0EA5E9', display: 'flex', alignItems: 'center',
-                                    justifyContent: 'center', color: '#fff', fontSize: '13px', fontWeight: 700
-                                }}>{selectedOrders.length}</div>
-                                <div>
-                                    <div style={{ fontSize: '14px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.2 }}>
-                                        {selectedOrders.length} {selectedOrders.length === 1 ? 'order' : 'orders'} selected
-                                    </div>
-                                    <div style={{ fontSize: '11.5px', color: 'var(--text-tertiary)' }}>
-                                        {totalMetres.toFixed(1)} m total
-                                    </div>
-                                </div>
+                    <>
+                        {/* ── DESKTOP BULK BAR (>= 768px) ── */}
+                        <div className={styles.desktopBulkBar}>
+                            {/* Left: Selection Info */}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '1px', paddingRight: '20px', borderRight: '1px solid var(--border-primary)', minWidth: '90px' }}>
+                                <span style={{ fontSize: '15px', fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.2 }}>
+                                    {selectedOrders.length} {selectedOrders.length === 1 ? 'order' : 'orders'}
+                                </span>
+                                <span style={{ fontSize: '12px', fontWeight: 500, color: 'var(--text-tertiary)' }}>
+                                    {totalMetres.toFixed(1)}m selected
+                                </span>
                             </div>
-                            <button
-                                onClick={() => { if (onToggleSelect && selectedIds) { selectedOrders.forEach(o => onToggleSelect(o.id)); } }}
-                                style={{
-                                    width: '36px', height: '36px', borderRadius: '50%',
-                                    background: 'var(--bg-grouped)', border: '1px solid var(--border-primary)',
-                                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                    cursor: 'pointer', color: 'var(--text-secondary)'
-                                }}
-                            >
-                                <X size={16} />
-                            </button>
-                        </div>
 
-                        {/* Row 2: action button */}
-                        <div>
-                            {isMixed ? (
-                                <div style={{
-                                    padding: '12px', borderRadius: '14px', background: 'rgba(239,68,68,0.08)',
-                                    border: '1px solid rgba(239,68,68,0.2)', textAlign: 'center',
-                                    fontSize: '13px', fontWeight: 600, color: '#EF4444'
-                                }}>
-                                    Mixed stages — bulk actions unavailable
-                                </div>
-                            ) : bulkActionProps ? (
+                            {/* Center: Action Buttons */}
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '0 20px', flex: 1, justifyContent: 'center' }}>
+                                {isMixed ? (
+                                    <span style={{ color: '#EF4444', fontSize: '13px', fontWeight: 600 }}>Mixed stages selected - Bulk actions disabled</span>
+                                ) : bulkActionProps ? (
+                                    <button
+                                        onClick={bulkActionProps.onClick}
+                                        style={{
+                                            display: 'flex', alignItems: 'center', gap: '6px',
+                                            padding: '8px 18px', borderRadius: '10px', fontSize: '13px',
+                                            fontWeight: 600, cursor: 'pointer', border: 'none',
+                                            background: 'linear-gradient(135deg, #0F172A 0%, #1E293B 100%)',
+                                            color: '#FFFFFF',
+                                            boxShadow: '0 2px 8px rgba(15,23,42,0.3)',
+                                            transition: 'all 0.15s ease', whiteSpace: 'nowrap'
+                                        }}
+                                    >
+                                        <i className={`ti ${bulkActionProps.icon}`}></i> {bulkActionProps.label}
+                                    </button>
+                                ) : (
+                                    <span style={{ color: 'var(--text-tertiary)', fontSize: '13px', fontWeight: 600 }}>No bulk actions for this stage</span>
+                                )}
+                            </div>
+
+                            {/* Right: Clear */}
+                            <div style={{ paddingLeft: '16px', borderLeft: '1px solid var(--border-primary)' }}>
                                 <button
-                                    onClick={bulkActionProps.onClick}
+                                    onClick={() => { if (onToggleSelect && selectedIds) { selectedOrders.forEach(o => onToggleSelect(o.id)); } }}
                                     style={{
-                                        width: '100%', minHeight: '50px', borderRadius: '14px',
-                                        border: 'none', background: 'linear-gradient(135deg, #0F172A, #1E293B)',
-                                        color: '#fff', fontSize: '15px', fontWeight: 700,
-                                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                        gap: '8px', cursor: 'pointer',
-                                        boxShadow: '0 4px 16px rgba(15,23,42,0.25)'
+                                        display: 'flex', alignItems: 'center', gap: '4px',
+                                        padding: '6px 12px', borderRadius: '8px', fontSize: '13px',
+                                        fontWeight: 500, cursor: 'pointer', border: '1px solid transparent',
+                                        background: 'transparent', color: 'var(--text-tertiary)',
+                                        transition: 'all 0.15s ease'
                                     }}
                                 >
-                                    <i className={`ti ${bulkActionProps.icon}`} style={{ fontSize: '18px' }} />
-                                    {bulkActionProps.label}
+                                    <X size={14} /> Clear
                                 </button>
-                            ) : (
-                                <div style={{
-                                    padding: '12px', borderRadius: '14px', background: 'var(--bg-grouped)',
-                                    border: '1px solid var(--border-primary)', textAlign: 'center',
-                                    fontSize: '13px', fontWeight: 500, color: 'var(--text-tertiary)'
-                                }}>
-                                    No bulk actions for this stage
-                                </div>
-                            )}
+                            </div>
                         </div>
-                    </div>
+
+                        {/* ── MOBILE BULK TRAY (< 768px) ── */}
+                        <AnimatePresence>
+                        {!isOverlayActive && (
+                            <motion.div 
+                                className={styles.mobileBulkBar}
+                                initial={{ y: 100, opacity: 0 }}
+                                animate={{ y: 0, opacity: 1 }}
+                                exit={{ y: 100, opacity: 0 }}
+                                transition={{ type: 'spring', damping: 25, stiffness: 250 }}
+                            >
+                                <div className={styles.mobileBulkLeft}>
+                                    <span className={styles.mobileBulkBadge}>{selectedOrders.length}</span>
+                                    <div className={styles.mobileBulkSummary}>
+                                        <strong>{selectedOrders.length} {selectedOrders.length === 1 ? 'order' : 'orders'} selected</strong>
+                                        <span>{totalMetres.toFixed(0)}m total</span>
+                                    </div>
+                                </div>
+                                <div className={styles.mobileBulkRight}>
+                                    {isMixed ? (
+                                        <span className={styles.mobileBulkMsgMixed}>Mixed stages</span>
+                                    ) : bulkActionProps ? (
+                                        <button className={styles.mobileBulkActionBtn} onClick={bulkActionProps.onClick}>
+                                            {bulkActionProps.label.includes('Embroidery') && <Scissors size={14} />}
+                                            {bulkActionProps.label.includes('Dyeing') && <Droplets size={14} />}
+                                            {bulkActionProps.label.includes('Deliver') && <Truck size={14} />}
+                                            <span>
+                                                {bulkActionProps.label.includes('Embroidery') ? 'Embroidery' :
+                                                 bulkActionProps.label.includes('Dyeing') ? 'Dyeing' : 'Deliver'}
+                                            </span>
+                                        </button>
+                                    ) : (
+                                        <span className={styles.mobileBulkMsgNone}>No actions</span>
+                                    )}
+                                    <button
+                                        className={styles.mobileBulkCloseBtn}
+                                        onClick={() => { if (onToggleSelect && selectedIds) { selectedOrders.forEach(o => onToggleSelect(o.id)); } }}
+                                    >
+                                        <X size={16} />
+                                    </button>
+                                </div>
+                            </motion.div>
+                        )}
+                        </AnimatePresence>
+                    </>
                 );
             })()}
 
@@ -689,6 +743,25 @@ function OrderActionMenu({ order, onUpdate, onGenerateInvoice, onEdit }: { order
         }
     };
 
+    const handleShareOrderWhatsApp = async (orderId: number, type: 'summary' | 'dispatch' | 'tracking') => {
+        try {
+            const res = await fetch(`/api/orders/${orderId}/share-details`);
+            if (!res.ok) {
+                alert('Failed to retrieve order details for sharing');
+                return;
+            }
+            const data = await res.json();
+            let message = '';
+            if (type === 'summary') message = data.summaryMessage;
+            else if (type === 'dispatch') message = data.dispatchMessage;
+            else if (type === 'tracking') message = data.trackingMessage;
+
+            window.open(`https://wa.me/${data.phone?.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
+        } catch (err) {
+            console.error('Error sharing order via WhatsApp:', err);
+        }
+    };
+
     const menuItems = [
         { type: 'section', label: 'Order Management' },
         { label: 'View Details', icon: <Eye size={16} />, onClick: () => router.push(`/orders/${order.id}`) },
@@ -705,6 +778,12 @@ function OrderActionMenu({ order, onUpdate, onGenerateInvoice, onEdit }: { order
             color: '#34C759',
             show: !order.invoice_generated
         },
+
+        { type: 'separator' },
+        { type: 'section', label: 'WhatsApp Share' },
+        { label: 'Share Order Summary', icon: <MessageCircle size={16} />, onClick: () => handleShareOrderWhatsApp(order.id, 'summary'), color: '#25D366' },
+        { label: 'Share Dispatch Slip', icon: <MessageCircle size={16} />, onClick: () => handleShareOrderWhatsApp(order.id, 'dispatch'), color: '#25D366' },
+        { label: 'Share Tracking Update', icon: <MessageCircle size={16} />, onClick: () => handleShareOrderWhatsApp(order.id, 'tracking'), color: '#25D366' },
 
         { type: 'separator' },
         { type: 'section', label: 'Danger Zone' },
@@ -799,6 +878,7 @@ function OrderActionMenu({ order, onUpdate, onGenerateInvoice, onEdit }: { order
             {showDeleteModal && createPortal(
                 <div className="global-modal-overlay" onClick={() => setShowDeleteModal(false)}>
                     <div className={styles.modal} onClick={e => e.stopPropagation()}>
+                        <div className={styles.mobileSheetHandle} />
                         <div className={styles.modalIcon}>
                             <AlertTriangle size={24} color="#FF3B30" />
                         </div>

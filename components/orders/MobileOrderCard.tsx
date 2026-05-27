@@ -4,12 +4,11 @@ import React, { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import {
     MoreHorizontal, Eye, Edit2, FileText, Trash2,
-    AlertTriangle, QrCode, Calendar, CheckCircle2, Building2
+    AlertTriangle, QrCode, MessageCircle, CheckCircle2,
+    Scissors, Droplets, Package, Truck, Check
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import styles from './MobileOrderCard.module.css';
-import IntelligentChip from './IntelligentChip';
-import { ORDER_STATUS_LABELS, ORDER_STATUSES } from '@/lib/constants';
 
 /* ------------------------------------------------------------------ */
 /* Eligibility check for bulk selection                                 */
@@ -26,142 +25,38 @@ export const isEligibleForBulkAction = (order: any): boolean => {
     );
 };
 
-/* ------------------------------------------------------------------ */
-/* Stage helpers                                                         */
-/* ------------------------------------------------------------------ */
-function getStageCss(order: any, isSelected: boolean, isOverdue: boolean): string {
-    if (isSelected)  return styles.stageSelected;
-    if (isOverdue)   return styles.stageOverdue;
-
-    const stage = order.order_stage || 'order_added';
-    if (stage === 'order_added')   return styles.stagePending;
-    if (stage === 'delivered')     return styles.stageDone;
-    if (stage === 'ready' || stage === 'out_for_delivery') return styles.stageReady;
-    return styles.stageProduction;
-}
-
 function getStageBadgeLabel(order: any): string {
     const stage = order.order_stage || 'order_added';
     const map: Record<string, string> = {
-        order_added:      'Order Placed',
-        approved:         'Approved',
-        embroidery:       'At Embroidery',
-        printing:         'Printing',
-        dyeing:           'At Dyeing',
-        ready:            'Ready',
-        out_for_delivery: 'Out For Delivery',
-        delivered:        'Delivered',
+        order_added:      'APPROVAL',
+        approved:         'APPROVED',
+        embroidery:       'EMBROIDERY',
+        printing:         'PRINTING',
+        dyeing:           'DYEING',
+        ready:            'READY',
+        out_for_delivery: 'OUT FOR DELIVERY',
+        delivered:        'DELIVERED',
     };
-    return map[stage] || stage;
+    return map[stage] || stage.toUpperCase();
 }
 
 function getStageBadgeCss(order: any, isOverdue: boolean): string {
     if (isOverdue) return styles.badgeOverdue;
     const stage = order.order_stage || 'order_added';
-    const map: Record<string, string> = {
-        order_added:      styles.badgePending,
-        approved:         styles.badgeApproved,
-        embroidery:       styles.badgeEmbroidery,
-        printing:         styles.badgePrinting,
-        dyeing:           styles.badgeDyeing,
-        ready:            styles.badgeReady,
-        out_for_delivery: styles.badgeDispatched,
-        delivered:        styles.badgeDelivered,
-    };
-    return map[stage] || styles.badgePending;
-}
-
-/* ------------------------------------------------------------------ */
-/* Quick action button (stage-driven)                                   */
-/* ------------------------------------------------------------------ */
-function QuickActionButton({
-    order,
-    onWorkflowAction,
-    onGenerateInvoice,
-    setIsCompletePrintingModalOpen,
-    setSelectedOrderForPrinting,
-}: {
-    order: any;
-    onWorkflowAction: (action: string, order: any) => void;
-    onGenerateInvoice: (order: any) => void;
-    setIsCompletePrintingModalOpen: (v: boolean) => void;
-    setSelectedOrderForPrinting: (o: any) => void;
-}) {
-    const [busy, setBusy] = useState(false);
-    const stage = order.order_stage || 'order_added';
-    const embStatus = order.embroidery_status;
-    const dyeStatus = order.dyeing_status;
-
-    const callApi = (action: string) => {
-        setBusy(true);
-        fetch(`/api/orders/${order.id}/workflow`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ action }),
-        }).finally(() => setBusy(false));
-    };
-
-    const btn = (label: string, icon: string, variantCss: string, onClick: () => void) => (
-        <button
-            className={`${styles.quickActionBtn} ${variantCss}`}
-            onClick={(e) => { e.stopPropagation(); onClick(); }}
-            disabled={busy}
-        >
-            <i className={`ti ${icon}`} />
-            {busy ? 'Processing...' : label}
-        </button>
-    );
-
-    const badge = (label: string, icon: string) => (
-        <div className={styles.statusBadgeOnly}>
-            <i className={`ti ${icon}`} />
-            {label}
-        </div>
-    );
-
-    if (stage === 'order_added')
-        return btn('Approve Order', 'ti-circle-check', styles.actionApprove,
-            () => onWorkflowAction('approve', order));
-
-    if (stage === 'approved')
-        return btn('Send To Embroidery', 'ti-needle', styles.actionEmbroidery,
-            () => onWorkflowAction('send_to_embroidery', order));
-
-    if (stage === 'embroidery' && embStatus === 'in_progress')
-        return btn('Complete Printing', 'ti-printer', styles.actionPrinting, () => {
-            setSelectedOrderForPrinting(order);
-            setIsCompletePrintingModalOpen(true);
-        });
-
-    if (stage === 'embroidery' && embStatus === 'queued_delivery')
-        return badge('Queued for Embroidery', 'ti-truck-loading');
-
-    if (stage === 'printing')
-        return btn('Send To Dyeing', 'ti-droplet', styles.actionDyeing,
-            () => onWorkflowAction('send_to_dyeing', order));
-
-    if (stage === 'dyeing' && dyeStatus === 'in_progress')
-        return btn('Mark Ready', 'ti-check', styles.actionReady,
-            () => callApi('mark_ready'));
-
-    if (stage === 'dyeing' && dyeStatus === 'queued_delivery')
-        return badge('Queued for Dyeing', 'ti-truck-loading');
-
-    if (stage === 'ready')
-        return badge('Ready For Delivery', 'ti-truck');
-
-    if (stage === 'out_for_delivery')
-        return btn('Mark Delivered', 'ti-circle-check', styles.actionDispatch,
-            () => callApi('mark_delivered'));
-
-    if (stage === 'delivered') {
-        if (!order.invoice_generated)
-            return btn('Generate Invoice', 'ti-file-invoice', styles.actionInvoice,
-                () => onGenerateInvoice(order));
-        return badge('Delivered', 'ti-check');
+    
+    if (stage === 'order_added' || stage === 'approved') {
+        return styles.badgeApproval;
     }
-
-    return null;
+    if (stage === 'embroidery' || stage === 'printing') {
+        return styles.badgeEmbroidery;
+    }
+    if (stage === 'dyeing') {
+        return styles.badgeDyeing;
+    }
+    if (stage === 'ready' || stage === 'out_for_delivery') {
+        return styles.badgeReady;
+    }
+    return styles.badgeDelivered;
 }
 
 /* ------------------------------------------------------------------ */
@@ -184,6 +79,25 @@ function CardMenu({
     const router = useRouter();
     const ref = useRef<HTMLDivElement>(null);
 
+    const handleShareOrderWhatsApp = async (orderId: number, type: 'summary' | 'dispatch' | 'tracking') => {
+        try {
+            const res = await fetch(`/api/orders/${orderId}/share-details`);
+            if (!res.ok) {
+                alert('Failed to retrieve order details for sharing');
+                return;
+            }
+            const data = await res.json();
+            let message = '';
+            if (type === 'summary') message = data.summaryMessage;
+            else if (type === 'dispatch') message = data.dispatchMessage;
+            else if (type === 'tracking') message = data.trackingMessage;
+
+            window.open(`https://wa.me/${data.phone?.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
+        } catch (err) {
+            console.error('Error sharing order via WhatsApp:', err);
+        }
+    };
+
     useEffect(() => {
         if (!open) return;
         const handler = (e: MouseEvent) => {
@@ -201,34 +115,39 @@ function CardMenu({
     };
 
     return (
-        <div ref={ref} style={{ position: 'relative' }}>
+        <div ref={ref} style={{ position: 'relative' }} onClick={e => e.stopPropagation()}>
             <button className={styles.menuBtn} onClick={(e) => { e.stopPropagation(); setOpen(!open); }}>
-                <MoreHorizontal size={18} />
+                <MoreHorizontal size={16} />
             </button>
 
             {open && (
                 <div style={{
-                    position: 'absolute', right: 0, top: '100%', marginTop: '6px',
+                    position: 'absolute', right: 0, top: '100%', marginTop: '4px',
                     background: 'var(--bg-card)', border: '1px solid var(--border-primary)',
-                    borderRadius: '14px', boxShadow: '0 12px 32px rgba(0,0,0,0.12)',
-                    zIndex: 500, padding: '6px', minWidth: '200px',
+                    borderRadius: '12px', boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                    zIndex: 500, padding: '4px', minWidth: '180px',
                 }}>
                     {[
-                        { label: 'View Details', icon: <Eye size={14} />, action: () => router.push(`/orders/${order.id}`) },
-                        { label: 'Edit Order',   icon: <Edit2 size={14} />, action: () => onEdit?.(order) },
-                        !order.invoice_generated && { label: 'Generate Invoice', icon: <FileText size={14} />, action: () => onGenerateInvoice(order), color: '#34C759' },
-                        { label: 'Print QR Label', icon: <QrCode size={14} />, action: () => {} },
+                        { label: 'View Details', icon: <Eye size={13} />, action: () => router.push(`/orders/${order.id}`) },
+                        { label: 'Edit Order',   icon: <Edit2 size={13} />, action: () => onEdit?.(order) },
+                        !order.invoice_generated && { label: 'Generate Invoice', icon: <FileText size={13} />, action: () => onGenerateInvoice(order), color: '#34C759' },
+                        { label: 'Print QR Label', icon: <QrCode size={13} />, action: () => {} },
                         { separator: true },
-                        { label: 'Delete Order', icon: <Trash2 size={14} />, action: () => { setOpen(false); setConfirmDelete(true); }, color: '#FF3B30' },
+                        { label: 'Share Summary', icon: <MessageCircle size={13} />, action: () => handleShareOrderWhatsApp(order.id, 'summary'), color: '#25D366' },
+                        { label: 'Share Dispatch', icon: <MessageCircle size={13} />, action: () => handleShareOrderWhatsApp(order.id, 'dispatch'), color: '#25D366' },
+                        { label: 'Share Tracking', icon: <MessageCircle size={13} />, action: () => handleShareOrderWhatsApp(order.id, 'tracking'), color: '#25D366' },
+                        { separator: true },
+                        { label: 'Delete Order', icon: <Trash2 size={13} />, action: () => { setOpen(false); setConfirmDelete(true); }, color: '#FF3B30' },
                     ].filter(Boolean).map((item: any, i) =>
                         item.separator
-                            ? <div key={i} style={{ height: 1, background: 'var(--border-primary)', margin: '4px 6px' }} />
+                            ? <div key={i} style={{ height: 1, background: 'var(--border-primary)', margin: '3px 4px' }} />
                             : (
                                 <button key={i} onClick={(e) => { e.stopPropagation(); item.action(); setOpen(false); }} style={{
                                     display: 'flex', alignItems: 'center', gap: '8px', width: '100%',
-                                    padding: '9px 12px', background: 'transparent', border: 'none',
-                                    borderRadius: '8px', fontSize: '13px', fontWeight: 500, cursor: 'pointer',
+                                    padding: '7px 10px', background: 'transparent', border: 'none',
+                                    borderRadius: '6px', fontSize: '12.5px', fontWeight: 500, cursor: 'pointer',
                                     color: item.color || 'var(--text-primary)', textAlign: 'left',
+                                    fontFamily: 'inherit'
                                 }}>
                                     {item.icon} {item.label}
                                 </button>
@@ -240,20 +159,20 @@ function CardMenu({
             {confirmDelete && createPortal(
                 <div className="global-modal-overlay" onClick={() => setConfirmDelete(false)}>
                     <div onClick={e => e.stopPropagation()} style={{
-                        background: 'var(--bg-card)', borderRadius: '20px', padding: '28px',
-                        maxWidth: '360px', width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
+                        background: 'var(--bg-card)', borderRadius: '16px', padding: '24px',
+                        maxWidth: '340px', width: '90%', boxShadow: '0 16px 40px rgba(0,0,0,0.15)',
                         textAlign: 'center',
                     }}>
-                        <div style={{ width: 52, height: 52, borderRadius: '50%', background: 'rgba(255,59,48,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
-                            <AlertTriangle size={22} color="#FF3B30" />
+                        <div style={{ width: 44, height: 44, borderRadius: '50%', background: 'rgba(255,59,48,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 12px' }}>
+                            <AlertTriangle size={20} color="#FF3B30" />
                         </div>
-                        <h3 style={{ fontSize: '18px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '8px' }}>Delete Order?</h3>
-                        <p style={{ fontSize: '13px', color: 'var(--text-secondary)', marginBottom: '20px', lineHeight: 1.5 }}>
-                            Order <strong>{order.order_number || `#${order.id}`}</strong> for <strong>{order.customer_name}</strong> will be permanently deleted.
+                        <h3 style={{ fontSize: '16px', fontWeight: 700, color: 'var(--text-primary)', marginBottom: '6px' }}>Delete Order?</h3>
+                        <p style={{ fontSize: '12.5px', color: 'var(--text-secondary)', marginBottom: '16px', lineHeight: 1.45 }}>
+                            Order <strong>{order.order_number || `#${order.id}`}</strong> will be permanently deleted.
                         </p>
-                        <div style={{ display: 'flex', gap: '10px' }}>
-                            <button onClick={() => setConfirmDelete(false)} style={{ flex: 1, height: 44, borderRadius: '12px', border: '1px solid var(--border-primary)', background: 'var(--bg-grouped)', fontWeight: 600, fontSize: '14px', cursor: 'pointer', color: 'var(--text-primary)' }}>Cancel</button>
-                            <button onClick={handleDelete} disabled={deleting} style={{ flex: 1, height: 44, borderRadius: '12px', border: 'none', background: '#FF3B30', color: '#fff', fontWeight: 600, fontSize: '14px', cursor: 'pointer', opacity: deleting ? 0.7 : 1 }}>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                            <button onClick={() => setConfirmDelete(false)} style={{ flex: 1, height: 38, borderRadius: '10px', border: '1px solid var(--border-primary)', background: 'var(--bg-grouped)', fontWeight: 600, fontSize: '13px', cursor: 'pointer', color: 'var(--text-primary)' }}>Cancel</button>
+                            <button onClick={handleDelete} disabled={deleting} style={{ flex: 1, height: 38, borderRadius: '10px', border: 'none', background: '#FF3B30', color: '#fff', fontWeight: 600, fontSize: '13px', cursor: 'pointer', opacity: deleting ? 0.7 : 1 }}>
                                 {deleting ? 'Deleting...' : 'Delete'}
                             </button>
                         </div>
@@ -278,6 +197,9 @@ interface MobileOrderCardProps {
     onToggleSelect?: (id: number) => void;
     setIsCompletePrintingModalOpen: (v: boolean) => void;
     setSelectedOrderForPrinting: (o: any) => void;
+    selectedOrderId?: number;
+    onSelectOrder?: (id: number) => void;
+    isSelectionModeActive?: boolean;
 }
 
 export default function MobileOrderCard({
@@ -290,6 +212,9 @@ export default function MobileOrderCard({
     onToggleSelect,
     setIsCompletePrintingModalOpen,
     setSelectedOrderForPrinting,
+    selectedOrderId,
+    onSelectOrder,
+    isSelectionModeActive,
 }: MobileOrderCardProps) {
     const router = useRouter();
 
@@ -302,13 +227,6 @@ export default function MobileOrderCard({
 
     const eligible = isEligibleForBulkAction(order);
 
-    // Firm display
-    const firmLabel = order.firm_name || order.business_name ||
-        (order.business_id ? `Firm ${order.business_id}` : null);
-
-    // Avatar initial
-    const avatarLetter = (order.customer_name || 'U').trim()[0].toUpperCase();
-
     // Due date display
     const dueDate = new Date(deliveryDeadline * 1000);
     const dueDateStr = dueDate.toLocaleDateString('en-IN', { day: 'numeric', month: 'short' });
@@ -316,21 +234,145 @@ export default function MobileOrderCard({
     // Amount
     const totalAmt = parseFloat(order.total_price || 0).toLocaleString('en-IN');
 
+    const renderMobileActionButton = () => {
+        const embStatus = order.embroidery_status;
+        const printStatus = order.printing_status;
+        const dyeStatus = order.dyeing_status;
+
+        if (stage === 'order_added') {
+            return (
+                <button
+                    className={`${styles.actionBtn} ${styles.btnApprove}`}
+                    onClick={(e) => { e.stopPropagation(); onWorkflowAction('approve', order); }}
+                >
+                    <CheckCircle2 size={13} />
+                    <span>Approve</span>
+                </button>
+            );
+        }
+        if (stage === 'approved') {
+            return (
+                <button
+                    className={`${styles.actionBtn} ${styles.btnEmbroidery}`}
+                    onClick={(e) => { e.stopPropagation(); onWorkflowAction('send_to_embroidery', order); }}
+                >
+                    <Scissors size={13} />
+                    <span>Embroidery</span>
+                </button>
+            );
+        }
+        if (stage === 'embroidery' && embStatus === 'queued_delivery') {
+            return (
+                <button
+                    className={`${styles.actionBtn} ${styles.btnDisabled}`}
+                    disabled
+                >
+                    <Truck size={13} />
+                    <span>Queued</span>
+                </button>
+            );
+        }
+        if (stage === 'embroidery' && embStatus === 'in_progress') {
+            return (
+                <button
+                    className={`${styles.actionBtn} ${styles.btnPrinting}`}
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setSelectedOrderForPrinting(order);
+                        setIsCompletePrintingModalOpen(true);
+                    }}
+                >
+                    <Package size={13} />
+                    <span>Printing</span>
+                </button>
+            );
+        }
+        if (stage === 'printing' && printStatus === 'in_progress') {
+            return (
+                <button
+                    className={`${styles.actionBtn} ${styles.btnDyeing}`}
+                    onClick={(e) => { e.stopPropagation(); onWorkflowAction('send_to_dyeing', order); }}
+                >
+                    <Droplets size={13} />
+                    <span>Dyeing</span>
+                </button>
+            );
+        }
+        if (stage === 'dyeing' && dyeStatus === 'queued_delivery') {
+            return (
+                <button
+                    className={`${styles.actionBtn} ${styles.btnDisabled}`}
+                    disabled
+                >
+                    <Truck size={13} />
+                    <span>Queued</span>
+                </button>
+            );
+        }
+        if (stage === 'dyeing' && dyeStatus === 'in_progress') {
+            return (
+                <button
+                    className={`${styles.actionBtn} ${styles.btnReady}`}
+                    onClick={(e) => { e.stopPropagation(); onWorkflowAction('mark_ready', order); }}
+                >
+                    <Check size={13} />
+                    <span>Ready</span>
+                </button>
+            );
+        }
+        if (stage === 'ready') {
+            return (
+                <button
+                    className={`${styles.actionBtn} ${styles.btnDispatch}`}
+                    onClick={(e) => { e.stopPropagation(); onWorkflowAction('dispatch', order); }}
+                >
+                    <Truck size={13} />
+                    <span>Dispatch</span>
+                </button>
+            );
+        }
+        if (stage === 'out_for_delivery') {
+            return (
+                <button
+                    className={`${styles.actionBtn} ${styles.btnDeliver}`}
+                    onClick={(e) => { e.stopPropagation(); onWorkflowAction('mark_delivered', order); }}
+                >
+                    <CheckCircle2 size={13} />
+                    <span>Deliver</span>
+                </button>
+            );
+        }
+        if (stage === 'delivered') {
+            return (
+                <div className={`${styles.actionBtn} ${styles.btnDelivered}`}>
+                    <Check size={13} />
+                    <span>Delivered</span>
+                </div>
+            );
+        }
+        return null;
+    };
+
     return (
         <div
-            className={`${styles.card} ${getStageCss(order, !!isSelected, isOverdue)}`}
-            onClick={() => router.push(`/orders/${order.id}`)}
+            className={`${styles.card} ${selectedOrderId === order.id ? styles.cardActive : ''}`}
+            onClick={(e) => {
+                if (onSelectOrder) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onSelectOrder(order.id);
+                } else {
+                    router.push(`/orders/${order.id}`);
+                }
+            }}
         >
-            {/* ── Header ── */}
-            <div className={styles.cardHeader}>
-                <div className={styles.headerLeft}>
-                    <span className={`${styles.stageBadge} ${getStageBadgeCss(order, isOverdue)}`}>
-                        {isOverdue ? '⚠ Overdue' : getStageBadgeLabel(order)}
-                    </span>
-                    {order.is_recurring && <span className={styles.recurringIcon} title="Recurring">↻</span>}
-                </div>
-                <div className={styles.headerRight}>
-                    <span className={styles.orderNum}>{order.order_number || `#${order.id}`}</span>
+            {/* ── TOP: Status Badge, Amount & Overflow Menu ── */}
+            <div className={styles.topRow}>
+                <span className={`${styles.statusPill} ${getStageBadgeCss(order, isOverdue)}`}>
+                    {isOverdue ? 'OVERDUE' : getStageBadgeLabel(order)}
+                </span>
+                <div className={styles.topRight} onClick={e => e.stopPropagation()}>
+                    <span className={styles.amount}>₹{totalAmt}</span>
                     <CardMenu
                         order={order}
                         onGenerateInvoice={onGenerateInvoice}
@@ -340,83 +382,43 @@ export default function MobileOrderCard({
                 </div>
             </div>
 
-            {/* ── Body ── */}
-            <div className={styles.cardBody} onClick={e => e.stopPropagation()}>
-                {/* Customer + Amount */}
+            {/* ── MIDDLE: Customer Name & Design Name ── */}
+            <div className={styles.middleSection}>
                 <div className={styles.customerRow}>
-                    <div className={styles.avatar}>{avatarLetter}</div>
-                    <div className={styles.customerInfo}>
-                        <div className={styles.customerName}>{order.customer_name}</div>
-                        {order.customer_phone && (
-                            <div className={styles.customerPhone}>{order.customer_phone}</div>
-                        )}
-                    </div>
-                    <div className={styles.totalAmount}>₹{totalAmt}</div>
+                    <span className={styles.customerName}>{order.customer_name}</span>
+                    {order.is_recurring && <span className={styles.recurringIcon} title="Recurring">↻</span>}
                 </div>
-
-                {/* Design + Quantity */}
                 <div className={styles.designRow}>
-                    <span className={styles.designName}>
-                        {order.design_name || '—'}
-                    </span>
-                    <span className={styles.quantityBadge}>
-                        {parseFloat(order.quantity_meters || 0).toFixed(1)} m
-                    </span>
-                </div>
-
-                {/* Meta — due date, firm, job badges */}
-                <div className={styles.metaRow}>
-                    <span className={`${styles.dueDate} ${isOverdue ? styles.dueDateOverdue : ''}`}>
-                        <Calendar size={11} />
-                        {isOverdue ? `Overdue since ${dueDateStr}` : `Due ${dueDateStr}`}
-                    </span>
-                    {firmLabel && (
-                        <span className={styles.firmBadge}>
-                            <Building2 size={10} />
-                            {firmLabel}
-                        </span>
-                    )}
-                    {(order.job_costs?.length > 0 || order.embroidery_job_cost > 0 || order.dyeing_job_cost > 0) && (
-                        <span className={styles.jobBadges}>
-                            {(order.job_costs?.some((jc: any) => jc.type === 'embroidery') || order.embroidery_job_cost > 0) && (
-                                <IntelligentChip type="embroidery" jobCosts={order.job_costs || []} orderId={order.id?.toString()} />
-                            )}
-                            {(order.job_costs?.some((jc: any) => jc.type === 'dyeing') || order.dyeing_job_cost > 0) && (
-                                <IntelligentChip type="dyeing" jobCosts={order.job_costs || []} orderId={order.id?.toString()} />
-                            )}
-                        </span>
-                    )}
+                    <span className={styles.designName}>{order.design_name || '—'}</span>
                 </div>
             </div>
 
-            {/* ── Footer: checkbox + action ── */}
-            <div className={styles.cardFooter} onClick={e => e.stopPropagation()}>
-                {eligible ? (
-                    <div className={styles.checkboxWrapper}>
-                        <input
-                            type="checkbox"
-                            className={styles.checkbox}
-                            checked={!!isSelected}
-                            onChange={() => onToggleSelect?.(order.id)}
-                        />
-                    </div>
-                ) : (
-                    <div className={styles.checkboxPlaceholder} />
-                )}
-
-                {order.invoice_generated && (
-                    <span className={styles.invoiceChip}>
-                        <CheckCircle2 size={11} /> Invoiced
+            {/* ── BOTTOM: Specifications & Inline Compact Action Pill ── */}
+            <div className={styles.bottomRow} onClick={e => e.stopPropagation()}>
+                <div className={styles.bottomLeft}>
+                    {eligible && onToggleSelect && (
+                        <div className={styles.checkboxWrapper}>
+                            <input
+                                type="checkbox"
+                                className={styles.massiveCheckbox}
+                                checked={!!isSelected}
+                                onChange={() => onToggleSelect?.(order.id)}
+                            />
+                        </div>
+                    )}
+                    <span className={styles.specsText}>
+                        {parseFloat(order.quantity_meters || 0).toFixed(0)}m • Due {dueDateStr} • {order.order_number || `ORD-${order.id}`}
                     </span>
-                )}
+                    {order.invoice_generated && (
+                        <span className={styles.invoiceChip}>
+                            Invoiced
+                        </span>
+                    )}
+                </div>
 
-                <QuickActionButton
-                    order={order}
-                    onWorkflowAction={onWorkflowAction}
-                    onGenerateInvoice={onGenerateInvoice}
-                    setIsCompletePrintingModalOpen={setIsCompletePrintingModalOpen}
-                    setSelectedOrderForPrinting={setSelectedOrderForPrinting}
-                />
+                <div className={styles.bottomRight} style={{ opacity: isSelectionModeActive ? 0.3 : 1, pointerEvents: isSelectionModeActive ? 'none' : 'auto' }}>
+                    {renderMobileActionButton()}
+                </div>
             </div>
         </div>
     );

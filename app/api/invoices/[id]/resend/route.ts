@@ -124,6 +124,9 @@ export async function POST(
                             Math.floor(Date.now() / 1000),
                             invoiceId
                         ));
+            try {
+                await db.prepare('INSERT INTO invoice_history (invoice_id, action_type, description) VALUES (?, ?, ?)').run(invoiceId, 'Telegram Shared', `Invoice manually shared to Telegram by ${payload.name || 'System'}.`);
+            } catch (err) {}
             return NextResponse.json({ success: true, message: 'Invoice PDF resent successfully via Telegram' });
         } else {
             return NextResponse.json({ error: 'Failed to dispatch document to any active recipients on Telegram. Ensure bot is configured and recipients are active.' }, { status: 500 });

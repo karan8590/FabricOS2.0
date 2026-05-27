@@ -227,6 +227,7 @@ export default function SendToVendorModal({ isOpen, onClose, onSuccess, orders, 
     return createPortal(
         <div className={styles.modalOverlay} onClick={onClose}>
             <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
+                <div className={styles.mobileSheetHandle} />
                 <div className={styles.modalHeader}>
                     <div>
                         <h2 className={styles.title}>{isCreatingVendor ? 'Add New Vendor' : title}</h2>
@@ -337,6 +338,7 @@ export default function SendToVendorModal({ isOpen, onClose, onSuccess, orders, 
                                     type="number"
                                     min="0"
                                     step="0.1"
+                                    inputMode="decimal"
                                     value={meters}
                                     onChange={(e) => { setMeters(e.target.value); setErrors({...errors, meters: ''}); }}
                                     className={styles.input} style={errors.meters ? { borderColor: '#FCA5A5', backgroundColor: '#FEF2F2' } : undefined}
@@ -350,6 +352,8 @@ export default function SendToVendorModal({ isOpen, onClose, onSuccess, orders, 
                                     type="number"
                                     min="0"
                                     step="0.01"
+                                    inputMode="decimal"
+                                    autoFocus
                                     value={rate}
                                     onChange={(e) => { setRate(e.target.value); setErrors({...errors, rate: ''}); }}
                                     className={`${styles.input} ${errors.rate ? 'border-red-400 focus:ring-red-500 bg-red-50/30' : ''}`}

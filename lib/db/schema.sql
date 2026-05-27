@@ -51,6 +51,10 @@ CREATE TABLE IF NOT EXISTS customers (
   gstin TEXT,
   state TEXT,
   state_code TEXT,
+  billing_address TEXT,
+  shipping_address TEXT,
+  city TEXT,
+  pincode TEXT,
   customer_type TEXT DEFAULT 'B2C' CHECK(customer_type IN ('B2B', 'B2C')),
   created_at INTEGER NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()))::integer,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
@@ -97,6 +101,7 @@ CREATE TABLE IF NOT EXISTS orders (
   queued_generate_challan BOOLEAN DEFAULT TRUE,
   notes TEXT,
   qr_code TEXT,
+  delivery_address TEXT,
   FOREIGN KEY (customer_id) REFERENCES customers(id) ON DELETE CASCADE,
   FOREIGN KEY (design_id) REFERENCES designs(id) ON DELETE RESTRICT
 );
@@ -506,9 +511,11 @@ CREATE TABLE IF NOT EXISTS vendor_payments (
   invoice_no TEXT,
   itc_amount NUMERIC DEFAULT 0,
   itc_claimed_date INTEGER,
+  dispatch_id INTEGER,
   created_at INTEGER NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()))::integer,
   FOREIGN KEY (vendor_id) REFERENCES vendors(id) ON DELETE RESTRICT,
-  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+  FOREIGN KEY (dispatch_id) REFERENCES dispatch_batches(id) ON DELETE SET NULL
 );
 
 -- Vendor Payment Instalments Table

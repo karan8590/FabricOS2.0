@@ -248,3 +248,137 @@
     cursor: not-allowed;
     box-shadow: none;
 }
+
+/* Responsive Mobile Bottom Sheet Styles */
+@media (max-width: 768px) {
+    .overlay {
+        align-items: flex-end !important;
+        padding: 0 !important;
+    }
+
+    .modal {
+        max-width: 100% !important;
+        width: 100% !important;
+        border-radius: 24px 24px 0 0 !important;
+        max-height: 85vh !important;
+        display: flex !important;
+        flex-direction: column !important;
+        animation: slideUpMobile 0.28s cubic-bezier(0.1, 0.76, 0.55, 0.94) !important;
+    }
+
+    .header {
+        padding: 16px 20px 12px !important;
+        flex-shrink: 0 !important;
+    }
+
+    .iconBox {
+        width: 38px !important;
+        height: 38px !important;
+        border-radius: 10px !important;
+    }
+
+    .titleGroup h2 {
+        font-size: 16px !important;
+    }
+
+    .titleGroup p {
+        font-size: 12px !important;
+    }
+
+    .bodyLayout {
+        flex-direction: column !important;
+        overflow-y: auto !important;
+        flex: 1 !important;
+        overscroll-behavior: contain !important;
+        min-height: auto !important;
+    }
+
+    .leftPanel {
+        padding: 16px 20px 24px !important;
+        flex: none !important;
+    }
+
+    .rightPanel {
+        width: 100% !important;
+        border-left: none !important;
+        border-top: 1px solid var(--border-primary) !important;
+        padding: 20px !important;
+        background: var(--bg-secondary) !important;
+        flex: none !important;
+    }
+
+    .grid {
+        grid-template-columns: 1fr !important;
+        gap: 16px !important;
+    }
+
+    .inputWrapper input, 
+    .inputWrapper select {
+        height: 48px !important;
+        font-size: 15px !important;
+        border-radius: 10px !important;
+    }
+
+    .footer {
+        position: sticky !important;
+        bottom: 0 !important;
+        background: rgba(255, 255, 255, 0.85) !important;
+        backdrop-filter: blur(20px) !important;
+        -webkit-backdrop-filter: blur(20px) !important;
+        padding: 14px 16px calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+        border-top: 1px solid rgba(226, 232, 240, 0.6) !important;
+        z-index: 10 !important;
+        display: flex !important;
+        gap: 12px !important;
+        width: 100% !important;
+        justify-content: space-between !important;
+        margin-top: auto !important;
+        margin-left: -20px !important;
+        margin-right: -20px !important;
+        width: calc(100% + 40px) !important;
+    }
+
+    .cancelBtn, .submitBtn {
+        flex: 1 !important;
+        height: 48px !important;
+        font-size: 15px !important;
+        font-weight: 600 !important;
+        border-radius: 16px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        padding: 0 !important;
+    }
+
+    .cancelBtn {
+        background: var(--bg-hover) !important;
+        border: 1px solid var(--border-subtle) !important;
+        color: var(--text-primary) !important;
+    }
+
+    .submitBtn {
+        background: var(--accent) !important;
+        color: white !important;
+        border: none !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12) !important;
+    }
+
+    .cancelBtn:active, .submitBtn:active {
+        filter: brightness(0.95) !important;
+    }
+}
+
+@keyframes slideUpMobile {
+    from {
+        transform: translateY(100%);
+        opacity: 0.8;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+

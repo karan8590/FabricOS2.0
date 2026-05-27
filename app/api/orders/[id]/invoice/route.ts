@@ -102,6 +102,13 @@ export async function POST(
 
         const invoiceId = await generateInvoiceTransaction();
 
+        // Invoice History
+        try {
+            await db.prepare('INSERT INTO invoice_history (invoice_id, action_type, description) VALUES (?, ?, ?)').run(invoiceId, 'Invoice Generated', `Invoice ${invoiceNumber} created from Order #${orderId} by ${payload.name || 'System'}.`);
+        } catch (err) {
+            console.error('Failed to log invoice history:', err);
+        }
+
         // Generate Premium PDF server-side
         let relativePath = `/api/invoices/${invoiceId}/pdf`;
         let fileBuffer: Buffer | null = null;
@@ -152,6 +159,9 @@ export async function POST(
                                             Math.floor(Date.now() / 1000),
                                             invoiceId
                                         ));
+                    try {
+                        await db.prepare('INSERT INTO invoice_history (invoice_id, action_type, description) VALUES (?, ?, ?)').run(invoiceId, 'Telegram Shared', 'PDF copy automatically delivered to instant_order_alerts.');
+                    } catch (err) {}
                 }
             }).catch((err) => {
                 console.error('Async Telegram document dispatch failed:', err);

@@ -95,7 +95,7 @@
 }
 
 /* ── Mobile: <= 768px — bottom nav replaces sidebar ── */
-@media (max-width: 768px) {
+@media (max-width: 767px) {
     .content {
         margin-left: 0;
         width: 100%;
@@ -114,7 +114,7 @@
         padding: 16px;
         /* MobileTopBar is 56px + safe-area; bottom nav is 60px + safe-area */
         padding-top: calc(56px + env(safe-area-inset-top, 0px) + 16px);
-        padding-bottom: calc(60px + env(safe-area-inset-bottom, 0px) + 16px);
+        padding-bottom: calc(88px + env(safe-area-inset-bottom, 0px));
     }
 }
 

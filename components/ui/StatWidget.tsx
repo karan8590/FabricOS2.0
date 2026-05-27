@@ -3,8 +3,8 @@ import styles from './StatWidget.module.css';
 
 interface StatWidgetProps {
     label: string;
-    value: string | number;
-    secondaryText?: string;
+    value: React.ReactNode;
+    secondaryText?: React.ReactNode;
     badge?: string;
     badgeType?: 'positive' | 'negative' | 'neutral' | 'urgent';
     icon: React.ReactNode;
@@ -14,6 +14,7 @@ interface StatWidgetProps {
     onClick?: () => void;
     pulse?: boolean;
     sublabel?: string;
+    tooltip?: string;
 }
 
 export default function StatWidget({
@@ -28,7 +29,8 @@ export default function StatWidget({
     isSelected = false,
     onClick,
     pulse = false,
-    sublabel = 'vs Last Month'
+    sublabel = 'vs Last Month',
+    tooltip
 }: StatWidgetProps) {
     
     const finalAccentBg = accentBg || `${accentColor}0A`;
@@ -61,6 +63,7 @@ export default function StatWidget({
                 boxShadow: isSelected ? `0 12px 24px ${accentColor}26, inset 0 0 20px ${accentColor}0D` : 'var(--shadow-card)'
             } as React.CSSProperties}
             onClick={onClick}
+            title={tooltip}
         >
             {isSelected && <div className={styles.selectedBar} style={{ background: accentColor }} />}
             

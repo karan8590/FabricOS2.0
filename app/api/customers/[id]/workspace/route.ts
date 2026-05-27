@@ -34,7 +34,7 @@ export async function GET(
             FROM orders o
             JOIN designs d ON o.design_id = d.id
             WHERE o.customer_id = ?
-            ORDER BY o.created_at DESC
+            ORDER BY COALESCE(o.order_date, o.created_at) DESC, o.id DESC
         `).all(customerId)) as any[];
 
         // 3. Fetch Invoices (Finance Workflow)

@@ -101,6 +101,7 @@ export default function DispatchOrderModal({ isOpen, onClose, onSuccess, order }
     return createPortal(
         <div className={styles.modalOverlay} onClick={onClose}>
             <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
+                <div className={styles.mobileSheetHandle} />
                 <div className={styles.modalHeader}>
                     <div>
                         <h2 className={styles.title}>Dispatch Order</h2>

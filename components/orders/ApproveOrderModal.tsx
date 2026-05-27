@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, CheckCircle2, AlertTriangle, Box, Package } from 'lucide-react';
 import styles from './ProductionWorkflowModal.module.css';
-import { getAvailableInventory } from '@/lib/inventory';
+import { useFabricInventory } from '@/lib/inventoryCache';
 
 interface ApproveOrderModalProps {
     isOpen: boolean;
@@ -15,10 +15,10 @@ interface ApproveOrderModalProps {
 export default function ApproveOrderModal({ isOpen, onClose, onSuccess, order, onEdit }: ApproveOrderModalProps) {
     const [mounted, setMounted] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [availableInventory, setAvailableInventory] = useState<number>(0);
-    const [isLoadingInventory, setIsLoadingInventory] = useState(true);
-    const [inventoryError, setInventoryError] = useState('');
     const [globalError, setGlobalError] = useState('');
+
+    const targetFabric = order?.fabric_type || 'Polyester';
+    const { available: availableInventory, isLoading: isLoadingInventory } = useFabricInventory(targetFabric);
 
     useEffect(() => {
         setMounted(true);
@@ -28,34 +28,14 @@ export default function ApproveOrderModal({ isOpen, onClose, onSuccess, order, o
         if (isOpen && order) {
             setGlobalError('');
             setIsSubmitting(false);
-            fetchInventory();
         }
     }, [isOpen, order]);
-
-    const fetchInventory = async () => {
-        setIsLoadingInventory(true);
-        setInventoryError('');
-        try {
-            const res = await fetch('/api/inventory?category=Fabric');
-            const data = await res.json();
-            if (data.data) {
-                const targetFabric = order.fabric_type || 'Polyester';
-                const matchingFabric = data.data.filter((m: any) => m.name === targetFabric);
-                const totalAvail = matchingFabric.reduce((sum: number, m: any) => sum + getAvailableInventory(m), 0);
-                setAvailableInventory(totalAvail);
-            }
-        } catch (err) {
-            setInventoryError('Failed to fetch inventory.');
-        } finally {
-            setIsLoadingInventory(false);
-        }
-    };
 
     if (!isOpen || !order || !mounted) return null;
 
     const requiredFabric = Number(order.quantity_meters || 0);
-    const remainingFabric = availableInventory - requiredFabric;
-    const isSufficient = availableInventory >= requiredFabric;
+    const remainingFabric = (availableInventory || 0) - requiredFabric;
+    const isSufficient = (availableInventory || 0) >= requiredFabric;
 
     const handleApprove = async () => {
         if (!isSufficient) {
@@ -91,16 +71,11 @@ export default function ApproveOrderModal({ isOpen, onClose, onSuccess, order, o
             <div 
                 className={styles.modalContent} 
                 style={{ 
-                    maxWidth: '560px', 
-                    borderRadius: '16px', 
-                    padding: 0, 
-                    overflow: 'hidden', 
-                    boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.15)',
-                    border: '1px solid #E5E7EB',
-                    background: '#FFFFFF'
+                    maxWidth: '560px'
                 }} 
                 onClick={e => e.stopPropagation()}
             >
+                <div className={styles.mobileSheetHandle} />
                 {/* Header */}
                 <div style={{ padding: '24px 32px', borderBottom: '1px solid #F3F4F6', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
@@ -123,7 +98,7 @@ export default function ApproveOrderModal({ isOpen, onClose, onSuccess, order, o
                     </button>
                 </div>
 
-                <div style={{ padding: '32px', display: 'flex', flexDirection: 'column', gap: '32px', background: '#FAFAFA' }}>
+                <div className={styles.formBody} style={{ padding: '32px', display: 'flex', flexDirection: 'column', gap: '32px', background: '#FAFAFA' }}>
                     {globalError && (
                         <div style={{ background: '#FEF2F2', border: '1px solid #FCA5A5', color: '#991B1B', padding: '12px 16px', borderRadius: '8px', fontSize: '14px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                             <AlertTriangle size={16} /> {globalError}
@@ -171,8 +146,8 @@ export default function ApproveOrderModal({ isOpen, onClose, onSuccess, order, o
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', alignItems: 'center' }}>
                                 <span style={{ color: '#6B7280' }}>Available Inventory</span>
-                                <span style={{ fontWeight: 600, color: '#4B5563' }}>
-                                    {isLoadingInventory ? 'Loading...' : `${availableInventory}m`}
+                                <span style={{ fontWeight: 600, color: '#4B5563', opacity: isLoadingInventory ? 0.3 : 1, filter: isLoadingInventory ? 'blur(4px)' : 'none', transition: 'all 0.3s ease' }}>
+                                    {isLoadingInventory ? '0000m' : `${availableInventory}m`}
                                 </span>
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', alignItems: 'center' }}>
@@ -181,30 +156,36 @@ export default function ApproveOrderModal({ isOpen, onClose, onSuccess, order, o
                             </div>
                             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '14px', paddingTop: '14px', borderTop: '1px dashed #E5E7EB', marginTop: '4px', alignItems: 'center' }}>
                                 <span style={{ color: '#4B5563', fontWeight: 500 }}>Remaining After Approval</span>
-                                <span style={{ fontWeight: 700, color: remainingFabric < 0 ? '#DC2626' : '#16A34A', fontSize: '15px' }}>
-                                    {isLoadingInventory ? '...' : `${remainingFabric}m`}
+                                <span style={{ fontWeight: 700, color: remainingFabric < 0 ? '#DC2626' : '#16A34A', fontSize: '15px', opacity: isLoadingInventory ? 0.3 : 1, filter: isLoadingInventory ? 'blur(4px)' : 'none', transition: 'all 0.3s ease' }}>
+                                    {isLoadingInventory ? '0000m' : `${remainingFabric}m`}
                                 </span>
                             </div>
                         </div>
                         
-                        {!isLoadingInventory && (
-                            <div style={{ marginTop: '20px' }}>
-                                {isSufficient ? (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#F0FDF4', color: '#15803D', padding: '14px 16px', borderRadius: '10px', border: '1px solid rgba(22,163,74,0.15)', fontSize: '14px', fontWeight: 500 }}>
-                                        <CheckCircle2 size={18} strokeWidth={2.5} /> Inventory verified and safe to reserve
-                                    </div>
-                                ) : (
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#FEF2F2', color: '#B91C1C', padding: '14px 16px', borderRadius: '10px', border: '1px solid rgba(220,38,38,0.15)', fontSize: '14px', fontWeight: 500 }}>
-                                        <AlertTriangle size={18} strokeWidth={2.5} /> Insufficient inventory to fulfill order
-                                    </div>
+                        <div style={{ marginTop: '20px', minHeight: '52px' }}>
+                            <div style={{ 
+                                opacity: isLoadingInventory ? 0 : 1, 
+                                transform: isLoadingInventory ? 'translateY(4px)' : 'translateY(0)',
+                                transition: 'all 0.3s ease'
+                            }}>
+                                {!isLoadingInventory && (
+                                    isSufficient ? (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#F0FDF4', color: '#15803D', padding: '14px 16px', borderRadius: '10px', border: '1px solid rgba(22,163,74,0.15)', fontSize: '14px', fontWeight: 500 }}>
+                                            <CheckCircle2 size={18} strokeWidth={2.5} /> Inventory verified and safe to reserve
+                                        </div>
+                                    ) : (
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#FEF2F2', color: '#B91C1C', padding: '14px 16px', borderRadius: '10px', border: '1px solid rgba(220,38,38,0.15)', fontSize: '14px', fontWeight: 500 }}>
+                                            <AlertTriangle size={18} strokeWidth={2.5} /> Insufficient inventory to fulfill order
+                                        </div>
+                                    )
                                 )}
                             </div>
-                        )}
+                        </div>
                     </div>
                 </div>
 
                 {/* Footer */}
-                <div style={{ padding: '24px 32px', background: '#FFFFFF', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div className={styles.formFooter} style={{ padding: '24px 32px', background: '#FFFFFF', borderTop: '1px solid #E5E7EB', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <button 
                         type="button"
                         onClick={onClose}

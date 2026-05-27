@@ -109,7 +109,18 @@ export async function GET(request: Request) {
             params.push(likeParam, likeParam, likeParam, likeParam);
         }
 
-        query += ' ORDER BY orders.created_at DESC LIMIT ? OFFSET ?';
+        // Calculate global stats for the filtered dataset before paginating
+        const countQuery = query.replace(/SELECT[\s\S]*?FROM/, `
+            SELECT 
+                COUNT(*) as total_orders, 
+                COALESCE(SUM(orders.total_price), 0) as total_revenue,
+                SUM(CASE WHEN orders.status = 'pending' THEN 1 ELSE 0 END) as pending_count,
+                SUM(CASE WHEN orders.status = 'in production' THEN 1 ELSE 0 END) as production_count
+            FROM
+        `);
+        const stats = (await db.prepare(countQuery).get(...params)) as any;
+
+        query += ' ORDER BY COALESCE(orders.order_date, orders.created_at) DESC, orders.id DESC LIMIT ? OFFSET ?';
         params.push(limit, offset);
 
         const orders = (await db.prepare(query).all(...params)) as any[];
@@ -146,6 +157,12 @@ export async function GET(request: Request) {
 
         return NextResponse.json({ 
             orders: mappedOrders,
+            stats: {
+                totalOrders: Number(stats?.total_orders || 0),
+                totalRevenue: Number(stats?.total_revenue || 0),
+                pendingCount: Number(stats?.pending_count || 0),
+                productionCount: Number(stats?.production_count || 0)
+            },
             pagination: { page, limit }
         });
     } catch (error) {

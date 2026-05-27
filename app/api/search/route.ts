@@ -47,7 +47,7 @@ export async function GET(request: Request) {
                     d.name ILIKE ? OR
                     c.phone ILIKE ?
                 )
-                ORDER BY o.id DESC
+                ORDER BY COALESCE(o.order_date, o.created_at) DESC, o.id DESC
                 LIMIT 6
             `).all(businessId, searchTerm, searchTerm, searchTerm, searchTerm),
             

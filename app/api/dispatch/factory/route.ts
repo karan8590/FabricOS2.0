@@ -36,7 +36,7 @@ export async function GET(request: Request) {
             JOIN designs ON orders.design_id = designs.id
             WHERE orders.business_id = ? 
             AND orders.status IN ('approved', 'embroidery_in_progress', 'printing_in_factory', 'dyeing_in_progress', 'ready')
-            ORDER BY orders.created_at DESC
+            ORDER BY COALESCE(orders.order_date, orders.created_at) DESC, orders.id DESC
         `;
 
         const orders = (await db.prepare(query).all(businessId)) as any[];

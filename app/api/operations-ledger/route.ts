@@ -52,11 +52,11 @@ export async function GET(request: Request) {
             const endOfMonth = new Date(parseInt(year), parseInt(month), 0);
             const startTimestamp = Math.floor(startOfMonth.getTime() / 1000);
             const endTimestamp = Math.floor(endOfMonth.getTime() / 1000) + 86399;
-            query += ' AND o.created_at >= ? AND o.created_at <= ?';
+            query += ' AND COALESCE(o.order_date, o.created_at) >= ? AND COALESCE(o.order_date, o.created_at) <= ?';
             params.push(startTimestamp, endTimestamp);
         }
 
-        query += ' ORDER BY o.created_at DESC';
+        query += ' ORDER BY COALESCE(o.order_date, o.created_at) DESC, o.id DESC';
 
         const rows = (await db.prepare(query).all(...params)) as any[];
 

@@ -231,7 +231,7 @@ export default function AddVendorModal({ isOpen, onClose, onSuccess }: AddVendor
                             </div>
                             <div className={styles.formField}>
                                 <label className={styles.label}>Phone Number <span className={styles.requiredStar}>*</span></label>
-                                <input className={styles.input} required type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="10-digit number" />
+                                <input className={styles.input} required type="tel" inputMode="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="10-digit number" />
                             </div>
                             <div className={styles.formField} style={{ gridColumn: 'span 2' }}>
                                 <label className={styles.label}>Fabric Specialization</label>
@@ -299,7 +299,7 @@ export default function AddVendorModal({ isOpen, onClose, onSuccess }: AddVendor
                             </div>
                             <div className={styles.formField}>
                                 <label className={styles.label}>Phone Number <span className={styles.requiredStar}>*</span></label>
-                                <input className={styles.input} required type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="10-digit number" />
+                                <input className={styles.input} required type="tel" inputMode="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="10-digit number" />
                             </div>
                             <div className={styles.formField}>
                                 <label className={styles.label}>GST Number</label>
@@ -331,11 +331,11 @@ export default function AddVendorModal({ isOpen, onClose, onSuccess }: AddVendor
                                 </div>
                                 <div className={styles.formField}>
                                     <label className={styles.label}>Mobile Number <span className={styles.requiredStar}>*</span></label>
-                                    <input className={styles.input} required type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="Primary Contact" />
+                                    <input className={styles.input} required type="tel" inputMode="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="Primary Contact" />
                                 </div>
                                 <div className={styles.formField}>
                                     <label className={styles.label}>Alternate Number</label>
-                                    <input className={styles.input} type="tel" value={altPhone} onChange={e => setAltPhone(e.target.value)} placeholder="Emergency Contact" />
+                                    <input className={styles.input} type="tel" inputMode="tel" value={altPhone} onChange={e => setAltPhone(e.target.value)} placeholder="Emergency Contact" />
                                 </div>
                             </div>
                         </div>
@@ -382,7 +382,7 @@ export default function AddVendorModal({ isOpen, onClose, onSuccess }: AddVendor
                             </div>
                             <div className={styles.formField}>
                                 <label className={styles.label}>Phone Number <span className={styles.requiredStar}>*</span></label>
-                                <input className={styles.input} required type="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="10-digit number" />
+                                <input className={styles.input} required type="tel" inputMode="tel" value={phone} onChange={e => setPhone(e.target.value)} placeholder="10-digit number" />
                             </div>
                             <div className={styles.formField}>
                                 <label className={styles.label}>GST Number</label>

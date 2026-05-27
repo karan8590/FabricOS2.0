@@ -421,3 +421,144 @@
     color: #FFFFFF;
 }
 
+/* Responsive Mobile Bottom Sheet Styles */
+@media (max-width: 768px) {
+    .overlay {
+        align-items: flex-end !important;
+        padding: 0 !important;
+    }
+
+    .modalContainer {
+        max-width: 100% !important;
+        width: 100% !important;
+        border-radius: 24px 24px 0 0 !important;
+        max-height: 85vh !important;
+        display: flex !important;
+        flex-direction: column !important;
+        animation: slideUpMobile 0.28s cubic-bezier(0.1, 0.76, 0.55, 0.94) !important;
+    }
+
+    .modalHeader {
+        padding: 16px 20px 12px !important;
+        flex-shrink: 0 !important;
+    }
+
+    .modalTitle {
+        font-size: 17px !important;
+    }
+
+    .modalSubtitle {
+        font-size: 12px !important;
+    }
+
+    .modalContent {
+        padding: 16px 20px 24px !important;
+        overflow-y: auto !important;
+        flex: 1 !important;
+        overscroll-behavior: contain !important;
+    }
+
+    .cardGrid {
+        grid-template-columns: 1fr !important;
+        gap: 12px !important;
+    }
+
+    .typeCard {
+        padding: 16px !important;
+        flex-direction: row !important;
+        align-items: center !important;
+        gap: 16px !important;
+    }
+
+    .cardIcon {
+        width: 40px !important;
+        height: 40px !important;
+        border-radius: 10px !important;
+        flex-shrink: 0 !important;
+    }
+
+    .formSection {
+        padding: 16px !important;
+        border-radius: 12px !important;
+        margin-bottom: 16px !important;
+    }
+
+    .formGrid {
+        grid-template-columns: 1fr !important;
+        gap: 16px !important;
+    }
+
+    .input, .select, .textarea {
+        height: 48px !important;
+        font-size: 15px !important;
+        border-radius: 10px !important;
+    }
+
+    .textarea {
+        height: auto !important;
+    }
+
+    .footer {
+        position: sticky !important;
+        bottom: 0 !important;
+        background: rgba(255, 255, 255, 0.85) !important;
+        backdrop-filter: blur(20px) !important;
+        -webkit-backdrop-filter: blur(20px) !important;
+        padding: 14px 16px calc(16px + env(safe-area-inset-bottom, 0px)) !important;
+        border-top: 1px solid rgba(226, 232, 240, 0.6) !important;
+        z-index: 10 !important;
+        display: flex !important;
+        gap: 12px !important;
+        width: 100% !important;
+        justify-content: space-between !important;
+        margin-top: auto !important;
+        margin-left: -20px !important;
+        margin-right: -20px !important;
+        width: calc(100% + 40px) !important;
+    }
+
+    .cancelBtn, .submitBtn {
+        flex: 1 !important;
+        height: 48px !important;
+        font-size: 15px !important;
+        font-weight: 600 !important;
+        border-radius: 16px !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        text-overflow: ellipsis !important;
+        padding: 0 !important;
+    }
+
+    .cancelBtn {
+        background: #F8FAFC !important;
+        border: 1px solid #CBD5E1 !important;
+        color: #0F172A !important;
+    }
+
+    .submitBtn {
+        background: #0EA5E9 !important;
+        color: white !important;
+        border: none !important;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.12) !important;
+    }
+
+    .cancelBtn:active, .submitBtn:active {
+        filter: brightness(0.95) !important;
+    }
+}
+
+@keyframes slideUpMobile {
+    from {
+        transform: translateY(100%);
+        opacity: 0.8;
+    }
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
+}
+
+

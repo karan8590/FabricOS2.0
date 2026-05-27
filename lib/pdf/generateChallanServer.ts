@@ -18,6 +18,10 @@ export interface ChallanPDFData {
         design_name: string;
         fabric_type: string;
         quantity: number;
+        customer_name?: string;
+        customer_phone?: string;
+        customer_address?: string;
+        customer_gstin?: string;
     }>;
     total_quantity: number;
     total_value?: number;
@@ -95,83 +99,97 @@ export async function generateChallanPDFServer(data: ChallanPDFData): Promise<{ 
     // Right: Document Title & Details
     let rightY = 15;
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(16);
+    doc.setFontSize(18); // Mobile Optimized: 18
     doc.setTextColor(colorTextPrimary);
     doc.text('DELIVERY CHALLAN', rightX, rightY, { align: 'right' });
     
     rightY += 8;
-    doc.setFont('helvetica', 'normal');
-    doc.setFontSize(9);
-    doc.setTextColor(colorTextSecondary);
+    const valueStartX = rightX - 40; // Fixed x-coordinate for values to start (left aligned)
+    const labelEndX = rightX - 43;   // Fixed x-coordinate for labels to end (right aligned)
+
+    doc.setFontSize(10); // Mobile Optimized: 10
     
-    doc.text('Challan No:', rightX - 35, rightY);
-    doc.setFont('helvetica', 'bold');
-    doc.setTextColor(colorTextPrimary);
-    doc.text(data.challan_number, rightX, rightY, { align: 'right' });
-    
-    rightY += 5;
+    // Challan No
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(colorTextSecondary);
-    doc.text('Dispatch ID:', rightX - 35, rightY);
+    doc.text('Challan No:', labelEndX, rightY, { align: 'right' });
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(colorTextPrimary);
-    doc.text(data.dispatch_number, rightX, rightY, { align: 'right' });
+    doc.text(data.challan_number, valueStartX, rightY);
     
-    rightY += 5;
+    rightY += 6;
+    // Dispatch ID
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(colorTextSecondary);
-    doc.text('Date:', rightX - 35, rightY);
+    doc.text('Dispatch ID:', labelEndX, rightY, { align: 'right' });
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(colorTextPrimary);
-    doc.text(formatDate(data.dispatch_date), rightX, rightY, { align: 'right' });
+    doc.text(data.dispatch_number, valueStartX, rightY);
+    
+    rightY += 6;
+    // Date
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(colorTextSecondary);
+    doc.text('Date:', labelEndX, rightY, { align: 'right' });
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(colorTextPrimary);
+    doc.text(formatDate(data.dispatch_date), valueStartX, rightY);
 
     currentY = Math.max(currentY + 6, rightY + 8);
     
     doc.setDrawColor(colorBorder);
-    doc.setLineWidth(0.2);
+    doc.setLineWidth(0.25);
     doc.line(margin, currentY, rightX, currentY);
 
     // ==========================================
-    // 2. CUSTOMER & TRANSPORT DETAILS (Split Cards)
+    // 2. CUSTOMER & TRANSPORT DETAILS (Split Cards - Mobile Sizing)
     // ==========================================
     currentY += 6;
-    const cardHeight = 32;
+    const cardHeight = 36; // Increased height
     const cardWidth = (contentWidth - 6) / 2;
     
     // Left Card (Customer)
     doc.setDrawColor(colorBorder);
-    doc.setLineWidth(0.2);
+    doc.setLineWidth(0.25);
     doc.setFillColor('#ffffff');
     doc.roundedRect(margin, currentY, cardWidth, cardHeight, 1.5, 1.5, 'DF');
     
     doc.setFillColor(colorBgAlt);
-    doc.roundedRect(margin, currentY, cardWidth, 7, 1.5, 1.5, 'F');
+    doc.roundedRect(margin, currentY, cardWidth, 8, 1.5, 1.5, 'F');
     // cover bottom corners of header
-    doc.rect(margin, currentY + 3.5, cardWidth, 3.5, 'F');
+    doc.rect(margin, currentY + 4, cardWidth, 4, 'F');
     
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
+    doc.setFontSize(8.5);
     doc.setTextColor(colorTextSecondary);
-    doc.text('DELIVER TO', margin + 4, currentY + 4.8);
+    doc.text('DELIVER TO', margin + 5, currentY + 5.5);
 
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(10);
+    doc.setFontSize(12); // Mobile Optimized customer name
     doc.setTextColor(colorTextPrimary);
-    doc.text(data.customer_name, margin + 4, currentY + 12);
+    doc.text(data.customer_name, margin + 5, currentY + 14);
 
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8);
+    doc.setFontSize(9.5); // Mobile Optimized details
     doc.setTextColor(colorTextSecondary);
-    if (data.customer_address) {
-        const addrLines = doc.splitTextToSize(data.customer_address, cardWidth - 8);
-        doc.text(addrLines, margin + 4, currentY + 16.5);
-    }
     
-    doc.text(`Phone: ${data.customer_phone}`, margin + 4, currentY + 24.5);
-    
-    if (data.customer_gstin) {
-        doc.setFont('helvetica', 'bold');
-        doc.text(`GSTIN: ${data.customer_gstin}`, margin + 4, currentY + 28.5);
+    if (data.customer_name === 'MULTIPLE CUSTOMERS') {
+        doc.text('See routing table below for customer-wise', margin + 5, currentY + 19);
+        doc.text('delivery details.', margin + 5, currentY + 23);
+    } else {
+        if (data.customer_address) {
+            const addrLines = doc.splitTextToSize(data.customer_address, cardWidth - 10);
+            doc.text(addrLines, margin + 5, currentY + 19);
+            // adjust Y for phone based on address length
+            currentY += Math.max(0, (addrLines.length - 1) * 4);
+        }
+        
+        doc.text(`Phone: ${data.customer_phone}`, margin + 5, currentY + 27);
+        
+        if (data.customer_gstin) {
+            doc.setFont('helvetica', 'bold');
+            doc.text(`GSTIN: ${data.customer_gstin}`, margin + 5, currentY + 31.5);
+        }
     }
 
     // Right Card (Transport)
@@ -180,50 +198,50 @@ export async function generateChallanPDFServer(data: ChallanPDFData): Promise<{ 
     doc.roundedRect(rightCardX, currentY, cardWidth, cardHeight, 1.5, 1.5, 'DF');
     
     doc.setFillColor(colorBgAlt);
-    doc.roundedRect(rightCardX, currentY, cardWidth, 7, 1.5, 1.5, 'F');
-    doc.rect(rightCardX, currentY + 3.5, cardWidth, 3.5, 'F');
+    doc.roundedRect(rightCardX, currentY, cardWidth, 8, 1.5, 1.5, 'F');
+    doc.rect(rightCardX, currentY + 4, cardWidth, 4, 'F');
     
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(8);
-    doc.setTextColor(colorTextSecondary);
-    doc.text('TRANSPORT DETAILS', rightCardX + 4, currentY + 4.8);
-
-    let tY = currentY + 12;
-    doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.5);
+    doc.setTextColor(colorTextSecondary);
+    doc.text('TRANSPORT DETAILS', rightCardX + 5, currentY + 5.5);
+
+    let tY = currentY + 14;
+    doc.setFont('helvetica', 'normal');
+    doc.setFontSize(9.5); // Mobile Optimized transport text
     
     doc.setTextColor(colorTextSecondary);
-    doc.text('Driver:', rightCardX + 4, tY);
+    doc.text('Driver:', rightCardX + 5, tY);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(colorTextPrimary);
-    doc.text(data.driver_name || 'N/A', rightCardX + 20, tY);
+    doc.text(data.driver_name || 'N/A', rightCardX + 22, tY);
     
-    tY += 5;
+    tY += 5.5;
     doc.setFont('helvetica', 'normal');
     doc.setTextColor(colorTextSecondary);
-    doc.text('Vehicle No:', rightCardX + 4, tY);
+    doc.text('Vehicle No:', rightCardX + 5, tY);
     doc.setFont('helvetica', 'bold');
     doc.setTextColor(colorTextPrimary);
-    doc.text(data.vehicle_number || 'N/A', rightCardX + 22, tY);
+    doc.text(data.vehicle_number || 'N/A', rightCardX + 25, tY);
     
-    tY += 5;
+    tY += 5.5;
     if (data.driver_phone) {
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(colorTextSecondary);
-        doc.text('Phone:', rightCardX + 4, tY);
+        doc.text('Phone:', rightCardX + 5, tY);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(colorTextPrimary);
-        doc.text(data.driver_phone, rightCardX + 16, tY);
-        tY += 5;
+        doc.text(data.driver_phone, rightCardX + 18, tY);
+        tY += 5.5;
     }
     
     if (data.route) {
         doc.setFont('helvetica', 'normal');
         doc.setTextColor(colorTextSecondary);
-        doc.text('Route:', rightCardX + 4, tY);
+        doc.text('Route:', rightCardX + 5, tY);
         doc.setFont('helvetica', 'bold');
         doc.setTextColor(colorTextPrimary);
-        doc.text(data.route.substring(0, 30), rightCardX + 15, tY);
+        doc.text(data.route.substring(0, 26), rightCardX + 17, tY);
     }
 
     // ==========================================
@@ -231,26 +249,55 @@ export async function generateChallanPDFServer(data: ChallanPDFData): Promise<{ 
     // ==========================================
     currentY += cardHeight + 8;
 
-    const tableHeaders = [
-        'S.No',
-        'Order ID',
-        'Design Name',
-        'Fabric Type',
-        'Quantity'
-    ];
+    const groupedOrders = new Map<string, any[]>();
+    data.orders.forEach(o => {
+        const custName = o.customer_name || data.customer_name || 'Unknown Customer';
+        if (!groupedOrders.has(custName)) {
+            groupedOrders.set(custName, []);
+        }
+        groupedOrders.get(custName)!.push(o);
+    });
 
-    const tableRows = data.orders.map((o, idx) => [
-        (idx + 1).toString(),
-        o.order_number,
-        o.design_name,
-        o.fabric_type,
-        `${o.quantity.toFixed(2)} Mtr`
-    ]);
+    const tableBody: any[] = [];
+    let globalIdx = 1;
+
+    groupedOrders.forEach((orders, customerName) => {
+        const firstOrder = orders[0];
+        const addr = firstOrder.customer_address || 'Address pending';
+        const phone = firstOrder.customer_phone || data.customer_phone || 'N/A';
+        const gstin = firstOrder.customer_gstin ? ` | GSTIN: ${firstOrder.customer_gstin}` : '';
+        
+        // Address max length to avoid awkward wrapping in header
+        let shortAddr = addr.replace(/\n/g, ' ');
+        if (shortAddr.length > 55) shortAddr = shortAddr.substring(0, 52) + '...';
+
+        tableBody.push([{
+            content: `${customerName.toUpperCase()}  |  Ph: ${phone}${gstin}  |  Route: ${shortAddr}`,
+            colSpan: 5,
+            styles: { 
+                fillColor: '#f1f5f9',
+                textColor: '#0f172a',
+                fontStyle: 'bold',
+                halign: 'left',
+                cellPadding: { top: 4.5, bottom: 4.5, left: 4.5, right: 4.5 }
+            }
+        }]);
+
+        orders.forEach(o => {
+            tableBody.push([
+                (globalIdx++).toString(),
+                o.order_number,
+                o.design_name,
+                o.fabric_type,
+                `${o.quantity.toFixed(2)} Mtr`
+            ]);
+        });
+    });
 
     autoTable(doc, {
         startY: currentY,
-        head: [tableHeaders],
-        body: tableRows,
+        head: [['S.No', 'Order ID', 'Design Name', 'Fabric Type', 'Quantity']],
+        body: tableBody,
         theme: 'grid',
         margin: { left: margin, right: margin },
         headStyles: {
@@ -258,26 +305,31 @@ export async function generateChallanPDFServer(data: ChallanPDFData): Promise<{ 
             textColor: colorTextPrimary,
             font: 'helvetica',
             fontStyle: 'bold',
-            fontSize: 8.5,
-            cellPadding: 4,
+            fontSize: 9.5,
+            cellPadding: { top: 4.5, bottom: 4.5, left: 2, right: 2 },
             lineWidth: 0.1,
-            lineColor: colorBorder
+            lineColor: colorBorder,
+            valign: 'middle',
+            halign: 'center'
         },
         bodyStyles: {
             textColor: colorTextPrimary,
             font: 'helvetica',
-            fontSize: 8.5,
-            cellPadding: 4,
+            fontSize: 9.5,
+            cellPadding: { top: 4.5, bottom: 4.5, left: 3, right: 3 },
             lineWidth: 0.1,
-            lineColor: colorBorder
+            lineColor: colorBorder,
+            valign: 'middle'
         },
         alternateRowStyles: {
-            fillColor: '#fdfdfd'
+            fillColor: '#ffffff' // Override alternate to avoid clashing with group header
         },
         columnStyles: {
-            0: { cellWidth: 15 },
-            1: { cellWidth: 35 },
-            4: { halign: 'right', cellWidth: 30 }
+            0: { cellWidth: 12, halign: 'center' }, // S.No
+            1: { cellWidth: 38 }, // Order ID
+            2: { cellWidth: 'auto' }, // Design
+            3: { cellWidth: 35 }, // Fabric
+            4: { halign: 'right', cellWidth: 26 } // Qty
         },
         styles: {
             overflow: 'linebreak'
@@ -294,12 +346,12 @@ export async function generateChallanPDFServer(data: ChallanPDFData): Promise<{ 
     const summaryX = rightX - summaryWidth;
     
     doc.setDrawColor(colorBorder);
-    doc.setLineWidth(0.2);
+    doc.setLineWidth(0.25);
     doc.setFillColor('#f8fafc');
     doc.roundedRect(summaryX, finalY, summaryWidth, 18, 1, 1, 'DF');
     
     doc.setFont('helvetica', 'normal');
-    doc.setFontSize(8.5);
+    doc.setFontSize(9.5); // Mobile Optimized: 9.5
     doc.setTextColor(colorTextSecondary);
     doc.text('Total Orders:', summaryX + 5, finalY + 7);
     
@@ -312,13 +364,13 @@ export async function generateChallanPDFServer(data: ChallanPDFData): Promise<{ 
     doc.text('Total Quantity:', summaryX + 5, finalY + 13);
     
     doc.setFont('helvetica', 'bold');
-    doc.setFontSize(9.5);
+    doc.setFontSize(10.5); // Mobile Optimized: 10.5
     doc.setTextColor(colorTextPrimary);
     doc.text(`${data.total_quantity.toFixed(2)} Mtr`, rightX - 5, finalY + 13, { align: 'right' });
 
     if (data.notes) {
         doc.setFont('helvetica', 'normal');
-        doc.setFontSize(8);
+        doc.setFontSize(9);
         doc.setTextColor(colorTextSecondary);
         const notesLines = doc.splitTextToSize(`Notes: ${data.notes}`, contentWidth - summaryWidth - 10);
         doc.text(notesLines, margin, finalY + 5);

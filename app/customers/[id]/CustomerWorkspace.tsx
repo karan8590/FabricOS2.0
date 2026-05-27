@@ -276,7 +276,7 @@ export default function CustomerWorkspace({ data, onUpdate }: CustomerWorkspaceP
                     />
                 )}
                 {activeTab === 'invoices' && (
-                    <InvoicesTab invoices={invoices} onUpdate={onUpdate} />
+                    <InvoicesTab invoices={invoices} customer={customer} onUpdate={onUpdate} />
                 )}
                 {activeTab === 'payments' && (
                     <PaymentsTab payments={payments} />

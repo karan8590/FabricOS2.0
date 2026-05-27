@@ -1,0 +1,309 @@
+.overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.4);
+    backdrop-filter: blur(2px);
+    z-index: 1000;
+    display: flex;
+    justify-content: flex-end;
+    animation: fadeIn 0.2s ease-out forwards;
+}
+
+.drawer {
+    width: 100%;
+    max-width: 520px;
+    height: 100%;
+    background: var(--bg-primary, #ffffff);
+    box-shadow: -4px 0 24px rgba(0, 0, 0, 0.1);
+    display: flex;
+    flex-direction: column;
+    animation: slideInRight 0.3s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+:global([data-theme="dark"]) .drawer {
+    background: #111827;
+    border-left: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 24px;
+    border-bottom: 1px solid var(--border-primary, #E5E7EB);
+    background: var(--bg-grouped, #F9FAFB);
+}
+
+:global([data-theme="dark"]) .header {
+    background: #1F2937;
+}
+
+.titleGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.titleGroup h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--text-primary, #111827);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.badge {
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 6px;
+    background: #E0F2FE;
+    color: #0284C7;
+    font-weight: 600;
+    letter-spacing: 0.3px;
+}
+
+:global([data-theme="dark"]) .badge {
+    background: rgba(2, 132, 199, 0.2);
+    color: #38BDF8;
+}
+
+.subtitle {
+    margin: 0;
+    font-size: 13px;
+    color: var(--text-secondary, #6B7280);
+}
+
+.closeButton {
+    background: transparent;
+    border: none;
+    color: var(--text-secondary, #6B7280);
+    cursor: pointer;
+    padding: 6px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+}
+
+.closeButton:hover {
+    background: var(--bg-hover, #F3F4F6);
+    color: var(--text-primary, #111827);
+}
+
+.content {
+    flex: 1;
+    overflow-y: auto;
+    padding: 24px;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+}
+
+.section {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.sectionTitle {
+    margin: 0;
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-tertiary, #9CA3AF);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.metadataGrid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    background: var(--bg-card, #ffffff);
+    border: 1px solid var(--border-primary, #E5E7EB);
+    border-radius: 12px;
+    padding: 16px;
+}
+
+:global([data-theme="dark"]) .metadataGrid {
+    background: #1F2937;
+}
+
+.metaItem {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.metaLabel {
+    font-size: 12px;
+    color: var(--text-secondary, #6B7280);
+}
+
+.metaValue {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary, #111827);
+}
+
+.fabricCard {
+    background: var(--bg-card, #ffffff);
+    border: 1px solid var(--border-primary, #E5E7EB);
+    border-radius: 12px;
+    padding: 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+:global([data-theme="dark"]) .fabricCard {
+    background: #1F2937;
+}
+
+.fabricLeft {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.fabricTitle {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--text-primary, #111827);
+}
+
+.fabricCustomer {
+    font-size: 13px;
+    color: var(--text-secondary, #6B7280);
+}
+
+.fabricQty {
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--text-primary, #111827);
+}
+
+.footer {
+    padding: 20px 24px;
+    border-top: 1px solid var(--border-primary, #E5E7EB);
+    background: var(--bg-card, #ffffff);
+    display: flex;
+    gap: 12px;
+}
+
+:global([data-theme="dark"]) .footer {
+    background: #1F2937;
+}
+
+.btnPrimary, .btnSecondary, .btnWhatsApp {
+    flex: 1;
+    height: 40px;
+    border-radius: 10px;
+    font-size: 13.5px;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    cursor: pointer;
+    transition: all 0.15s ease;
+}
+
+.btnPrimary {
+    background: #EFF6FF;
+    border: 1px solid #BFDBFE;
+    color: #1D4ED8;
+}
+
+.btnPrimary:hover {
+    background: #DBEAFE;
+}
+
+:global([data-theme="dark"]) .btnPrimary {
+    background: rgba(59, 130, 246, 0.1);
+    border-color: rgba(59, 130, 246, 0.2);
+    color: #60A5FA;
+}
+
+:global([data-theme="dark"]) .btnPrimary:hover {
+    background: rgba(59, 130, 246, 0.2);
+}
+
+.btnSecondary {
+    background: #F9FAFB;
+    border: 1px solid #E5E7EB;
+    color: #374151;
+}
+
+.btnSecondary:hover {
+    background: #F3F4F6;
+}
+
+:global([data-theme="dark"]) .btnSecondary {
+    background: transparent;
+    border-color: rgba(255, 255, 255, 0.1);
+    color: #D1D5DB;
+}
+
+:global([data-theme="dark"]) .btnSecondary:hover {
+    background: rgba(255, 255, 255, 0.05);
+}
+
+.btnWhatsApp {
+    background: #F0FDF4;
+    border: 1px solid #BBF7D0;
+    color: #15803D;
+    flex: 0 0 40px;
+}
+
+.btnWhatsApp:hover {
+    background: #DCFCE7;
+}
+
+:global([data-theme="dark"]) .btnWhatsApp {
+    background: rgba(34, 197, 94, 0.1);
+    border-color: rgba(34, 197, 94, 0.2);
+    color: #4ADE80;
+}
+
+:global([data-theme="dark"]) .btnWhatsApp:hover {
+    background: rgba(34, 197, 94, 0.2);
+}
+
+.btnPrimary:active, .btnSecondary:active, .btnWhatsApp:active {
+    transform: scale(0.97);
+}
+
+.loadingWrapper {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-tertiary, #9CA3AF);
+    gap: 12px;
+}
+
+.spinner {
+    animation: spin 1s linear infinite;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes slideInRight {
+    from { transform: translateX(100%); }
+    to { transform: translateX(0); }
+}
+
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}

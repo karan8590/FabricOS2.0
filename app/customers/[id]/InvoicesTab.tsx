@@ -6,12 +6,75 @@ import styles from './Tabs.module.css';
 
 interface InvoicesTabProps {
     invoices: any[];
+    customer: any;
     onUpdate: () => void;
 }
 
-export default function InvoicesTab({ invoices, onUpdate }: InvoicesTabProps) {
+export default function InvoicesTab({ invoices, customer, onUpdate }: InvoicesTabProps) {
     const formatCurrency = (val: number) => 
         new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR', maximumFractionDigits: 0 }).format(val);
+
+    const handleDownloadPDF = async (invoice: any) => {
+        try {
+            const res = await fetch(`/api/share?type=invoice&id=${invoice.id}`);
+            if (!res.ok) {
+                alert('Failed to retrieve invoice download link');
+                return;
+            }
+            const shareData = await res.json();
+            const link = document.createElement('a');
+            link.href = shareData.url;
+            link.download = `${invoice.invoice_number}.pdf`;
+            link.target = '_blank';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        } catch (err) {
+            console.error('Error downloading invoice:', err);
+        }
+    };
+
+    const handleShareWhatsApp = async (invoice: any) => {
+        if (!customer) {
+            alert('Customer information not found');
+            return;
+        }
+        try {
+            const res = await fetch(`/api/share?type=invoice&id=${invoice.id}`);
+            if (!res.ok) {
+                alert('Failed to generate sharing URL');
+                return;
+            }
+            const shareData = await res.json();
+            const shareUrl = shareData.url;
+            const formattedAmount = formatCurrency(invoice.amount);
+            const message = `Hi ${customer.name}, please find your invoice ${invoice.invoice_number} for ${formattedAmount}. You can download the PDF here: ${shareUrl}`;
+            window.open(`https://wa.me/${customer.phone?.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
+        } catch (err) {
+            console.error('Error sharing invoice:', err);
+        }
+    };
+
+    const handleSendReminder = async (invoice: any) => {
+        if (!customer) {
+            alert('Customer information not found');
+            return;
+        }
+        try {
+            const res = await fetch(`/api/share?type=invoice&id=${invoice.id}`);
+            if (!res.ok) {
+                alert('Failed to generate sharing URL');
+                return;
+            }
+            const shareData = await res.json();
+            const shareUrl = shareData.url;
+            const formattedAmount = formatCurrency(invoice.amount);
+            const message = `Hi ${customer.name}, friendly reminder that invoice ${invoice.invoice_number} for ${formattedAmount} is due. Download here: ${shareUrl}`;
+            window.open(`https://wa.me/${customer.phone?.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
+        } catch (err) {
+            console.error('Error sharing reminder:', err);
+        }
+    };
 
     return (
         <div className={styles.tabContent}>
@@ -70,9 +133,9 @@ export default function InvoicesTab({ invoices, onUpdate }: InvoicesTabProps) {
                                     </td>
                                     <td className={styles.actionsCell}>
                                         <div className={styles.actionGroup}>
-                                            <button className={styles.iconBtn} title="Download"><Download size={16} /></button>
-                                            <button className={styles.iconBtn} title="Send Reminder"><Bell size={16} /></button>
-                                            <button className={styles.iconBtn} title="Share WhatsApp"><Share2 size={16} /></button>
+                                            <button onClick={() => handleDownloadPDF(invoice)} className={styles.iconBtn} title="Download"><Download size={16} /></button>
+                                            <button onClick={() => handleSendReminder(invoice)} className={styles.iconBtn} title="Send Reminder" disabled={invoice.status === 'paid'} style={{ opacity: invoice.status === 'paid' ? 0.4 : 1, cursor: invoice.status === 'paid' ? 'not-allowed' : 'pointer' }}><Bell size={16} /></button>
+                                            <button onClick={() => handleShareWhatsApp(invoice)} className={styles.iconBtn} title="Share WhatsApp"><Share2 size={16} /></button>
                                             <button className={styles.actionBtnPrimary}>Record Payment</button>
                                         </div>
                                     </td>
@@ -144,9 +207,9 @@ export default function InvoicesTab({ invoices, onUpdate }: InvoicesTabProps) {
 
                                 {/* Actions Footer */}
                                 <div className={styles.mobileCardActions}>
-                                    <button className={styles.iconBtn} title="Download"><Download size={16} /></button>
-                                    <button className={styles.iconBtn} title="Send Reminder"><Bell size={16} /></button>
-                                    <button className={styles.iconBtn} title="Share WhatsApp"><Share2 size={16} /></button>
+                                    <button onClick={() => handleDownloadPDF(invoice)} className={styles.iconBtn} title="Download"><Download size={16} /></button>
+                                    <button onClick={() => handleSendReminder(invoice)} className={styles.iconBtn} title="Send Reminder" disabled={invoice.status === 'paid'} style={{ opacity: invoice.status === 'paid' ? 0.4 : 1, cursor: invoice.status === 'paid' ? 'not-allowed' : 'pointer' }}><Bell size={16} /></button>
+                                    <button onClick={() => handleShareWhatsApp(invoice)} className={styles.iconBtn} title="Share WhatsApp"><Share2 size={16} /></button>
                                     <button className={styles.actionBtnPrimary}>Record Payment</button>
                                 </div>
                             </div>

@@ -87,40 +87,51 @@ export async function GET(request: Request) {
 
         // 3. Retrieve and Filter Payments
         let query = `
-            SELECT * FROM vendor_payments 
-            WHERE COALESCE(is_deleted, false) = false AND business_id = ?
+            SELECT vp.*, 
+                   db.dispatch_number as dispatch_number,
+                   db.vehicle_number as vehicle_number,
+                   db.driver_name as driver_name,
+                   db.route as route,
+                   db.dispatch_date as dispatch_date,
+                   db.status as dispatch_status,
+                   dc.challan_number as challan_number
+            FROM vendor_payments vp
+            LEFT JOIN dispatch_batches db ON vp.dispatch_id = db.id
+            LEFT JOIN dispatch_challans dc ON db.id = dc.dispatch_id
+            WHERE COALESCE(vp.is_deleted, false) = false AND vp.business_id = ?
         `;
         const params: any[] = [businessId];
 
         if (search) {
-            query += ` AND (vendor_name LIKE ? OR order_number LIKE ? OR work_type LIKE ?)`;
+            query += ` AND (vp.vendor_name LIKE ? OR vp.order_number LIKE ? OR vp.work_type LIKE ?)`;
             const searchPattern = `%${search}%`;
             params.push(searchPattern, searchPattern, searchPattern);
         }
 
         if (filter === 'Overdue') {
-            query += ` AND status = 'overdue'`;
+            query += ` AND vp.status = 'overdue'`;
         } else if (filter === 'Due this week') {
-            query += ` AND due_date >= ? AND due_date <= ? AND status != 'paid'`;
+            query += ` AND vp.due_date >= ? AND vp.due_date <= ? AND vp.status != 'paid'`;
             params.push(todayStr, sevenDaysLater);
         } else if (filter === 'Unpaid') {
-            query += ` AND status = 'unpaid'`;
+            query += ` AND vp.status = 'unpaid'`;
         } else if (filter === 'Partial') {
-            query += ` AND status = 'partial'`;
+            query += ` AND vp.status = 'partial'`;
         } else if (filter === 'Paid') {
-            query += ` AND status = 'paid'`;
+            query += ` AND vp.status = 'paid'`;
         }
 
         // Sort order: Overdue first → Due soonest → Partial → Paid
         query += `
             ORDER BY 
                 CASE 
-                    WHEN status = 'overdue' THEN 1 
-                    WHEN status = 'unpaid' THEN 2 
-                    WHEN status = 'partial' THEN 3 
-                    ELSE 4 
+                    WHEN vp.status = 'overdue' THEN 1 
+                    WHEN vp.status = 'unpaid' THEN 2 
+                    WHEN vp.status = 'partial' THEN 3 
+                    WHEN vp.status = 'pending_cost' THEN 4
+                    ELSE 5
                 END ASC,
-                due_date ASC
+                vp.due_date ASC
         `;
 
         const payments = (await db.prepare(query).all(...params)) as any[];

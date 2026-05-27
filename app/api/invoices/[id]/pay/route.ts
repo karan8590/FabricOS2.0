@@ -153,6 +153,14 @@ export async function POST(request: Request, { params }: { params: Promise<{ id:
             changes: { amount: paymentAmount, status: { old: invoice.status, new: newStatus } }
         });
 
+        // Log Invoice History
+        try {
+            const desc = newStatus === 'paid' ? `Payment of ₹${paymentAmount.toLocaleString('en-IN')} recorded. Invoice fully paid.` : `Partial payment of ₹${paymentAmount.toLocaleString('en-IN')} recorded.`;
+            await db.prepare('INSERT INTO invoice_history (invoice_id, action_type, description) VALUES (?, ?, ?)').run(id, newStatus === 'paid' ? 'Payment Recorded' : 'Partial Payment Recorded', desc);
+        } catch (err) {
+            console.error('Failed to log invoice history for payment:', err);
+        }
+
         return NextResponse.json({ success: true, newStatus, newPaid });
 
     } catch (error) {

@@ -16,6 +16,8 @@ import GenerateChallanModal from '@/components/challans/GenerateChallanModal';
 import ProductionWorkflowModal from '@/components/orders/ProductionWorkflowModal';
 import ProductionActionButton from '@/components/orders/ProductionActionButton';
 import ActivityTimeline from '@/components/ui/ActivityTimeline';
+import ApproveOrderModal from '@/components/orders/ApproveOrderModal';
+import { prefetchFabricInventory } from '@/lib/inventoryCache';
 
 import { ORDER_STATUSES, ORDER_STATUS_LABELS } from '@/lib/constants';
 
@@ -35,14 +37,20 @@ export default function OrderDetailsPage() {
     const router = useRouter();
     const [order, setOrder] = useState<any>(null);
     const [loading, setLoading] = useState(true);
+    const [mounted, setMounted] = useState(false);
 
     const [confirmAction, setConfirmAction] = useState<string | null>(null);
 
     const [isPaymentModalOpen, setIsPaymentModalOpen] = useState(false);
     const [selectedInvoice, setSelectedInvoice] = useState<any>(null);
 
-    const [challanModalState, setChallanModalState] = useState<{ isOpen: boolean; type: 'dispatch'|'jobwork'; linkedData?: any }>({ isOpen: false, type: 'dispatch' });
+    const [challanModalState, setChallanModalState] = useState<{isOpen: boolean, type: string, linkedData: any}>({isOpen: false, type: '', linkedData: null});
     const [workflowModalState, setWorkflowModalState] = useState<{isOpen: boolean, action: 'send_to_embroidery' | 'send_to_dyeing'}>({isOpen: false, action: 'send_to_embroidery'});
+
+    useEffect(() => {
+        setMounted(true);
+        prefetchFabricInventory();
+    }, []);
 
     const [vendorsList, setVendorsList] = useState<any[]>([]);
 
@@ -372,13 +380,8 @@ export default function OrderDetailsPage() {
         let msgText = `Are you sure you want to proceed?`;
 
         if (isApprove) {
-            iconColor = '#FFCC00';
-            iconBg = 'rgba(255, 204, 0, 0.12)';
-            btnBg = '#FFCC00';
-            btnTextColor = '#000000';
-            btnText = 'Approve';
-            titleText = 'Approve Order?';
-            msgText = `Are you sure you want to approve Order #${order?.order_number || order?.id}? This will move it to production.`;
+            // We use the custom ApproveOrderModal instead
+            return null;
         } else if (isPrinting) {
             iconColor = '#AF52DE';
             iconBg = 'rgba(175, 82, 222, 0.12)';
@@ -416,6 +419,7 @@ export default function OrderDetailsPage() {
         return (
             <div className="global-modal-overlay" onClick={() => setConfirmAction(null)}>
                 <div className={styles.modal} onClick={e => e.stopPropagation()}>
+                    <div className={styles.mobileSheetHandle} />
                     <div className={styles.modalIcon} style={{ background: iconBg, color: iconColor }}>
                         <CheckCircle2 size={24} />
                     </div>
@@ -591,6 +595,15 @@ export default function OrderDetailsPage() {
                 }}
                 order={order}
                 action={workflowModalState.action}
+            />
+            <ApproveOrderModal
+                isOpen={confirmAction === 'approve'}
+                onClose={() => setConfirmAction(null)}
+                onSuccess={() => {
+                    setConfirmAction(null);
+                    fetchOrder();
+                }}
+                order={order}
             />
             {/* Header Section */}
             <header className={styles.header}>

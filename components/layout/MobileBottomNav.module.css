@@ -6,7 +6,7 @@
     display: none; /* hidden on desktop */
 }
 
-@media (max-width: 768px) {
+@media (max-width: 767px) {
     .bottomNav {
         display: flex;
         align-items: stretch;
@@ -14,7 +14,7 @@
         bottom: 0;
         left: 0;
         right: 0;
-        z-index: 500;
+        z-index: 9999;
         height: calc(60px + env(safe-area-inset-bottom, 0px));
         padding-bottom: env(safe-area-inset-bottom, 0px);
         background: var(--bg-card);
@@ -112,5 +112,10 @@
     .tabActive .tabIcon {
         background: var(--accent-bg, rgba(0, 113, 227, 0.1));
         border-radius: 10px;
+    }
+
+    .bottomNavHidden {
+        transform: translateY(100%);
+        pointer-events: none;
     }
 }

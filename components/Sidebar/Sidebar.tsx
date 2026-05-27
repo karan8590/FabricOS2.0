@@ -15,6 +15,7 @@ import {
   Settings,
   LogOut,
   LucideIcon,
+  Truck,
 } from 'lucide-react'
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -64,6 +65,12 @@ const NAV_ITEMS: NavItem[] = [
     label: 'Orders',
     route: '/orders',
     icon: ShoppingBag,
+    badge: null,
+  },
+  {
+    label: 'Dispatch Center',
+    route: '/dispatch-center',
+    icon: Truck,
     badge: null,
   },
   {

@@ -1,164 +1,137 @@
 /* ===================================================
-   MobileOrderCard — Premium Mobile ERP Card
+   MobileOrderCard — Compact Production-Grade ERP Styles
    =================================================== */
 
 .card {
     background: var(--bg-card);
-    border: 1.5px solid var(--border-primary);
-    border-radius: 18px;
-    padding: 0;
-    overflow: hidden;
-    box-shadow: 0 2px 12px rgba(0, 0, 0, 0.06), 0 1px 3px rgba(0, 0, 0, 0.04);
-    transition: box-shadow 180ms ease, transform 120ms ease;
+    border: 1px solid var(--border-primary);
+    border-radius: 12px;
+    padding: 10px 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: all 120ms ease;
+    cursor: pointer;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
     position: relative;
+    user-select: none;
+    -webkit-tap-highlight-color: transparent;
 }
 
 .card:active {
     transform: scale(0.995);
-    box-shadow: 0 1px 6px rgba(0, 0, 0, 0.08);
+    background: var(--bg-hover);
 }
 
-/* ---- Status accent bar on left ---- */
-.card::before {
-    content: '';
-    position: absolute;
-    left: 0;
-    top: 0;
-    bottom: 0;
-    width: 4px;
-    border-radius: 18px 0 0 18px;
-    background: var(--card-accent, var(--border-primary));
-    transition: background 0.2s ease;
+.cardActive {
+    border-color: #AF52DE !important;
+    box-shadow: 0 0 0 3px rgba(175, 82, 222, 0.15), 0 4px 12px rgba(175, 82, 222, 0.08) !important;
 }
 
-/* ---- Stage color tokens ---- */
-.stagePending    { --card-accent: #F59E0B; background: rgba(245, 158, 11, 0.018); }
-.stageProduction { --card-accent: #3B82F6; background: rgba(59, 130, 246, 0.018); }
-.stageReady      { --card-accent: #10B981; background: rgba(16, 185, 129, 0.018); }
-.stageDone       { --card-accent: #9CA3AF; background: rgba(156, 163, 175, 0.01); }
-.stageOverdue    { --card-accent: #EF4444; background: rgba(239, 68, 68, 0.025); }
-.stageSelected   { --card-accent: #0EA5E9; background: rgba(14, 165, 233, 0.06); border-color: rgba(14, 165, 233, 0.35); box-shadow: 0 0 0 2px rgba(14, 165, 233, 0.15), 0 4px 16px rgba(14, 165, 233, 0.1); }
-
-/* ===== Card Header ===== */
-.cardHeader {
+/* ── TOP: Status Badge & Amount ── */
+.topRow {
     display: flex;
-    align-items: center;
     justify-content: space-between;
-    padding: 12px 16px 10px 20px;
-    border-bottom: 1px solid var(--border-subtle, rgba(0,0,0,0.06));
-    gap: 10px;
-}
-
-.headerLeft {
-    display: flex;
     align-items: center;
-    gap: 8px;
-    min-width: 0;
-    flex: 1;
+    width: 100%;
 }
 
-.stageBadge {
+.statusPill {
     display: inline-flex;
     align-items: center;
-    gap: 5px;
-    padding: 3px 9px;
-    border-radius: 20px;
-    font-size: 10px;
+    padding: 2px 5px;
+    border-radius: 4px;
+    font-size: 9px;
     font-weight: 700;
     text-transform: uppercase;
-    letter-spacing: 0.05em;
+    letter-spacing: 0.04em;
+    line-height: 1;
     white-space: nowrap;
-    flex-shrink: 0;
 }
 
-/* Badge color per stage */
-.badgePending    { background: rgba(245, 158, 11, 0.12); color: #B45309; border: 1px solid rgba(245, 158, 11, 0.25); }
-.badgeApproved   { background: rgba(99, 102, 241, 0.1);  color: #4F46E5; border: 1px solid rgba(99, 102, 241, 0.2); }
-.badgeEmbroidery { background: rgba(139, 92, 246, 0.1);  color: #7C3AED; border: 1px solid rgba(139, 92, 246, 0.2); }
-.badgePrinting   { background: rgba(249, 115, 22, 0.1);  color: #C2410C; border: 1px solid rgba(249, 115, 22, 0.2); }
-.badgeDyeing     { background: rgba(14, 165, 233, 0.1);  color: #0369A1; border: 1px solid rgba(14, 165, 233, 0.2); }
-.badgeReady      { background: rgba(16, 185, 129, 0.1);  color: #047857; border: 1px solid rgba(16, 185, 129, 0.2); }
-.badgeDispatched { background: rgba(59, 130, 246, 0.1);  color: #1D4ED8; border: 1px solid rgba(59, 130, 246, 0.2); }
-.badgeDelivered  { background: rgba(107, 114, 128, 0.1); color: #374151; border: 1px solid rgba(107, 114, 128, 0.2); }
-.badgeOverdue    { background: rgba(239, 68, 68, 0.1);   color: #B91C1C; border: 1px solid rgba(239, 68, 68, 0.2); }
-
-.orderNum {
-    font-family: 'SF Mono', 'Fira Code', 'Courier New', monospace;
-    font-size: 12px;
-    font-weight: 600;
-    color: var(--text-tertiary);
-    flex-shrink: 0;
+/* Subtle status badge background tints */
+.badgeApproval {
+    background: rgba(255, 149, 0, 0.08);
+    color: #FF9500;
+    border: 1px solid rgba(255, 149, 0, 0.15);
 }
 
-.recurringIcon {
-    font-size: 13px;
+.badgeEmbroidery {
+    background: rgba(175, 82, 222, 0.08);
     color: #AF52DE;
-    flex-shrink: 0;
+    border: 1px solid rgba(175, 82, 222, 0.15);
 }
 
-.headerRight {
+.badgeDyeing {
+    background: rgba(0, 113, 227, 0.08);
+    color: #0071E3;
+    border: 1px solid rgba(0, 113, 227, 0.15);
+}
+
+.badgeReady {
+    background: rgba(52, 199, 89, 0.08);
+    color: #34C759;
+    border: 1px solid rgba(52, 199, 89, 0.15);
+}
+
+.badgeDelivered {
+    background: rgba(142, 142, 147, 0.08);
+    color: #8E8E93;
+    border: 1px solid rgba(142, 142, 147, 0.15);
+}
+
+.badgeOverdue {
+    background: rgba(255, 59, 48, 0.08);
+    color: #FF3B30;
+    border: 1px solid rgba(255, 59, 48, 0.15);
+}
+
+.topRight {
     display: flex;
     align-items: center;
-    gap: 6px;
-    flex-shrink: 0;
+    gap: 4px;
+}
+
+.amount {
+    font-size: 14px;
+    font-weight: 700;
+    color: var(--text-primary);
+    letter-spacing: -0.2px;
 }
 
 .menuBtn {
     background: transparent;
     border: none;
-    padding: 6px;
-    border-radius: 8px;
+    padding: 2px;
+    border-radius: 6px;
     color: var(--text-tertiary);
     cursor: pointer;
     display: flex;
     align-items: center;
     justify-content: center;
-    min-width: 36px;
-    min-height: 36px;
-    transition: background 0.15s ease;
+    transition: background 0.1s ease;
 }
 
 .menuBtn:active {
     background: var(--bg-hover);
 }
 
-/* ===== Card Body ===== */
-.cardBody {
-    padding: 12px 16px 12px 20px;
+/* ── MIDDLE SECTION ── */
+.middleSection {
     display: flex;
     flex-direction: column;
-    gap: 8px;
+    gap: 1px;
+    width: 100%;
 }
 
-/* Customer row */
 .customerRow {
     display: flex;
     align-items: center;
-    gap: 10px;
-}
-
-.avatar {
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-    background: linear-gradient(135deg, var(--accent, #6366F1), #8B5CF6);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 13px;
-    font-weight: 700;
-    color: white;
-    flex-shrink: 0;
-    letter-spacing: -0.3px;
-}
-
-.customerInfo {
-    min-width: 0;
-    flex: 1;
+    gap: 4px;
 }
 
 .customerName {
-    font-size: 15px;
+    font-size: 13px;
     font-weight: 700;
     color: var(--text-primary);
     white-space: nowrap;
@@ -167,101 +140,49 @@
     line-height: 1.2;
 }
 
-.customerPhone {
-    font-size: 11.5px;
-    color: var(--text-tertiary);
-    margin-top: 1px;
+.recurringIcon {
+    font-size: 10px;
+    color: #AF52DE;
+    font-weight: bold;
 }
 
-.totalAmount {
-    font-size: 17px;
-    font-weight: 800;
-    color: var(--text-primary);
-    letter-spacing: -0.5px;
-    flex-shrink: 0;
-}
-
-/* Design + Quantity row */
 .designRow {
     display: flex;
     align-items: center;
-    gap: 8px;
-    min-width: 0;
 }
 
 .designName {
-    font-size: 13px;
+    font-size: 11.5px;
     font-weight: 500;
     color: var(--text-secondary);
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    line-height: 1.2;
+}
+
+/* ── BOTTOM SECTION: Spec details & action pill side-by-side ── */
+.bottomRow {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+    margin-top: 4px;
+    gap: 8px;
+}
+
+.bottomLeft {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    min-width: 0; /* Allow text to shrink and ellipsis if needed */
     flex: 1;
 }
 
-.quantityBadge {
-    background: var(--bg-grouped, rgba(0,0,0,0.04));
-    border: 1px solid var(--border-subtle, rgba(0,0,0,0.08));
-    color: var(--text-secondary);
-    font-size: 11px;
-    font-weight: 600;
-    padding: 2px 7px;
-    border-radius: 6px;
-    white-space: nowrap;
+.bottomRight {
+    display: flex;
+    align-items: center;
     flex-shrink: 0;
-}
-
-/* Meta row — due date + firm */
-.metaRow {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    flex-wrap: wrap;
-}
-
-.dueDate {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 11.5px;
-    color: var(--text-tertiary);
-    font-weight: 500;
-}
-
-.dueDateOverdue {
-    color: #EF4444;
-    font-weight: 600;
-}
-
-.firmBadge {
-    display: inline-flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 10.5px;
-    font-weight: 600;
-    color: var(--text-tertiary);
-    background: var(--bg-grouped, rgba(0,0,0,0.04));
-    border: 1px solid var(--border-subtle, rgba(0,0,0,0.07));
-    padding: 2px 7px;
-    border-radius: 5px;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-}
-
-.jobBadges {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    margin-left: auto;
-}
-
-/* ===== Card Footer ===== */
-.cardFooter {
-    padding: 10px 16px 12px 16px;
-    border-top: 1px solid var(--border-subtle, rgba(0,0,0,0.06));
-    display: flex;
-    align-items: center;
-    gap: 10px;
 }
 
 .checkboxWrapper {
@@ -271,81 +192,127 @@
     flex-shrink: 0;
 }
 
-.checkbox {
-    width: 20px;
-    height: 20px;
-    border-radius: 6px;
-    accent-color: #0EA5E9;
+.massiveCheckbox {
+    width: 14px;
+    height: 14px;
+    border-radius: 4px;
+    border: 1.5px solid var(--border-secondary);
+    accent-color: var(--accent);
     cursor: pointer;
-    flex-shrink: 0;
 }
 
-.checkboxPlaceholder {
-    width: 20px;
-    flex-shrink: 0;
+.specsText {
+    font-size: 10.5px;
+    color: var(--text-tertiary);
+    font-weight: 500;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.quickActionBtn {
-    flex: 1;
-    min-height: 44px;
-    border-radius: 12px;
-    font-size: 13.5px;
-    font-weight: 700;
-    cursor: pointer;
-    border: 1.5px solid transparent;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 7px;
-    transition: all 0.15s ease;
-    letter-spacing: -0.1px;
-}
-
-.quickActionBtn:active {
-    transform: scale(0.97);
-}
-
-.quickActionBtn:disabled {
-    opacity: 0.55;
-    cursor: not-allowed;
-}
-
-/* Action button variants */
-.actionApprove   { background: #FFFBEB; color: #92400E; border-color: rgba(180, 83, 9, 0.2); }
-.actionEmbroidery{ background: rgba(139, 92, 246, 0.08); color: #6D28D9; border-color: rgba(139, 92, 246, 0.2); }
-.actionPrinting  { background: rgba(249, 115, 22, 0.08); color: #C2410C; border-color: rgba(249, 115, 22, 0.2); }
-.actionDyeing    { background: rgba(14, 165, 233, 0.08); color: #0369A1; border-color: rgba(14, 165, 233, 0.2); }
-.actionReady     { background: rgba(16, 185, 129, 0.08); color: #047857; border-color: rgba(16, 185, 129, 0.2); }
-.actionDispatch  { background: rgba(59, 130, 246, 0.1);  color: #1D4ED8; border-color: rgba(59, 130, 246, 0.25); }
-.actionInvoice   { background: rgba(52, 199, 89, 0.08);  color: #15803D; border-color: rgba(52, 199, 89, 0.2); }
-.actionDone      { background: rgba(107, 114, 128, 0.07); color: #6B7280; border-color: transparent; cursor: default; }
-
-.statusBadgeOnly {
-    flex: 1;
-    min-height: 40px;
-    border-radius: 12px;
-    font-size: 12.5px;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 7px;
-    background: var(--bg-grouped, rgba(0,0,0,0.04));
-    color: var(--text-secondary);
-    border: 1px solid var(--border-subtle, rgba(0,0,0,0.07));
-}
-
-/* Invoice generated chip in footer */
 .invoiceChip {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
-    font-size: 10.5px;
+    font-size: 9px;
     font-weight: 600;
     color: #15803D;
-    background: rgba(52, 199, 89, 0.08);
-    border: 1px solid rgba(52, 199, 89, 0.18);
-    padding: 3px 8px;
-    border-radius: 6px;
+    background: rgba(52, 199, 89, 0.06);
+    border: 1px solid rgba(52, 199, 89, 0.15);
+    padding: 1px 4px;
+    border-radius: 4px;
+    line-height: 1;
     flex-shrink: 0;
+}
+
+/* ── ACTION PILL DESIGN ── */
+.actionBtn {
+    height: 30px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    font-size: 11.5px;
+    font-weight: 700;
+    border-radius: 15px;
+    cursor: pointer;
+    border: 1px solid var(--border-primary);
+    transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+    background: var(--bg-grouped);
+    color: var(--text-primary);
+    font-family: inherit;
+    padding: 0 10px;
+    white-space: nowrap;
+}
+
+.actionBtn:active {
+    transform: scale(0.96);
+}
+
+.actionBtn svg {
+    flex-shrink: 0;
+}
+
+/* Custom Action Button Stage Styling (Light Background, Soft Borders, Subtle Colors) */
+.btnApprove {
+    background: rgba(255, 149, 0, 0.05);
+    border-color: rgba(255, 149, 0, 0.15);
+    color: #FF9500;
+}
+
+.btnEmbroidery {
+    background: rgba(175, 82, 222, 0.05);
+    border-color: rgba(175, 82, 222, 0.15);
+    color: #AF52DE;
+}
+
+.btnPrinting {
+    background: rgba(194, 65, 12, 0.05);
+    border-color: rgba(194, 65, 12, 0.15);
+    color: #C2410C;
+}
+
+.btnDyeing {
+    background: rgba(0, 113, 227, 0.05);
+    border-color: rgba(0, 113, 227, 0.15);
+    color: #0071E3;
+}
+
+.btnReady {
+    background: rgba(4, 120, 87, 0.05);
+    border-color: rgba(4, 120, 87, 0.15);
+    color: #047857;
+}
+
+.btnDispatch {
+    background: rgba(16, 185, 129, 0.05);
+    border-color: rgba(16, 185, 129, 0.15);
+    color: #10B981;
+}
+
+.btnDeliver {
+    background: rgba(16, 185, 129, 0.05);
+    border-color: rgba(16, 185, 129, 0.15);
+    color: #10B981;
+}
+
+.btnDelivered {
+    background: var(--bg-grouped);
+    border-color: var(--border-primary);
+    color: var(--text-tertiary);
+    cursor: default;
+}
+.btnDelivered:active {
+    transform: none;
+}
+
+.btnDisabled {
+    background: var(--bg-grouped);
+    border-color: var(--border-primary);
+    color: var(--text-disabled);
+    cursor: not-allowed;
+    opacity: 0.6;
+}
+.btnDisabled:active {
+    transform: none;
 }

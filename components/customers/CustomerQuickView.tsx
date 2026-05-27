@@ -2,7 +2,7 @@
 
 import React from 'react';
 import styles from './CustomerQuickView.module.css';
-import { X, Phone, MessageCircle, ExternalLink, Calendar, CreditCard, AlertCircle, ShoppingBag } from 'lucide-react';
+import { X, Phone, MessageCircle, ExternalLink, Calendar, CreditCard, AlertCircle, ShoppingBag, Receipt, Share2 } from 'lucide-react';
 
 interface CustomerQuickViewProps {
     customer: any;
@@ -13,6 +13,50 @@ interface CustomerQuickViewProps {
 
 export default function CustomerQuickView({ customer, isOpen, onClose, onViewFullOrders }: CustomerQuickViewProps) {
     if (!customer) return null;
+
+    const handleShareLedger = async (customerId: number, name: string, phone: string) => {
+        try {
+            const res = await fetch(`/api/share?type=ledger&id=${customerId}`);
+            if (res.ok) {
+                const data = await res.json();
+                const shareUrl = data.url;
+                const message = `Hi ${name}, please find your ledger statement. View details here: ${shareUrl}`;
+                window.open(`https://wa.me/${phone?.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
+            } else {
+                alert('Failed to generate sharing URL');
+            }
+        } catch (err) {
+            console.error('Error sharing ledger:', err);
+        }
+    };
+
+    const handleShareInvoice = async (customerId: number, name: string, phone: string) => {
+        try {
+            const workspaceRes = await fetch(`/api/customers/${customerId}/workspace`);
+            if (!workspaceRes.ok) {
+                alert('Failed to retrieve customer invoices');
+                return;
+            }
+            const data = await workspaceRes.json();
+            const unpaidInvoices = data.invoices?.filter((i: any) => i.status !== 'paid') || [];
+            if (unpaidInvoices.length === 0) {
+                alert('No outstanding invoices found for this customer.');
+                return;
+            }
+            const invoice = unpaidInvoices[0];
+            const res = await fetch(`/api/share?type=invoice&id=${invoice.id}`);
+            if (res.ok) {
+                const shareData = await res.json();
+                const shareUrl = shareData.url;
+                const message = `Hi ${name}, here is your Tax Invoice ${invoice.invoice_number} for ₹${invoice.amount?.toLocaleString('en-IN')}. Please download here: ${shareUrl}`;
+                window.open(`https://wa.me/${phone?.replace(/\D/g, '')}?text=${encodeURIComponent(message)}`, '_blank');
+            } else {
+                alert('Failed to generate sharing URL');
+            }
+        } catch (err) {
+            console.error('Error sharing invoice:', err);
+        }
+    };
 
     return (
         <>
@@ -99,6 +143,22 @@ export default function CustomerQuickView({ customer, isOpen, onClose, onViewFul
                                 <MessageCircle size={18} />
                                 <span>WhatsApp</span>
                             </a>
+                            <button 
+                                onClick={() => handleShareInvoice(customer.id, customer.name, customer.phone)} 
+                                className={styles.actionBtn} 
+                                style={{ background: 'rgba(175, 82, 222, 0.1)', color: '#AF52DE', border: 'none', cursor: 'pointer' }}
+                            >
+                                <Receipt size={18} />
+                                <span>Share Invoice</span>
+                            </button>
+                            <button 
+                                onClick={() => handleShareLedger(customer.id, customer.name, customer.phone)} 
+                                className={styles.actionBtn} 
+                                style={{ background: 'rgba(255, 149, 0, 0.1)', color: '#FF9500', border: 'none', cursor: 'pointer' }}
+                            >
+                                <Share2 size={18} />
+                                <span>Share Ledger</span>
+                            </button>
                         </div>
                     </div>
                 </div>

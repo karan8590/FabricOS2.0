@@ -59,6 +59,17 @@ interface VendorPayment {
     created_at: number;
     notes?: string;
     instalments: Instalment[];
+    source?: string;
+    
+    // Dispatch properties
+    dispatch_id?: number | null;
+    dispatch_number?: string | null;
+    challan_number?: string | null;
+    vehicle_number?: string | null;
+    driver_name?: string | null;
+    route?: string | null;
+    dispatch_date?: string | null;
+    dispatch_status?: string | null;
 }
 
 const getWorkTypeDisplay = (type: string) => {
@@ -113,6 +124,12 @@ export default function VendorPaymentsPage() {
     // Modals visibility
     const [isPayModalOpen, setIsPayModalOpen] = useState(false);
     const [isEditDateModalOpen, setIsEditDateModalOpen] = useState(false);
+    const [isAddCostModalOpen, setIsAddCostModalOpen] = useState(false);
+    
+    // Add Cost Form State
+    const [addCostAmount, setAddCostAmount] = useState<number>(0);
+    const [addCostNotes, setAddCostNotes] = useState('');
+    const [savingCost, setSavingCost] = useState(false);
 
     // Vendor audit logs
     const [vendorAuditLogs, setVendorAuditLogs] = useState<any[]>([]);
@@ -421,6 +438,42 @@ export default function VendorPaymentsPage() {
         }
     };
 
+    // Trigger Add Cost Modal
+    const openAddCostModal = (payment: VendorPayment) => {
+        setSelectedPayment(payment);
+        setAddCostAmount(0);
+        setAddCostNotes('');
+        setIsAddCostModalOpen(true);
+        setActiveMenuId(null);
+    };
+
+    // Submit Add Cost
+    const handleAddCostSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedPayment || addCostAmount <= 0) return;
+
+        try {
+            setSavingCost(true);
+            const res = await fetch(`/api/vendor-payments/${selectedPayment.id}/transport-cost`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ cost: addCostAmount, notes: addCostNotes })
+            });
+
+            if (res.ok) {
+                setIsAddCostModalOpen(false);
+                fetchPaymentsData();
+            } else {
+                const data = await res.json();
+                console.log(data.error || 'Failed to add cost.');
+            }
+        } catch (err) {
+            console.error('Submit cost error:', err);
+        } finally {
+            setSavingCost(false);
+        }
+    };
+
     // Trigger Edit Due Date Modal
     const openEditDateModal = (payment: VendorPayment) => {
         setSelectedPayment(payment);
@@ -562,14 +615,44 @@ export default function VendorPaymentsPage() {
             };
         }> = {};
 
-        sortedPayments.forEach(p => {
+        const mapWorkTypeToTab = (p: VendorPayment) => {
+            const wt = (p.work_type || '').toUpperCase();
+            if (p.source === 'dispatch_transport' || wt.includes('TRANSPORT')) return 'Transport';
+            if (wt.includes('EMBROIDERY') || wt.includes('JOB WORK')) return 'Embroidery';
+            if (wt.includes('DYEING')) return 'Dyeing';
+            if (wt.includes('FABRIC')) return 'Fabric';
+            if (wt.includes('INK')) return 'Ink';
+            if (wt.includes('PRINTING')) return 'Printing';
+            if (wt.includes('STITCHING')) return 'Stitching';
+            if (wt.includes('PACKAGING')) return 'Packaging';
+            return 'Other';
+        };
+
+        const mapVendorCategoryToTab = (vt: string) => {
+            const vtc = (vt || '').toUpperCase();
+            if (vtc.includes('TRANSPORT')) return 'Transport';
+            if (vtc.includes('JOB WORK') || vtc.includes('EMBROIDERY')) return 'Embroidery';
+            if (vtc.includes('DYEING')) return 'Dyeing';
+            if (vtc.includes('FABRIC')) return 'Fabric';
+            if (vtc.includes('INK')) return 'Ink';
+            if (vtc.includes('PRINTING')) return 'Printing';
+            if (vtc.includes('STITCHING')) return 'Stitching';
+            if (vtc.includes('PACKAGING')) return 'Packaging';
+            return 'Other';
+        };
+
+        const paymentsToProcess = activeVendorType === 'All' 
+            ? sortedPayments 
+            : sortedPayments.filter(p => mapWorkTypeToTab(p) === activeVendorType);
+
+        paymentsToProcess.forEach(p => {
             const key = p.vendor_name;
             if (!groups[key]) {
                 groups[key] = {
                     vendorId: p.vendor_id,
                     vendorName: p.vendor_name,
                     vendorPhone: p.vendor_phone,
-                    vendorType: p.work_type === 'embroidery' || p.work_type === 'EMBROIDERY MATERIAL' ? 'Embroidery' : p.work_type === 'dyeing' ? 'Dyeing' : getWorkTypeDisplay(p.work_type).label,
+                    vendorType: activeVendorType === 'All' ? mapWorkTypeToTab(p) : activeVendorType,
                     payments: [],
                     stats: { count: 0, totalAmount: 0, amountPaid: 0, balance: 0, overdueCount: 0, lastPaymentDate: null }
                 };
@@ -593,26 +676,9 @@ export default function VendorPaymentsPage() {
             }
         });
 
-        // Merge vendors with 0 payments
-        vendors.forEach(v => {
-            const key = v.name;
-            if (!groups[key]) {
-                groups[key] = {
-                    vendorId: v.id,
-                    vendorName: v.name,
-                    vendorPhone: v.contact || '',
-                    vendorType: v.vendor_type === 'Job Work' ? 'Embroidery' : v.vendor_type || 'Other',
-                    payments: [],
-                    stats: { count: 0, totalAmount: 0, amountPaid: 0, balance: 0, overdueCount: 0, lastPaymentDate: null }
-                };
-            }
-        });
+        // No longer injecting vendors without matching payments
 
         let result = Object.values(groups);
-        if (activeVendorType !== 'All') {
-            result = result.filter(g => g.vendorType === activeVendorType);
-        }
-
         return result.sort((a, b) => b.stats.balance - a.stats.balance);
     }, [sortedPayments, vendors, activeVendorType]);
 
@@ -665,6 +731,7 @@ export default function VendorPaymentsPage() {
                         </th>
                         <th className={tableStyles.th}>Order</th>
                         <th className={tableStyles.th}>Work Type</th>
+                        <th className={tableStyles.th}>Delivery Details</th>
                         <th className={`${tableStyles.th} ${styles.sortable}`} onClick={() => handleSort('total_amount')} style={{ textAlign: 'right' }}>
                             <div className={styles.flexGap} style={{ justifyContent: 'flex-end' }}>
                                 Amount {getSortIcon('total_amount')}
@@ -704,6 +771,10 @@ export default function VendorPaymentsPage() {
                                         <Link href={`/orders/${p.order_id}`} className={styles.orderLink}>
                                             #{p.order_number || p.order_id}
                                         </Link>
+                                    ) : p.source === 'dispatch_transport' || (p.work_type === 'transport' && p.dispatch_id) ? (
+                                        <span className={styles.orderLink} style={{ cursor: 'default' }}>
+                                            {p.challan_number || p.dispatch_number || 'Dispatch'}
+                                        </span>
                                     ) : (
                                         <span className={styles.manualBadge}>Manual</span>
                                     )}
@@ -711,14 +782,53 @@ export default function VendorPaymentsPage() {
 
                                 {/* WORK TYPE */}
                                 <td className={tableStyles.td}>
-                                    <span className={getWorkTypeDisplay(p.work_type).className}>
-                                        {getWorkTypeDisplay(p.work_type).label}
-                                    </span>
+                                    {p.source === 'dispatch_transport' || p.work_type === 'transport' ? (
+                                        <span style={{ display: 'inline-flex', padding: '4px 8px', borderRadius: '6px', background: 'rgba(59, 130, 246, 0.1)', color: '#3B82F6', fontSize: '11px', fontWeight: 600 }}>Transport</span>
+                                    ) : (
+                                        <span className={getWorkTypeDisplay(p.work_type).className}>
+                                            {getWorkTypeDisplay(p.work_type).label}
+                                        </span>
+                                    )}
+                                </td>
+
+                                {/* DELIVERY DETAILS */}
+                                <td className={tableStyles.td}>
+                                    {(p.source === 'dispatch_transport' || p.work_type === 'transport') && p.dispatch_id ? (
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px' }}>
+                                            {p.challan_number && (
+                                                <span style={{ fontSize: '12px', fontWeight: 600, color: 'var(--text-primary)' }}>
+                                                    {p.challan_number}
+                                                </span>
+                                            )}
+                                            {p.vehicle_number && (
+                                                <span style={{ fontSize: '12px', fontWeight: p.challan_number ? 500 : 600, color: 'var(--text-primary)' }}>
+                                                    {p.vehicle_number}
+                                                </span>
+                                            )}
+                                            {p.driver_name && (
+                                                <span style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>
+                                                    {p.driver_name}
+                                                </span>
+                                            )}
+                                            {p.route && (
+                                                <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                                                    {p.route}
+                                                </span>
+                                            )}
+                                            {p.dispatch_date && (
+                                                <span style={{ fontSize: '11px', color: 'var(--text-tertiary)' }}>
+                                                    {formatDueDate(p.dispatch_date)}
+                                                </span>
+                                            )}
+                                        </div>
+                                    ) : (
+                                        <span style={{ color: 'var(--text-tertiary)', fontSize: '12px' }}>—</span>
+                                    )}
                                 </td>
 
                                 {/* AMOUNT */}
                                 <td className={`${tableStyles.td} ${styles.amount}`} style={{ textAlign: 'right' }}>
-                                    {p.status === 'pending_cost' ? (
+                                    {(p.source === 'dispatch_transport' || (p.work_type || '').toLowerCase() === 'transport') && (!p.total_amount || p.total_amount <= 0) ? (
                                         <span style={{ display: 'inline-flex', padding: '4px 8px', borderRadius: '6px', background: '#FEF3C7', color: '#D97706', fontSize: '11px', fontWeight: 600 }}>Cost Pending</span>
                                     ) : (
                                         formatCurrency(p.total_amount)
@@ -727,7 +837,7 @@ export default function VendorPaymentsPage() {
 
                                 {/* PAYMENT PROGRESS */}
                                 <td className={tableStyles.td}>
-                                    {p.status === 'pending_cost' ? (
+                                    {(p.source === 'dispatch_transport' || p.work_type === 'transport') && p.total_amount <= 0 ? (
                                         <span style={{ color: 'var(--text-tertiary)', fontStyle: 'italic', fontSize: '13px' }}>Awaiting Transport Cost</span>
                                     ) : (
                                         <div className={styles.progressContainer}>
@@ -750,7 +860,7 @@ export default function VendorPaymentsPage() {
 
                                 {/* BALANCE */}
                                 <td className={tableStyles.td} style={{ textAlign: 'right', fontWeight: '600', color: p.balance > 0 ? '#FF3B30' : 'var(--text-disabled)' }}>
-                                    {p.status === 'pending_cost' ? '—' : p.balance > 0 ? formatCurrency(p.balance) : '—'}
+                                    {(p.source === 'dispatch_transport' || p.work_type === 'transport') && p.total_amount <= 0 ? '—' : p.balance > 0 ? formatCurrency(p.balance) : '—'}
                                 </td>
 
                                 {/* DUE DATE */}
@@ -766,7 +876,15 @@ export default function VendorPaymentsPage() {
                                 {/* ACTIONS */}
                                 <td className={tableStyles.td} style={{ textAlign: 'right' }}>
                                     <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end', alignItems: 'center' }}>
-                                        {p.status !== 'paid' && p.status !== 'pending_cost' && (
+                                        {(p.source === 'dispatch_transport' || (p.work_type || '').toLowerCase() === 'transport') && (!p.total_amount || p.total_amount <= 0) ? (
+                                            <button 
+                                                className={`${actionBtnStyles.btn} ${actionBtnStyles.themeGhost}`}
+                                                style={{ padding: '4px 8px', fontSize: '12px', border: '1px solid #E5E7EB' }}
+                                                onClick={() => openAddCostModal(p)}
+                                            >
+                                                Add Cost
+                                            </button>
+                                        ) : p.status !== 'paid' && (
                                             <button 
                                                 className={`${actionBtnStyles.btn} ${actionBtnStyles.themeIndigo}`}
                                                 onClick={() => openPayModal(p)}
@@ -1275,6 +1393,7 @@ export default function VendorPaymentsPage() {
             {isEditDateModalOpen && selectedPayment && (
                 <div className={styles.modalOverlay} onClick={() => setIsEditDateModalOpen(false)}>
                     <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+                        <div className={styles.mobileSheetHandle} />
                         <h2 className={styles.modalTitle}>Edit Due Date</h2>
                         <p className={styles.modalSubtitle}>Change payment target date for {selectedPayment.vendor_name}</p>
 
@@ -1312,6 +1431,67 @@ export default function VendorPaymentsPage() {
                                 </button>
                                 <button type="submit" className={styles.btnPrimary} disabled={savingDueDate}>
                                     {savingDueDate ? <Loader2 size={16} className="animate-spin" /> : 'Save Changes'}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Add Cost Modal */}
+            {isAddCostModalOpen && selectedPayment && (
+                <div className={styles.modalOverlay} onClick={() => setIsAddCostModalOpen(false)}>
+                    <div className={styles.modalContent} onClick={(e) => e.stopPropagation()}>
+                        <div className={styles.mobileSheetHandle} />
+                        <h2 className={styles.modalTitle}>Add Delivery Cost</h2>
+                        <p className={styles.modalSubtitle}>Set the final transport bill for {selectedPayment.vendor_name}</p>
+
+                        <div style={{ background: 'var(--bg-secondary)', padding: '12px', borderRadius: '8px', marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '8px', fontSize: '13px' }}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ color: 'var(--text-secondary)' }}>Dispatch Challan</span>
+                                <span style={{ fontWeight: 600 }}>{selectedPayment.challan_number || selectedPayment.dispatch_number || '—'}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ color: 'var(--text-secondary)' }}>Vehicle</span>
+                                <span style={{ fontWeight: 600 }}>{selectedPayment.vehicle_number || '—'}</span>
+                            </div>
+                            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                                <span style={{ color: 'var(--text-secondary)' }}>Driver</span>
+                                <span style={{ fontWeight: 600 }}>{selectedPayment.driver_name || '—'}</span>
+                            </div>
+                        </div>
+
+                        <form onSubmit={handleAddCostSubmit}>
+                            <div className={styles.formGroup}>
+                                <label className={styles.formLabel}>Delivery Cost (₹) <span style={{color: '#FF3B30'}}>*</span></label>
+                                <input 
+                                    type="number"
+                                    className={styles.formInput}
+                                    value={addCostAmount || ''}
+                                    min="1"
+                                    onChange={(e) => setAddCostAmount(parseFloat(e.target.value) || 0)}
+                                    required
+                                    autoFocus
+                                />
+                            </div>
+
+                            <div className={styles.formGroup}>
+                                <label className={styles.formLabel}>Notes / Bill Ref (Optional)</label>
+                                <textarea 
+                                    className={styles.formTextarea}
+                                    style={{ height: '60px', resize: 'none' }}
+                                    value={addCostNotes}
+                                    onChange={(e) => setAddCostNotes(e.target.value)}
+                                    placeholder="Enter bill number or details..."
+                                />
+                            </div>
+
+                            <div className={styles.formFooter}>
+                                <button type="button" className={styles.btnSecondary} onClick={() => setIsAddCostModalOpen(false)}>
+                                    Cancel
+                                </button>
+                                <button type="submit" className={styles.btnPrimary} disabled={savingCost || addCostAmount <= 0}>
+                                    {savingCost ? <Loader2 size={16} className="animate-spin" /> : 'Save Cost'}
                                 </button>
                             </div>
                         </form>

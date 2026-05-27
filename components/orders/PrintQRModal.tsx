@@ -47,6 +47,7 @@ export default function PrintQRModal({ isOpen, onClose, order }: PrintQRModalPro
                 }
             `}</style>
             <div className={styles.modalContent} onClick={e => e.stopPropagation()} style={{ maxWidth: '450px' }}>
+                <div className={styles.mobileSheetHandle} />
                 <div className={`${styles.modalHeader} no-print`} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', borderBottom: '1px solid #E5E7EB' }}>
                     <div>
                         <h2 className={styles.title} style={{ margin: 0, fontSize: '18px', fontWeight: 600 }}>Print QR Label</h2>

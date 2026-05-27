@@ -37,11 +37,12 @@ export default function Modal({
     if (!isOpen || !mounted) return null;
 
     return createPortal(
-        <div className="global-modal-overlay" onClick={onClose}>
+        <div className={styles.modalOverlay} onClick={onClose}>
             <div
-                className="global-modal-content"
+                className={styles.modalContent}
                 onClick={(e) => e.stopPropagation()}
             >
+                <div className={styles.mobileSheetHandle} />
                 {title && (
                     <div className={styles.modalHeader}>
                         <h2 className={styles.modalTitle}>{title}</h2>

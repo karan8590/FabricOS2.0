@@ -50,6 +50,17 @@ export default function MobileBottomNav({ onMoreOpen, isMoreOpen }: MobileBottom
         return () => clearInterval(t);
     }, [user]);
 
+    const [isBulkMode, setIsBulkMode] = useState(false);
+
+    useEffect(() => {
+        const handleEvent = (e: Event) => {
+            const customEvent = e as CustomEvent;
+            setIsBulkMode(!!customEvent.detail?.active);
+        };
+        window.addEventListener('set-mobile-bulk-mode', handleEvent);
+        return () => window.removeEventListener('set-mobile-bulk-mode', handleEvent);
+    }, []);
+
     if (!user || user.role === 'customer' || user.isSuperAdmin) return null;
 
     const handleTab = (tab: typeof TABS[number]) => {
@@ -61,7 +72,7 @@ export default function MobileBottomNav({ onMoreOpen, isMoreOpen }: MobileBottom
     };
 
     return (
-        <nav className={styles.bottomNav} role="navigation" aria-label="Main navigation">
+        <nav className={`${styles.bottomNav} ${isBulkMode ? styles.bottomNavHidden : ''}`} role="navigation" aria-label="Main navigation">
             {TABS.map((tab) => {
                 const Icon = tab.icon;
                 const active = tab.id === 'more' ? isMoreOpen : isTabActive(tab, pathname);

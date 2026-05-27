@@ -84,8 +84,9 @@ export default function PaymentModal({ isOpen, onClose, onSave, invoice }: Payme
     const newRemaining = Math.max(0, remaining - (parseFloat(amount) || 0));
 
     return (
-        <div className="global-modal-overlay" onClick={onClose}>
+        <div className={styles.modalOverlay} onClick={onClose}>
             <div className={styles.modal} onClick={e => e.stopPropagation()}>
+                <div className={styles.mobileSheetHandle} />
                 <div className={styles.header}>
                     <h2 className={styles.title}>Record Payment</h2>
                     <button className={styles.closeButton} onClick={onClose}>
@@ -123,6 +124,8 @@ export default function PaymentModal({ isOpen, onClose, onSave, invoice }: Payme
                                 min="1"
                                 max={remaining}
                                 step="any"
+                                autoFocus
+                                inputMode="decimal"
                                 data-error={!!errors.amount}
                             />
                             {errors.amount && <p className="text-red-500 text-xs mt-1 transition-all duration-200">{errors.amount}</p>}

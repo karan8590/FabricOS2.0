@@ -195,6 +195,7 @@ export default function AddPurchaseModal({ isOpen, onClose, onSave, vendors: pro
     return (
         <div className={styles.modalOverlay} onClick={onClose}>
             <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
+                <div className={styles.mobileSheetHandle} />
                 <div className={styles.modalHeader}>
                     <h2>{editingMaterial ? 'Add Stock (Existing Material)' : 'Add New Purchase'}</h2>
                     <button className={styles.closeBtn} onClick={onClose}><X size={20} /></button>
