@@ -17,6 +17,9 @@ export default function CreateDispatchModal({ isOpen, onClose, onSuccess, select
     // Vendor state
     const [vendors, setVendors] = useState<any[]>([]);
     const [isCreatingVendor, setIsCreatingVendor] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
+    const [startY, setStartY] = useState(0);
+    const [currentY, setCurrentY] = useState(0);
     const [newVendorData, setNewVendorData] = useState({
         businessName: '',
         driverName: '',
@@ -201,7 +204,30 @@ export default function CreateDispatchModal({ isOpen, onClose, onSuccess, select
         }
     };
 
-    // BUG FIX: Convert quantities to Numbers before summing!
+    const handleTouchStart = (e: React.TouchEvent) => {
+        setIsDragging(true);
+        setStartY(e.touches[0].clientY);
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (!isDragging) return;
+        const deltaY = e.touches[0].clientY - startY;
+        if (deltaY > 0) {
+            setCurrentY(deltaY);
+        }
+    };
+
+    const handleTouchEnd = () => {
+        setIsDragging(false);
+        if (currentY > 150) {
+            onClose();
+        } else {
+            setCurrentY(0);
+        }
+    };
+
+    const sheetStyle = isDragging ? { transform: `translateY(${currentY}px)`, transition: 'none' } : {};
+
     const totalMeters = selectedOrders.reduce((sum, o) => sum + Number(o.quantity_meters || 0), 0);
     const totalAmount = selectedOrders.reduce((sum, o) => sum + Number(o.total_price || 0), 0);
 
@@ -215,8 +241,14 @@ export default function CreateDispatchModal({ isOpen, onClose, onSuccess, select
                     animate={{ opacity: 1, scale: 1, y: 0 }}
                     exit={{ opacity: 0, scale: 0.95, y: 20 }}
                     transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+                    style={sheetStyle}
                 >
-                    <div className={styles.mobileSheetHandle} />
+                    <div 
+                        className={styles.mobileSheetHandle} 
+                        onTouchStart={handleTouchStart}
+                        onTouchMove={handleTouchMove}
+                        onTouchEnd={handleTouchEnd}
+                    />
                     <div className={styles.header}>
                         <div className={styles.titleGroup}>
                             <div className={styles.iconBox}>

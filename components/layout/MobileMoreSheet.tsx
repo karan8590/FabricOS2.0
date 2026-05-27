@@ -3,8 +3,8 @@
 import { useRouter, usePathname } from 'next/navigation';
 import { createPortal } from 'react-dom';
 import {
-    Users, Package, Receipt, UserSquare2, Box,
-    FileText, Shield, Settings, Send, LogOut, Landmark
+    LayoutDashboard, IndianRupee, Users, Package, Grid, FileBarChart, 
+    Search, ClipboardList, Settings, MessageCircle, ChevronRight, LogOut
 } from 'lucide-react';
 import styles from './MobileMoreSheet.module.css';
 import { useAuth } from '@/contexts/AuthContext';
@@ -15,16 +15,18 @@ interface MobileMoreSheetProps {
 }
 
 const MORE_ITEMS = [
-    { label: 'Customers',  href: '/customers',       icon: Users,       color: '#6366F1', bg: 'rgba(99,102,241,0.1)' },
-    { label: 'Invoices',   href: '/invoices',         icon: Receipt,     color: '#10B981', bg: 'rgba(16,185,129,0.1)' },
-    { label: 'Inventory',  href: '/inventory',        icon: Package,     color: '#F59E0B', bg: 'rgba(245,158,11,0.1)' },
-    { label: 'Employees',  href: '/employees',        icon: UserSquare2, color: '#8B5CF6', bg: 'rgba(139,92,246,0.1)' },
-    { label: 'Catalog',    href: '/catalog',          icon: Box,         color: '#0EA5E9', bg: 'rgba(14,165,233,0.1)' },
-    { label: 'Cash Book',  href: '/expenses',         icon: Landmark,    color: '#14B8A6', bg: 'rgba(20,184,166,0.1)' },
-    { label: 'GST Report', href: '/gst-report',       icon: FileText,    color: '#EF4444', bg: 'rgba(239,68,68,0.1)' },
-    { label: 'Audit Log',  href: '/audit-log',        icon: Shield,      color: '#64748B', bg: 'rgba(100,116,139,0.1)' },
-    { label: 'Settings',   href: '/settings',         icon: Settings,    color: '#78716C', bg: 'rgba(120,113,108,0.1)' },
-    { label: 'Telegram',   href: '/telegram-center',  icon: Send,        color: '#0EA5E9', bg: 'rgba(14,165,233,0.1)' },
+    { label: 'Dashboard',       href: '/dashboard',         icon: LayoutDashboard },
+    { label: 'Cash Book',       href: '/expenses',          icon: IndianRupee },
+    { label: 'Vendor Payments', href: '/vendor-payments',   icon: IndianRupee },
+    { label: 'Customers',       href: '/customers',         icon: Users },
+    { label: 'Inventory',       href: '/inventory',         icon: Package },
+    { label: 'Employees',       href: '/employees',         icon: Users },
+    { label: 'Catalog',         href: '/catalog',           icon: Grid },
+    { label: 'GST Report',      href: '/gst-report',        icon: FileBarChart },
+    { label: 'Samples',         href: '/samples',           icon: Search },
+    { label: 'Audit Log',       href: '/audit-log',         icon: ClipboardList },
+    { label: 'Settings',        href: '/settings',          icon: Settings },
+    { label: 'Telegram Center', href: '/telegram-center',   icon: MessageCircle },
 ];
 
 export default function MobileMoreSheet({ isOpen, onClose }: MobileMoreSheetProps) {
@@ -61,29 +63,23 @@ export default function MobileMoreSheet({ isOpen, onClose }: MobileMoreSheetProp
                     </div>
                 </div>
 
-                {/* Nav grid */}
-                <div className={styles.navGrid}>
+                {/* Nav Rows */}
+                <div className={styles.navContainer}>
                     {MORE_ITEMS.map((item) => {
                         const Icon = item.icon;
                         return (
-                            <button
+                            <div
                                 key={item.href}
-                                className={styles.navItem}
+                                className={styles.drawerRow}
                                 onClick={() => handleNav(item.href)}
                             >
-                                <div
-                                    className={styles.navItemIcon}
-                                    style={{ background: item.bg, color: item.color }}
-                                >
-                                    <Icon size={22} color={item.color} strokeWidth={1.8} />
-                                </div>
-                                <span className={styles.navItemLabel}>{item.label}</span>
-                            </button>
+                                <Icon size={20} color="#6B6560" />
+                                <span className={styles.rowLabel}>{item.label}</span>
+                                <ChevronRight size={18} color="#9C9490" className={styles.chevron} />
+                            </div>
                         );
                     })}
                 </div>
-
-                <div className={styles.divider} />
 
                 {/* Logout */}
                 <button className={styles.logoutBtn} onClick={handleLogout}>

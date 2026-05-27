@@ -20,6 +20,7 @@ import ApproveOrderModal from '@/components/orders/ApproveOrderModal';
 import { prefetchFabricInventory } from '@/lib/inventoryCache';
 
 import { ORDER_STATUSES, ORDER_STATUS_LABELS } from '@/lib/constants';
+import { ProductionOutsourceSection } from '@/components/orders/ProductionOutsourceCard';
 
 const STEPS = [
     { key: ORDER_STATUSES.CREATED, label: ORDER_STATUS_LABELS[ORDER_STATUSES.CREATED] },
@@ -749,227 +750,17 @@ export default function OrderDetailsPage() {
                     </div>
 
                     {/* Job Cost Sections */}
-                    <h3 style={{fontSize: '18px', fontWeight: 800, marginTop: '16px', marginBottom: '8px', color: 'var(--text-primary)'}}>Production Costs</h3>
-                    
-                    {/* Embroidery Section */}
-                    <div className={styles.jobCostSection}>
-                        <div className={styles.jobCostHeader}>
-                            <div className={styles.jobCostTitle}><Scissors size={18} color="#FF9F0A"/> Embroidery Outsourcing</div>
-                            <div className={styles.jobCostSummary}>
-                                {totalEmbroidery > 0 && <span className={styles.jobCostTotalBadge}>₹{totalEmbroidery.toLocaleString('en-IN')}</span>}
-                            </div>
-                        </div>
-                        <div className={styles.jobCostInner}>
-                            <button className={styles.btnSecondary} onClick={() => handleOpenInlineForm('embroidery')} style={{marginBottom: '16px'}}>
-                                <Plus size={14}/> Quick Add Cost
-                            </button>
+                    <h3 style={{fontSize: '16px', fontWeight: 700, marginTop: '16px', marginBottom: '12px', color: 'var(--text-primary)'}}>Production Costs</h3>
 
-                            {addingCostFor === 'embroidery' && renderInlineForm('embroidery')}
+                    <ProductionOutsourceSection
+                        order={order}
+                        onUpdate={fetchOrder}
+                        onSendToVendor={(type) => setWorkflowModalState({ isOpen: true, action: `send_to_${type}` as any })}
+                        onDeleteCost={handleDeleteJobCost}
+                        onGenerateChallan={(entry) => setChallanModalState({ isOpen: true, type: 'jobwork', linkedData: entry })}
+                    />
 
-                            {/* Vendor Dispatch records (from Send to Vendor workflow) */}
-                            {embroideryDispatches.length > 0 && (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '12px' }}>
-                                    {embroideryDispatches.map((d: any) => (
-                                        <div key={d.id} className={styles.dispatchCard}>
-                                            <div className={styles.dispatchCardHeader}>
-                                                <div className={styles.dispatchVendorName}>
-                                                    <Scissors size={14} color="#FF9F0A" style={{flexShrink: 0}} />
-                                                    {d.vendor_name}
-                                                </div>
-                                                <span className={d.status === 'returned' ? styles.badgePaid : d.status === 'cancelled' ? styles.badgeUnpaid : styles.badgeSent}>
-                                                    {d.status === 'sent' ? 'In Progress' : d.status === 'returned' ? 'Returned' : 'Cancelled'}
-                                                </span>
-                                            </div>
-                                            <div className={styles.dispatchCardBody}>
-                                                <div className={styles.dispatchStat}>
-                                                    <span className={styles.dispatchStatLabel}>Metres</span>
-                                                    <span className={styles.dispatchStatVal}>{parseFloat(d.total_meters || 0).toFixed(1)} m</span>
-                                                </div>
-                                                <div className={styles.dispatchStat}>
-                                                    <span className={styles.dispatchStatLabel}>Rate</span>
-                                                    <span className={styles.dispatchStatVal}>₹{parseFloat(d.rate_per_meter || 0).toFixed(2)}/m</span>
-                                                </div>
-                                                <div className={styles.dispatchStat}>
-                                                    <span className={styles.dispatchStatLabel}>Total Cost</span>
-                                                    <span className={styles.dispatchStatVal} style={{fontWeight: 800, color: 'var(--text-primary)'}}>₹{parseFloat(d.total_cost || 0).toLocaleString('en-IN')}</span>
-                                                </div>
-                                                <div className={styles.dispatchStat}>
-                                                    <span className={styles.dispatchStatLabel}>Sent Date</span>
-                                                    <span className={styles.dispatchStatVal}>{d.sent_date ? new Date(d.sent_date * 1000).toLocaleDateString('en-IN', {day: '2-digit', month: 'short', year: 'numeric'}) : '—'}</span>
-                                                </div>
-                                                {d.expected_return_date && (
-                                                    <div className={styles.dispatchStat}>
-                                                        <span className={styles.dispatchStatLabel}>Due Back</span>
-                                                        <span className={styles.dispatchStatVal}>{new Date(d.expected_return_date * 1000).toLocaleDateString('en-IN', {day: '2-digit', month: 'short', year: 'numeric'})}</span>
-                                                    </div>
-                                                )}
-                                                {d.dispatch_number && (
-                                                    <div className={styles.dispatchStat}>
-                                                        <span className={styles.dispatchStatLabel}>Dispatch #</span>
-                                                        <span className={styles.dispatchStatVal} style={{fontFamily: 'monospace', fontSize: '12px'}}>{d.dispatch_number}</span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            {d.notes && <div className={styles.dispatchNotes}>{d.notes}</div>}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
 
-                            {/* Manual job cost entries (table) */}
-                            {embroideryEntries.length > 0 && (
-                                <div className={styles.tableContainer}>
-                                    <table className={styles.costsTable}>
-                                        <thead><tr><th>Vendor</th><th>Meters</th><th>Rate</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
-                                        <tbody>
-                                            {embroideryEntries.map((entry: any) => (
-                                                <tr key={entry.id}>
-                                                    <td><strong>{entry.vendor_name}</strong></td>
-                                                    <td>{entry.metres} m</td>
-                                                    <td>₹{entry.rate_per_metre}</td>
-                                                    <td><strong>₹{parseFloat(entry.total_cost || 0).toLocaleString('en-IN')}</strong></td>
-                                                    <td><span className={entry.status === 'paid' ? styles.badgePaid : styles.badgeUnpaid}>{entry.status}</span></td>
-                                                    <td>
-                                                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                                            <button 
-                                                                className={styles.iconButton} 
-                                                                style={{ color: '#2563eb' }}
-                                                                title="Generate Job Work Challan"
-                                                                onClick={() => setChallanModalState({ isOpen: true, type: 'jobwork', linkedData: entry })}
-                                                            >
-                                                                <FileText size={14}/>
-                                                            </button>
-                                                            <button className={styles.iconButtonDelete} onClick={() => handleDeleteJobCost(entry.id)} disabled={entry.amount_paid > 0}>
-                                                                <Trash2 size={14}/>
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
-
-                            {embroideryDispatches.length === 0 && embroideryEntries.length === 0 && !addingCostFor && (
-                                <div className={styles.emptyOutsourcing}>
-                                    <Scissors size={28} opacity={0.25} />
-                                    <p>No embroidery outsourcing added yet</p>
-                                    <span>Use &quot;Send to Embroidery Vendor&quot; or Quick Add Cost</span>
-                                </div>
-                            )}
-                        </div>
-                    </div>
-
-                    {/* Dyeing Section */}
-                    <div className={styles.jobCostSection}>
-                        <div className={styles.jobCostHeader}>
-                            <div className={styles.jobCostTitle}><Droplets size={18} color="#0A84FF"/> Dyeing Outsourcing</div>
-                            <div className={styles.jobCostSummary}>
-                                {totalDyeing > 0 && <span className={styles.jobCostTotalBadge}>₹{totalDyeing.toLocaleString('en-IN')}</span>}
-                            </div>
-                        </div>
-                        <div className={styles.jobCostInner}>
-                            <button className={styles.btnSecondary} onClick={() => handleOpenInlineForm('dyeing')} style={{marginBottom: '16px'}}>
-                                <Plus size={14}/> Quick Add Cost
-                            </button>
-
-                            {addingCostFor === 'dyeing' && renderInlineForm('dyeing')}
-
-                            {/* Vendor Dispatch records (from Send to Vendor workflow) */}
-                            {dyeingDispatches.length > 0 && (
-                                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginBottom: '12px' }}>
-                                    {dyeingDispatches.map((d: any) => (
-                                        <div key={d.id} className={styles.dispatchCard}>
-                                            <div className={styles.dispatchCardHeader}>
-                                                <div className={styles.dispatchVendorName}>
-                                                    <Droplets size={14} color="#0A84FF" style={{flexShrink: 0}} />
-                                                    {d.vendor_name}
-                                                </div>
-                                                <span className={d.status === 'returned' ? styles.badgePaid : d.status === 'cancelled' ? styles.badgeUnpaid : styles.badgeSent}>
-                                                    {d.status === 'sent' ? 'In Progress' : d.status === 'returned' ? 'Returned' : 'Cancelled'}
-                                                </span>
-                                            </div>
-                                            <div className={styles.dispatchCardBody}>
-                                                <div className={styles.dispatchStat}>
-                                                    <span className={styles.dispatchStatLabel}>Metres</span>
-                                                    <span className={styles.dispatchStatVal}>{parseFloat(d.total_meters || 0).toFixed(1)} m</span>
-                                                </div>
-                                                <div className={styles.dispatchStat}>
-                                                    <span className={styles.dispatchStatLabel}>Rate</span>
-                                                    <span className={styles.dispatchStatVal}>₹{parseFloat(d.rate_per_meter || 0).toFixed(2)}/m</span>
-                                                </div>
-                                                <div className={styles.dispatchStat}>
-                                                    <span className={styles.dispatchStatLabel}>Total Cost</span>
-                                                    <span className={styles.dispatchStatVal} style={{fontWeight: 800, color: 'var(--text-primary)'}}>₹{parseFloat(d.total_cost || 0).toLocaleString('en-IN')}</span>
-                                                </div>
-                                                <div className={styles.dispatchStat}>
-                                                    <span className={styles.dispatchStatLabel}>Sent Date</span>
-                                                    <span className={styles.dispatchStatVal}>{d.sent_date ? new Date(d.sent_date * 1000).toLocaleDateString('en-IN', {day: '2-digit', month: 'short', year: 'numeric'}) : '—'}</span>
-                                                </div>
-                                                {d.expected_return_date && (
-                                                    <div className={styles.dispatchStat}>
-                                                        <span className={styles.dispatchStatLabel}>Due Back</span>
-                                                        <span className={styles.dispatchStatVal}>{new Date(d.expected_return_date * 1000).toLocaleDateString('en-IN', {day: '2-digit', month: 'short', year: 'numeric'})}</span>
-                                                    </div>
-                                                )}
-                                                {d.dispatch_number && (
-                                                    <div className={styles.dispatchStat}>
-                                                        <span className={styles.dispatchStatLabel}>Dispatch #</span>
-                                                        <span className={styles.dispatchStatVal} style={{fontFamily: 'monospace', fontSize: '12px'}}>{d.dispatch_number}</span>
-                                                    </div>
-                                                )}
-                                            </div>
-                                            {d.notes && <div className={styles.dispatchNotes}>{d.notes}</div>}
-                                        </div>
-                                    ))}
-                                </div>
-                            )}
-
-                            {/* Manual job cost entries (table) */}
-                            {dyeingEntries.length > 0 && (
-                                <div className={styles.tableContainer}>
-                                    <table className={styles.costsTable}>
-                                        <thead><tr><th>Vendor</th><th>Meters</th><th>Rate</th><th>Total</th><th>Status</th><th>Actions</th></tr></thead>
-                                        <tbody>
-                                            {dyeingEntries.map((entry: any) => (
-                                                <tr key={entry.id}>
-                                                    <td><strong>{entry.vendor_name}</strong></td>
-                                                    <td>{entry.metres} m</td>
-                                                    <td>₹{entry.rate_per_metre}</td>
-                                                    <td><strong>₹{parseFloat(entry.total_cost || 0).toLocaleString('en-IN')}</strong></td>
-                                                    <td><span className={entry.status === 'paid' ? styles.badgePaid : styles.badgeUnpaid}>{entry.status}</span></td>
-                                                    <td>
-                                                        <div style={{ display: 'flex', gap: '8px', alignItems: 'center' }}>
-                                                            <button 
-                                                                className={styles.iconButton} 
-                                                                style={{ color: '#2563eb' }}
-                                                                title="Generate Job Work Challan"
-                                                                onClick={() => setChallanModalState({ isOpen: true, type: 'jobwork', linkedData: entry })}
-                                                            >
-                                                                <FileText size={14}/>
-                                                            </button>
-                                                            <button className={styles.iconButtonDelete} onClick={() => handleDeleteJobCost(entry.id)} disabled={entry.amount_paid > 0}>
-                                                                <Trash2 size={14}/>
-                                                            </button>
-                                                        </div>
-                                                    </td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                            )}
-
-                            {dyeingDispatches.length === 0 && dyeingEntries.length === 0 && !addingCostFor && (
-                                <div className={styles.emptyOutsourcing}>
-                                    <Droplets size={28} opacity={0.25} />
-                                    <p>No dyeing outsourcing added yet</p>
-                                    <span>Use &quot;Send to Dyeing Vendor&quot; or Quick Add Cost</span>
-                                </div>
-                            )}
-                        </div>
-                    </div>
 
                     {/* Activity Feed */}
                     <div className={styles.card} style={{marginTop: '16px'}}>
@@ -1107,8 +898,8 @@ export default function OrderDetailsPage() {
             {challanModalState.isOpen && (
                 <GenerateChallanModal 
                     isOpen={challanModalState.isOpen}
-                    onClose={() => setChallanModalState({ isOpen: false, type: 'dispatch' })}
-                    defaultType={challanModalState.type}
+                    onClose={() => setChallanModalState({ isOpen: false, type: 'dispatch', linkedData: null })}
+                    defaultType={challanModalState.type as 'dispatch' | 'jobwork' | 'sample'}
                     linkedOrderData={challanModalState.type === 'dispatch' ? challanModalState.linkedData : order}
                     linkedJobWorkData={challanModalState.type === 'jobwork' ? challanModalState.linkedData : null}
                 />

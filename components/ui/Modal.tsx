@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import styles from './Modal.module.css';
 
@@ -18,6 +18,10 @@ export default function Modal({
     footer,
 }: ModalProps) {
     const [mounted, setMounted] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
+    const [startY, setStartY] = useState(0);
+    const [currentY, setCurrentY] = useState(0);
+    const modalContentRef = useRef<HTMLDivElement>(null);
 
     useEffect(() => {
         setMounted(true);
@@ -36,13 +40,46 @@ export default function Modal({
 
     if (!isOpen || !mounted) return null;
 
+    const handleTouchStart = (e: React.TouchEvent) => {
+        if (window.innerWidth > 768) return;
+        setIsDragging(true);
+        setStartY(e.touches[0].clientY);
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (!isDragging || window.innerWidth > 768) return;
+        const y = e.touches[0].clientY;
+        const deltaY = y - startY;
+        if (deltaY > 0) {
+            setCurrentY(deltaY);
+        }
+    };
+
+    const handleTouchEnd = () => {
+        if (!isDragging || window.innerWidth > 768) return;
+        setIsDragging(false);
+        if (currentY > 150) {
+            onClose();
+        }
+        setCurrentY(0);
+    };
+
+    const sheetStyle = isDragging ? { transform: `translate(-50%, -50%) translateY(${currentY}px)`, transition: 'none' } : {};
+
     return createPortal(
         <div className={styles.modalOverlay} onClick={onClose}>
             <div
+                ref={modalContentRef}
                 className={styles.modalContent}
+                style={isDragging && window.innerWidth <= 768 ? { transform: `translateY(${currentY}px)`, transition: 'none' } : {}}
                 onClick={(e) => e.stopPropagation()}
             >
-                <div className={styles.mobileSheetHandle} />
+                <div 
+                    className={styles.mobileSheetHandle} 
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                />
                 {title && (
                     <div className={styles.modalHeader}>
                         <h2 className={styles.modalTitle}>{title}</h2>

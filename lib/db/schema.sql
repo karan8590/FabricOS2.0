@@ -828,3 +828,68 @@ ALTER TABLE dispatch_challans ADD COLUMN IF NOT EXISTS firm_snapshot TEXT;
 ALTER TABLE challans ADD COLUMN IF NOT EXISTS billing_firm_id INTEGER;
 ALTER TABLE challans ADD COLUMN IF NOT EXISTS firm_snapshot TEXT;
 
+
+-- ═══════════════════════════════════════════════════════════════════════════
+-- CATALOG ARCHITECTURE UPGRADE: Design → Color Variants (Parent-Child)
+-- ═══════════════════════════════════════════════════════════════════════════
+
+-- Parent: Catalog Designs
+CREATE TABLE IF NOT EXISTS catalog_designs (
+  id SERIAL PRIMARY KEY,
+  business_id TEXT NOT NULL,
+  design_code TEXT NOT NULL,
+  design_name TEXT NOT NULL,
+  category TEXT,
+  fabric_type TEXT,
+  base_rate NUMERIC DEFAULT 0,
+  image_url TEXT,
+  description TEXT,
+  tags TEXT,
+  is_active INTEGER DEFAULT 1,
+  created_at INTEGER NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()))::integer
+);
+
+CREATE INDEX IF NOT EXISTS idx_catalog_designs_business ON catalog_designs(business_id);
+CREATE INDEX IF NOT EXISTS idx_catalog_designs_code ON catalog_designs(design_code);
+
+-- Master Sheets (One-to-Many with Designs)
+CREATE TABLE IF NOT EXISTS design_master_sheets (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id TEXT NOT NULL,
+  design_id UUID NOT NULL,
+  title TEXT,
+  image_url TEXT NOT NULL,
+  extracted_count INTEGER DEFAULT 0,
+  sort_order INTEGER DEFAULT 0,
+  created_at INTEGER NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()))::integer,
+  FOREIGN KEY (design_id) REFERENCES catalog_designs(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_master_sheets_design ON design_master_sheets(design_id);
+
+-- Child: Color Variants
+CREATE TABLE IF NOT EXISTS catalog_variants (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  business_id TEXT NOT NULL,
+  design_id UUID NOT NULL,
+  master_sheet_id UUID,
+  color_name TEXT NOT NULL,
+  color_hex TEXT DEFAULT '#888888',
+  sku TEXT,
+  variant_image TEXT,
+  stock_quantity NUMERIC DEFAULT 0,
+  rate NUMERIC,
+  status TEXT DEFAULT 'active' CHECK(status IN ('active', 'inactive', 'discontinued')),
+  created_at INTEGER NOT NULL DEFAULT (EXTRACT(EPOCH FROM NOW()))::integer,
+  FOREIGN KEY (design_id) REFERENCES catalog_designs(id) ON DELETE CASCADE,
+  FOREIGN KEY (master_sheet_id) REFERENCES design_master_sheets(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_catalog_variants_design ON catalog_variants(design_id);
+CREATE INDEX IF NOT EXISTS idx_catalog_variants_sku ON catalog_variants(sku);
+
+-- Orders table: optional variant reference (nullable — backward compatible)
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS design_variant_id INTEGER;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS variant_color TEXT;
+ALTER TABLE orders ADD COLUMN IF NOT EXISTS variant_sku TEXT;
+

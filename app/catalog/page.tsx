@@ -1,534 +1,605 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
+import { motion, AnimatePresence } from 'framer-motion';
+import { Plus, Search, X, Layers, Package, Palette, Trash2, Loader2, AlertTriangle, Star, Edit2 } from 'lucide-react';
 import { useAuth } from '@/contexts/AuthContext';
-import Card from '@/components/ui/Card';
-import Button from '@/components/ui/Button';
-import { Plus } from 'lucide-react';
-import Input from '@/components/ui/Input';
-import Modal from '@/components/ui/Modal';
-import Badge from '@/components/ui/Badge';
-import AdvancedFilter, { FilterDefinition, FilterRow } from '@/components/ui/AdvancedFilter';
+import { CatalogDesignCard, type CatalogDesign } from '@/components/catalog/CatalogDesignCard';
+import DesignDetailModal from '@/components/catalog/DesignDetailModal';
+import ManageCategoriesModal from '@/components/catalog/ManageCategoriesModal';
 import styles from './Catalog.module.css';
 
-interface Design {
-    id: number;
-    name: string;
-    image_url: string;
-    price_per_meter: number;
-    available: number;
-    created_at: number;
-}
+// ─── New Design Form Modal ────────────────────────────────────────────────────
+function NewDesignModal({ isOpen, onClose, onSaved }: { isOpen: boolean; onClose: () => void; onSaved: () => void }) {
+    const [designCode, setDesignCode] = useState('');
+    const [designName, setDesignName] = useState('');
+    const [baseRate, setBaseRate] = useState('');
+    const [description, setDescription] = useState('');
+    const [saving, setSaving] = useState(false);
+    const [error, setError] = useState('');
 
-export default function CatalogPage() {
-    const { user } = useAuth();
-    const [designs, setDesigns] = useState<Design[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [searchTerm, setSearchTerm] = useState('');
-    const [activeFilters, setActiveFilters] = useState<FilterRow[]>([]);
-    const [availableFilters] = useState<FilterDefinition[]>([
-        { id: 'available', label: 'Availability', type: 'select', icon: (
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <path d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z" />
-                <polyline points="3.27 6.96 12 12.01 20.73 6.96" />
-                <line x1="12" y1="22.08" x2="12" y2="12" />
-            </svg>
-        ), options: [
-            { value: '1', label: 'In Stock' },
-            { value: '0', label: 'Out of Stock' },
-        ]},
-        { id: 'price', label: 'Price', type: 'number', icon: (
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                <line x1="12" y1="1" x2="12" y2="23" />
-                <path d="M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
-            </svg>
-        )},
-    ]);
-    const [showDesignModal, setShowDesignModal] = useState(false);
-    const [showOrderModal, setShowOrderModal] = useState(false);
-    const [editingDesign, setEditingDesign] = useState<Design | null>(null);
-    const [selectedDesign, setSelectedDesign] = useState<Design | null>(null);
-    const [designForm, setDesignForm] = useState({
-        name: '',
-        imageUrl: '',
-        pricePerMeter: 0,
-        available: true,
-    });
-    const [orderForm, setOrderForm] = useState({
-        quantityMeters: 0,
-    });
+    // Image upload state
+    const [imageFile, setImageFile] = useState<File | null>(null);
+    const [imagePreview, setImagePreview] = useState<string | null>(null);
+    const [uploading, setUploading] = useState(false);
+    const fileInputRef = useRef<HTMLInputElement>(null);
 
-    const isAdmin = user?.role === 'admin';
-    const isCustomer = user?.role === 'customer';
+    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+        setImageFile(file);
+        const reader = new FileReader();
+        reader.onload = (ev) => setImagePreview(ev.target?.result as string);
+        reader.readAsDataURL(file);
+    };
 
-    useEffect(() => {
-        const params = new URLSearchParams(window.location.search);
-        const search = params.get('search');
-        if (search) {
-            setSearchTerm(search);
+    const handleSave = async () => {
+        setError('');
+        if (!designCode || !designName) {
+            setError('Design Code and Design Name are required.');
+            return;
         }
-        fetchDesigns(activeFilters, search || searchTerm);
-    }, []);
-
-    const handleApplyFilters = (filters: FilterRow[]) => {
-        setActiveFilters(filters);
-        fetchDesigns(filters);
-    };
-
-    const handleRemoveFilter = (id: string) => {
-        const newFilters = activeFilters.filter(f => f.id !== id);
-        setActiveFilters(newFilters);
-        fetchDesigns(newFilters);
-    };
-
-    const fetchDesigns = async (filters: FilterRow[] = [], search: string = searchTerm) => {
-        setLoading(true);
+        setSaving(true);
         try {
-            const params = new URLSearchParams();
-            if (search) params.append('search', search);
+            let imageUrl = '';
 
-            filters.forEach(f => {
-                if (f.fieldId === 'available') {
-                    params.append('available', f.value);
-                } else if (f.fieldId === 'price') {
-                    if (f.operator === 'is') {
-                        params.set('minPrice', f.value);
-                        params.set('maxPrice', f.value);
-                    } else if (f.operator === 'greater than') {
-                        params.set('minPrice', f.value);
-                    } else if (f.operator === 'less than') {
-                        params.set('maxPrice', f.value);
-                    } else if (f.operator === 'between') {
-                        if (f.value?.start) params.set('minPrice', f.value.start);
-                        if (f.value?.end) params.set('maxPrice', f.value.end);
-                    }
+            // Upload image if selected
+            if (imageFile) {
+                setUploading(true);
+                const fd = new FormData();
+                fd.append('file', imageFile);
+                const uploadRes = await fetch('/api/upload', { method: 'POST', body: fd });
+                if (!uploadRes.ok) {
+                    throw new Error('Image upload failed. Please try again.');
                 }
-            });
-
-            const res = await fetch(`/api/designs?${params.toString()}`);
-            if (res.ok) {
-                const data = await res.json();
-                setDesigns(data.designs);
-            }
-        } catch (error) {
-            console.error('Failed to fetch designs:', error);
-        } finally {
-            setLoading(false);
-        }
-    };
-
-    const handleAddDesign = () => {
-        setEditingDesign(null);
-        setDesignForm({ name: '', imageUrl: '', pricePerMeter: 0, available: true });
-        setShowDesignModal(true);
-    };
-
-    const handleEditDesign = (design: Design) => {
-        setEditingDesign(design);
-        setDesignForm({
-            name: design.name,
-            imageUrl: design.image_url,
-            pricePerMeter: design.price_per_meter,
-            available: design.available === 1,
-        });
-        setShowDesignModal(true);
-    };
-
-    const handleSubmitDesign = async (e: React.FormEvent) => {
-        e.preventDefault();
-
-        try {
-            const url = editingDesign ? `/api/designs/${editingDesign.id}` : '/api/designs';
-            const method = editingDesign ? 'PATCH' : 'POST';
-
-            const res = await fetch(url, {
-                method,
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(designForm),
-            });
-
-            if (res.ok) {
-                setShowDesignModal(false);
-                fetchDesigns(activeFilters);
-            }
-        } catch (error) {
-            console.error('Save design error:', error);
-        }
-    };
-
-    const handleDeleteDesign = async (designId: number) => {
-        
-
-        try {
-            const res = await fetch(`/api/designs/${designId}`, {
-                method: 'DELETE',
-            });
-
-            if (res.ok) {
-                fetchDesigns(activeFilters);
-            }
-        } catch (error) {
-            console.error('Delete design error:', error);
-        }
-    };
-
-    const handleOrderClick = (design: Design) => {
-        setSelectedDesign(design);
-        setOrderForm({ quantityMeters: 0 });
-        setShowOrderModal(true);
-    };
-
-    const handleSubmitOrder = async (e: React.FormEvent) => {
-        e.preventDefault();
-
-        if (!selectedDesign || !user) return;
-
-        try {
-            // Get customer ID for this user
-            const customerRes = await fetch('/api/customers');
-            if (!customerRes.ok) {
-                console.log('Please complete your customer profile first');
-                return;
+                const uploadData = await uploadRes.json();
+                imageUrl = uploadData.url || '';
+                setUploading(false);
             }
 
-            const customerData = await customerRes.json();
-            const customer = customerData.customers.find((c: any) => c.user_id === user.id);
-
-            if (!customer) {
-                console.log('Customer profile not found');
-                return;
-            }
-
-            const res = await fetch('/api/orders', {
+            const res = await fetch('/api/catalog/designs', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    customerId: customer.id,
-                    designId: selectedDesign.id,
-                    quantityMeters: orderForm.quantityMeters,
-                }),
+                body: JSON.stringify({ designCode, designName, baseRate: parseFloat(baseRate) || 0, imageUrl, description }),
             });
-
-            if (res.ok) {
-                setShowOrderModal(false);
-                console.log('Order placed successfully! Check "My Orders" to track your order.');
+            
+            if (res.ok) { 
+                onSaved(); 
+                onClose(); 
             } else {
-                console.log('Failed to place order. Please try again.');
+                const data = await res.json();
+                setError(data.error || 'Failed to create design. Please check if the design code already exists.');
             }
-        } catch (error) {
-            console.error('Order submission error:', error);
-            console.log('Failed to place order. Please try again.');
+        } catch (err: any) {
+            setError(err.message || 'Something went wrong while saving.');
+        } finally {
+            setSaving(false);
+            setUploading(false);
         }
     };
 
-    if (loading) {
-        return <div className={styles.loading}>Loading catalog...</div>;
-    }
+    if (typeof window === 'undefined') return null;
 
-    return (
-        <div className={styles.catalogPage}>
-            <div className={styles.header}>
-                <div>
-                    <h1 className={styles.title}>
-                        {isCustomer ? 'Shop Designs' : 'Catalog'}
-                    </h1>
-                    <p className={styles.subtitle}>
-                        {isCustomer
-                            ? 'Browse our collection and place orders'
-                            : 'Manage fabric designs and pricing'}
-                    </p>
+    return createPortal(
+        <AnimatePresence>
+            {isOpen && (
+                <motion.div 
+                    key="new-design-overlay"
+                    className={styles.overlay} 
+                    onClick={onClose}
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    exit={{ opacity: 0 }}
+                    transition={{ duration: 0.15 }}
+                >
+            <motion.div
+                className={styles.formModal}
+                initial={{ opacity: 0, scale: 0.96, y: 8 }}
+                animate={{ opacity: 1, scale: 1, y: 0 }}
+                exit={{ opacity: 0, scale: 0.98, y: 6 }}
+                transition={{ duration: 0.18, ease: 'easeOut' }}
+                onClick={e => e.stopPropagation()}
+            >
+                <div className={styles.formModalHeader}>
+                    <h2>New Design</h2>
+                    <button className={styles.closeBtn} onClick={onClose}><X size={16} /></button>
                 </div>
-                {isAdmin && (
-                    <button className="action-btn-primary" onClick={handleAddDesign}>
-                        <Plus size={16} />
-                        <span>Add Design</span>
-                    </button>
-                )}
-            </div>
+                <div className={styles.formModalBody}>
+                    {/* Row 1: Code + Name */}
+                    <div>
+                        <label className={styles.fieldLabel}>Design Code *</label>
+                        <input className={styles.fieldInput} value={designCode} onChange={e => setDesignCode(e.target.value)} placeholder="e.g. SB-1093" autoFocus />
+                    </div>
+                    <div>
+                        <label className={styles.fieldLabel}>Design Name *</label>
+                        <input className={styles.fieldInput} value={designName} onChange={e => setDesignName(e.target.value)} placeholder="e.g. Paisley Classic" />
+                    </div>
 
-            <div className={styles.filterControls}>
-                <div className={styles.searchWrapper}>
-                    <Input
-                        placeholder="Search designs..."
-                        value={searchTerm}
-                        onChange={(e) => {
-                            setSearchTerm(e.target.value);
-                            fetchDesigns(activeFilters, e.target.value);
-                        }}
-                        icon={
-                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                <circle cx="11" cy="11" r="8" />
-                                <path d="m21 21-4.35-4.35" />
-                            </svg>
-                        }
-                    />
-                </div>
-                <AdvancedFilter 
-                    availableFilters={availableFilters}
-                    onApply={handleApplyFilters}
-                    activeFilters={activeFilters}
-                />
-            </div>
+                    {/* Row 2: Base Rate (half width) + empty spacer */}
+                    <div>
+                        <label className={styles.fieldLabel}>Base Rate (₹/m)</label>
+                        <input type="number" className={styles.fieldInput} value={baseRate} onChange={e => setBaseRate(e.target.value)} placeholder="0" />
+                    </div>
+                    <div />
 
-            {activeFilters.length > 0 && (
-                <div className={styles.activeFilters}>
-                    {activeFilters.map(filter => {
-                        const field = availableFilters.find(f => f.id === filter.fieldId);
-                        let valueLabel = '';
-                        
-                        if (filter.operator === 'between' || field?.type === 'dateRange') {
-                            valueLabel = `${filter.value?.start || '?'} – ${filter.value?.end || '?'}`;
-                        } else if (field?.type === 'select') {
-                            valueLabel = field.options?.find(o => o.value === filter.value)?.label || filter.value;
-                        } else {
-                            valueLabel = filter.value;
-                        }
-                        
-                        const operatorLabel = filter.operator === 'is' ? '' : ` ${filter.operator}`;
-                        
-                        return (
-                            <div key={filter.id} className={styles.filterChip}>
-                                <span className={styles.chipLabel}>{field?.label}{operatorLabel}:</span> {valueLabel}
+                    {/* Image upload — full width */}
+                    <div style={{ gridColumn: '1 / -1' }}>
+                        <label className={styles.fieldLabel}>Design Thumbnail</label>
+                        <p style={{ fontSize: 11, color: '#64748b', marginBottom: 8, marginTop: -4 }}>This will be used as the catalog cover. You can upload the master sheet later.</p>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/jpeg,image/jpg,image/png,image/webp"
+                            style={{ display: 'none' }}
+                            onChange={handleFileChange}
+                        />
+                        {imagePreview ? (
+                            <div style={{ position: 'relative', display: 'inline-block', width: '100%' }}>
+                                <img
+                                    src={imagePreview}
+                                    alt="Preview"
+                                    style={{ width: '100%', maxHeight: 140, objectFit: 'cover', borderRadius: 8, border: '1px solid #e2e8f0', display: 'block' }}
+                                />
                                 <button
-                                    onClick={() => handleRemoveFilter(filter.id)}
-                                    className={styles.clearFilterBtn}
+                                    onClick={() => { setImageFile(null); setImagePreview(null); if (fileInputRef.current) fileInputRef.current.value = ''; }}
+                                    style={{ position: 'absolute', top: 6, right: 6, background: 'rgba(15,23,42,0.7)', border: 'none', borderRadius: '50%', width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#fff' }}
                                 >
-                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                        <line x1="18" y1="6" x2="6" y2="18"></line>
-                                        <line x1="6" y1="6" x2="18" y2="18"></line>
-                                    </svg>
+                                    <X size={12} />
+                                </button>
+                                <button
+                                    onClick={() => fileInputRef.current?.click()}
+                                    style={{ position: 'absolute', bottom: 6, right: 6, background: 'rgba(15,23,42,0.7)', border: 'none', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 600, color: '#fff', cursor: 'pointer' }}
+                                >
+                                    Change
                                 </button>
                             </div>
-                        );
-                    })}
-                    <button className={styles.clearAllBtn} onClick={() => handleApplyFilters([])}>
-                        Clear All
+                        ) : (
+                            <button
+                                type="button"
+                                onClick={() => fileInputRef.current?.click()}
+                                style={{
+                                    width: '100%', padding: '20px 12px', border: '2px dashed #e2e8f0',
+                                    borderRadius: 8, background: '#fafafa', cursor: 'pointer',
+                                    display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+                                    color: '#94a3b8', fontSize: 13, transition: 'border-color 0.15s',
+                                    boxSizing: 'border-box',
+                                }}
+                                onMouseEnter={e => (e.currentTarget.style.borderColor = '#94a3b8')}
+                                onMouseLeave={e => (e.currentTarget.style.borderColor = '#e2e8f0')}
+                            >
+                                <Package size={22} style={{ opacity: 0.4 }} />
+                                <span>Click to upload thumbnail from device</span>
+                                <span style={{ fontSize: 11, opacity: 0.6 }}>JPG, PNG, WebP — max 5 MB</span>
+                            </button>
+                        )}
+                    </div>
+
+                    {/* Description — full width */}
+                    <div style={{ gridColumn: '1 / -1' }}>
+                        <label className={styles.fieldLabel}>Description</label>
+                        <input className={styles.fieldInput} value={description} onChange={e => setDescription(e.target.value)} placeholder="Optional description or notes" />
+                    </div>
+                    
+                    {error && (
+                        <div style={{ gridColumn: '1 / -1', padding: '10px 12px', background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, color: '#dc2626', fontSize: 13, display: 'flex', alignItems: 'center', gap: 6 }}>
+                            <X size={14} />
+                            {error}
+                        </div>
+                    )}
+                </div>
+                <div className={styles.formModalFooter}>
+                    <button className={styles.btnCancel} onClick={onClose}>Cancel</button>
+                    <button className={styles.btnSave} onClick={handleSave} disabled={saving || uploading || !designCode || !designName}>
+                        {uploading ? 'Uploading…' : saving ? 'Creating…' : 'Create Design'}
                     </button>
                 </div>
+                </motion.div>
+                </motion.div>
             )}
+        </AnimatePresence>,
+        document.body
+    );
+}
 
-            {designs.length === 0 ? (
-                <div className={styles.emptyState}>
-                    <div className={styles.emptyIcon}>🎨</div>
-                    <h3 className={styles.emptyTitle}>No Designs Available</h3>
-                    <p className={styles.emptyText}>
-                        {isAdmin
-                            ? 'Add your first design to get started'
-                            : 'No designs available at the moment'}
-                    </p>
+function CatalogSkeleton() {
+    return (
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 20 }}>
+            {Array.from({ length: 6 }).map((_, i) => (
+                <div key={i} style={{ background: '#fff', borderRadius: 12, border: '1px solid #e2e8f0', overflow: 'hidden', height: 320 }}>
+                    <div style={{ height: 180, background: '#f1f5f9', animation: 'pulse 1.5s infinite' }} />
+                    <div style={{ padding: 16 }}>
+                        <div style={{ height: 16, width: '40%', background: '#e2e8f0', borderRadius: 4, marginBottom: 12, animation: 'pulse 1.5s infinite' }} />
+                        <div style={{ height: 20, width: '80%', background: '#e2e8f0', borderRadius: 4, marginBottom: 16, animation: 'pulse 1.5s infinite' }} />
+                        <div style={{ height: 12, width: '100%', background: '#f1f5f9', borderRadius: 4, animation: 'pulse 1.5s infinite' }} />
+                    </div>
                 </div>
-            ) : (
-                <div className={styles.designsGrid}>
-                    {designs.map((design) => (
-                        <Card key={design.id} className={styles.designCard}>
-                            <div className={styles.designImage}>
-                                {design.image_url ? (
-                                    <img src={design.image_url} alt={design.name} />
-                                ) : (
-                                    <div className={styles.placeholderImage}>
-                                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                            <rect x="3" y="3" width="18" height="18" rx="2" ry="2" />
-                                            <circle cx="8.5" cy="8.5" r="1.5" />
-                                            <polyline points="21 15 16 10 5 21" />
-                                        </svg>
-                                    </div>
-                                )}
-                                {isAdmin && (
-                                    <div className={styles.designActions}>
-                                        <button
-                                            className={styles.actionButton}
-                                            onClick={() => handleEditDesign(design)}
-                                        >
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-                                                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-                                            </svg>
-                                        </button>
-                                        <button
-                                            className={`${styles.actionButton} ${styles.deleteButton}`}
-                                            onClick={() => handleDeleteDesign(design.id)}
-                                        >
-                                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                                                <polyline points="3 6 5 6 21 6" />
-                                                <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                                            </svg>
-                                        </button>
-                                    </div>
-                                )}
-                            </div>
+            ))}
+        </div>
+    );
+}
 
-                            <div className={styles.designInfo}>
-                                <div className={styles.designHeader}>
-                                    <h3 className={styles.designName}>{design.name}</h3>
-                                    {isAdmin && (
-                                        <Badge status={design.available === 1 ? 'completed' : 'pending'} />
-                                    )}
-                                </div>
+// ─── Main Catalog Page ────────────────────────────────────────────────────────
+export default function CatalogPage() {
+    const { user } = useAuth();
+    const isAdmin = user?.role === 'admin';
 
-                                <div className={styles.designPrice}>₹{design.price_per_meter}/meter</div>
+    const [designs, setDesigns] = useState<CatalogDesign[]>([]);
+    const [loading, setLoading] = useState(true);
+    const [search, setSearch] = useState('');
+    const [filterCategory, setFilterCategory] = useState('');
+    const [filterFabric, setFilterFabric] = useState('');
+    const [filterColor, setFilterColor] = useState('');
+    const [filterStock, setFilterStock] = useState('');
 
-                                {isCustomer && (
-                                    <Button
-                                        variant="primary"
-                                        size="small"
-                                        fullWidth
-                                        onClick={() => handleOrderClick(design)}
-                                    >
-                                        Place Order
-                                    </Button>
-                                )}
-                            </div>
-                        </Card>
+    const [showNewModal, setShowNewModal] = useState(false);
+    const [selectedDesign, setSelectedDesign] = useState<CatalogDesign | null>(null);
+    const [designToDelete, setDesignToDelete] = useState<CatalogDesign | null>(null);
+    const [isDeleting, setIsDeleting] = useState(false);
+    const [mounted, setMounted] = useState(false);
+
+    // Stats & Filters
+    const [globalStats, setGlobalStats] = useState({ totalDesigns: 0, totalVariants: 0, totalStock: 0 });
+    const [categories, setCategories] = useState<string[]>([]);
+    const [fabrics, setFabrics] = useState<string[]>([]);
+
+    // Pagination
+    const [page, setPage] = useState(1);
+    const [hasMore, setHasMore] = useState(true);
+    const [loadingMore, setLoadingMore] = useState(false);
+    const observerTarget = useRef<HTMLDivElement>(null);
+
+    useEffect(() => { setMounted(true); }, []);
+
+
+
+    // Categories & Favorites
+    const [managedCategories, setManagedCategories] = useState<{id: string, name: string, is_favorite: boolean}[]>([]);
+    const [showManageCategories, setShowManageCategories] = useState(false);
+
+    useEffect(() => {
+        if (showNewModal || selectedDesign || designToDelete || showManageCategories) {
+            document.body.style.overflow = 'hidden';
+        } else {
+            document.body.style.overflow = '';
+        }
+        return () => { document.body.style.overflow = ''; };
+    }, [showNewModal, selectedDesign, designToDelete, showManageCategories]);
+
+    // Initial Global Stats Fetch
+    useEffect(() => {
+        const fetchStats = async () => {
+            try {
+                const res = await fetch('/api/catalog/designs/stats');
+                const data = await res.json();
+                if (data.stats) setGlobalStats(data.stats);
+                if (data.filters) {
+                    setFabrics(data.filters.fabrics);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        };
+        fetchStats();
+    }, []);
+
+    const fetchCategories = useCallback(async () => {
+        try {
+            const res = await fetch('/api/catalog/categories');
+            const data = await res.json();
+            if (data.categories) setManagedCategories(data.categories);
+        } catch (e) {
+            console.error(e);
+        }
+    }, []);
+
+    useEffect(() => {
+        fetchCategories();
+    }, [fetchCategories]);
+
+    const fetchDesigns = useCallback(async (pageIndex: number, isReset: boolean = false) => {
+        if (isReset) setLoading(true);
+        else setLoadingMore(true);
+
+        try {
+            const params = new URLSearchParams();
+            if (search) params.set('search', search);
+            if (filterCategory) params.set('category', filterCategory);
+            if (filterFabric) params.set('fabric', filterFabric);
+            if (filterColor) params.set('color', filterColor);
+            if (filterStock) params.set('in_stock', filterStock);
+            params.set('page', pageIndex.toString());
+            params.set('limit', '20');
+
+            const res = await fetch(`/api/catalog/designs?${params}`);
+            const data = await res.json();
+
+            setDesigns(prev => isReset ? (data.designs || []) : [...prev, ...(data.designs || [])]);
+            setHasMore(data.hasMore);
+            setPage(pageIndex);
+        } finally {
+            setLoading(false);
+            setLoadingMore(false);
+        }
+    }, [search, filterCategory, filterFabric, filterColor, filterStock]);
+
+    // Reset pagination on filter change
+    const debounceTimer = useRef<NodeJS.Timeout>();
+    useEffect(() => {
+        clearTimeout(debounceTimer.current);
+        debounceTimer.current = setTimeout(() => fetchDesigns(1, true), 300);
+        return () => clearTimeout(debounceTimer.current);
+    }, [fetchDesigns]);
+
+    // Intersection Observer for Infinite Scroll
+    useEffect(() => {
+        const observer = new IntersectionObserver(
+            entries => {
+                if (entries[0].isIntersecting && hasMore && !loading && !loadingMore) {
+                    fetchDesigns(page + 1, false);
+                }
+            },
+            { threshold: 0.1 }
+        );
+
+        if (observerTarget.current) observer.observe(observerTarget.current);
+        return () => observer.disconnect();
+    }, [hasMore, loading, loadingMore, page, fetchDesigns]);
+
+    const handleDeleteDesign = useCallback((design: CatalogDesign) => {
+        setDesignToDelete(design);
+    }, []);
+
+    const confirmDeleteDesign = async () => {
+        if (!designToDelete || isDeleting) return;
+        setIsDeleting(true);
+        try {
+            const res = await fetch(`/api/catalog/designs/${designToDelete.id}`, { method: 'DELETE' });
+            if (res.ok) {
+                setDesigns(prev => prev.filter(d => d.id !== designToDelete.id));
+                // Update stats locally to prevent refetch
+                setGlobalStats(prev => ({ ...prev, totalDesigns: prev.totalDesigns - 1 }));
+                setDesignToDelete(null);
+            } else {
+                alert('Failed to delete design');
+            }
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setIsDeleting(false);
+        }
+    };
+
+    // Keyboard support for delete modal
+    useEffect(() => {
+        if (!designToDelete) return;
+        const handleKeyDown = (e: KeyboardEvent) => {
+            if (e.key === 'Escape' && !isDeleting) setDesignToDelete(null);
+            if (e.key === 'Enter' && !isDeleting) confirmDeleteDesign();
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [designToDelete, isDeleting]);
+
+    return (
+        <div className={styles.page}>
+            {/* Toolbar */}
+            <div className={styles.toolbar}>
+                {/* Search */}
+                <div className={styles.searchWrap}>
+                    <Search className={styles.searchIcon} size={15} />
+                    <input
+                        id="catalog-search"
+                        className={styles.searchInput}
+                        placeholder="Search by code, name, or tag…"
+                        value={search}
+                        onChange={e => setSearch(e.target.value)}
+                    />
+                </div>
+
+                {/* Filters */}
+                <div className={styles.filterGroup}>
+                    <select className={styles.filterSelect} value={filterFabric} onChange={e => setFilterFabric(e.target.value)}>
+                        <option value="">Fabric ▼</option>
+                        {fabrics.map(f => <option key={f} value={f!}>{f}</option>)}
+                    </select>
+                    <select className={styles.filterSelect} value={filterColor} onChange={e => setFilterColor(e.target.value)}>
+                        <option value="">Color ▼</option>
+                        {Array.from(new Set(designs.flatMap(d => d.variants?.map(v => v.color_name) || [])))
+                            .filter(Boolean)
+                            .map(c => <option key={c} value={c}>{c}</option>)
+                        }
+                    </select>
+                    <select className={styles.filterSelect} value={filterStock} onChange={e => setFilterStock(e.target.value)}>
+                        <option value="">Stock ▼</option>
+                        <option value="1">In Stock</option>
+                    </select>
+                </div>
+
+                {isAdmin && (
+                    <button id="btn-new-design" className={styles.btnNewDesign} onClick={() => setShowNewModal(true)}>
+                        <Plus size={15} /> New Design
+                    </button>
+                )}
+            </div>
+
+            {/* Favorites Row */}
+            <div className={styles.favoritesRow}>
+                <div className={styles.favIconWrap}>
+                    <Star size={14} fill="#fbbf24" color="#fbbf24" /> 
+                    <span className={styles.favTitle}>Favorites:</span>
+                </div>
+                <div className={styles.favList}>
+                    {managedCategories.filter(c => c.is_favorite).map(c => (
+                        <button
+                            key={c.id}
+                            className={`${styles.favPill} ${filterCategory === c.name ? styles.favPillActive : ''}`}
+                            onClick={() => setFilterCategory(filterCategory === c.name ? '' : c.name)}
+                        >
+                            {c.name}
+                        </button>
                     ))}
+                    <button className={styles.favAddBtn} onClick={() => setShowManageCategories(true)}>
+                        <Plus size={14} /> Add
+                    </button>
+                </div>
+            </div>
+
+            {/* Stats bar */}
+            {(globalStats.totalDesigns > 0) && (
+                <div className={styles.statsBar}>
+                    <div className={styles.statItem}>
+                        <Layers size={14} style={{ color: '#64748b' }} />
+                        <span className={styles.statValue}>{globalStats.totalDesigns}</span>
+                        <span className={styles.statLabel}>designs</span>
+                    </div>
+                    <div className={styles.statDivider} />
+                    <div className={styles.statItem}>
+                        <Palette size={14} style={{ color: '#64748b' }} />
+                        <span className={styles.statValue}>{globalStats.totalVariants}</span>
+                        <span className={styles.statLabel}>color variants</span>
+                    </div>
+                    <div className={styles.statDivider} />
+                    <div className={styles.statItem}>
+                        <Package size={14} style={{ color: '#64748b' }} />
+                        <span className={styles.statValue}>{globalStats.totalStock.toLocaleString('en-IN')}m</span>
+                        <span className={styles.statLabel}>total stock</span>
+                    </div>
                 </div>
             )}
 
-            {/* Admin Design Modal */}
-            <Modal
-                isOpen={showDesignModal}
-                onClose={() => setShowDesignModal(false)}
-                title={editingDesign ? 'Edit Design' : 'Add New Design'}
-            >
-                <form onSubmit={handleSubmitDesign}>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 'var(--spacing-4)' }}>
-                        <Input
-                            label="Design Name"
-                            value={designForm.name}
-                            onChange={(e) => setDesignForm({ ...designForm, name: e.target.value })}
-                            required
-                        />
-                        <div>
-                            <label style={{ display: 'block', fontSize: 'var(--font-size-sm)', fontWeight: 'var(--font-weight-medium)', marginBottom: 'var(--spacing-1)', color: 'var(--color-text-primary)' }}>
-                                Design Image
-                            </label>
-                            <input
-                                type="file"
-                                accept="image/*"
-                                onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) {
-                                        const reader = new FileReader();
-                                        reader.onloadend = () => {
-                                            setDesignForm({ ...designForm, imageUrl: reader.result as string });
-                                        };
-                                        reader.readAsDataURL(file);
-                                    }
-                                }}
-                                style={{ display: 'block', width: '100%', padding: 'var(--spacing-2)', border: '1px solid var(--color-border)', borderRadius: 'var(--radius-md)', background: 'var(--color-bg-primary)' }}
-                            />
-                            {designForm.imageUrl && (
-                                <div style={{ marginTop: 'var(--spacing-2)' }}>
-                                    <img src={designForm.imageUrl} alt="Preview" style={{ maxHeight: '100px', borderRadius: 'var(--radius-sm)', border: '1px solid var(--color-border)' }} />
-                                </div>
-                            )}
-                        </div>
-                        <Input
-                            label="Price per Meter (₹)"
-                            type="number"
-                            value={designForm.pricePerMeter.toString()}
-                            onChange={(e) =>
-                                setDesignForm({ ...designForm, pricePerMeter: parseFloat(e.target.value) || 0 })
-                            }
-                            required
-                        />
-
-                        <label style={{ display: 'flex', alignItems: 'center', gap: 'var(--spacing-2)', cursor: 'pointer' }}>
-                            <input
-                                type="checkbox"
-                                checked={designForm.available}
-                                onChange={(e) => setDesignForm({ ...designForm, available: e.target.checked })}
-                                style={{ width: '18px', height: '18px', cursor: 'pointer' }}
-                            />
-                            <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
-                                Available for customers
-                            </span>
-                        </label>
+            {/* Grid */}
+            <div className={styles.grid}>
+                {loading ? (
+                    <CatalogSkeleton />
+                ) : designs.length === 0 ? (
+                    <div className={styles.empty}>
+                        <Layers size={40} style={{ opacity: 0.2, marginBottom: '12px' }} />
+                        <h3>No designs found</h3>
+                        <p>Try adjusting your search or filters{isAdmin ? ', or create your first design.' : '.'}</p>
                     </div>
-
-                    <div
-                        style={{
-                            display: 'flex',
-                            gap: 'var(--spacing-3)',
-                            marginTop: 'var(--spacing-6)',
-                            justifyContent: 'flex-end',
-                        }}
-                    >
-                        <Button variant="ghost" type="button" onClick={() => setShowDesignModal(false)}>
-                            Cancel
-                        </Button>
-                        <Button variant="primary" type="submit">
-                            {editingDesign ? 'Update' : 'Add'} Design
-                        </Button>
-                    </div>
-                </form>
-            </Modal>
-
-            {/* Customer Order Modal */}
-            <Modal
-                isOpen={showOrderModal}
-                onClose={() => setShowOrderModal(false)}
-                title="Place Order"
-            >
-                {selectedDesign && (
-                    <form onSubmit={handleSubmitOrder}>
-                        <div style={{ marginBottom: 'var(--spacing-4)' }}>
-                            <h3 style={{ fontSize: 'var(--font-size-lg)', color: 'var(--color-text-primary)', marginBottom: 'var(--spacing-2)' }}>
-                                {selectedDesign.name}
-                            </h3>
-                            <p style={{ fontSize: 'var(--font-size-base)', color: 'var(--color-text-secondary)' }}>
-                                ₹{selectedDesign.price_per_meter}/meter
-                            </p>
-                        </div>
-
-                        <Input
-                            label="Quantity (meters)"
-                            type="number"
-                            min="1"
-                            value={orderForm.quantityMeters.toString()}
-                            onChange={(e) =>
-                                setOrderForm({ ...orderForm, quantityMeters: parseFloat(e.target.value) || 0 })
-                            }
-                            required
-                        />
-
-                        {orderForm.quantityMeters > 0 && (
-                            <div
-                                style={{
-                                    marginTop: 'var(--spacing-4)',
-                                    padding: 'var(--spacing-4)',
-                                    background: 'var(--color-bg-surface)',
-                                    borderRadius: 'var(--radius-md)',
-                                }}
-                            >
-                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                                    <span style={{ fontSize: 'var(--font-size-sm)', color: 'var(--color-text-secondary)' }}>
-                                        Total Price:
-                                    </span>
-                                    <span style={{ fontSize: 'var(--font-size-xl)', fontWeight: 'var(--font-weight-bold)', color: 'var(--color-success)' }}>
-                                        ₹{(orderForm.quantityMeters * selectedDesign.price_per_meter).toLocaleString()}
-                                    </span>
-                                </div>
+                ) : (
+                    <>
+                        {designs.map(design => (
+                            <CatalogDesignCard
+                                key={design.id}
+                                design={design}
+                                isAdmin={isAdmin}
+                                onClick={setSelectedDesign}
+                                onEdit={isAdmin ? setSelectedDesign : undefined}
+                                onDelete={isAdmin ? handleDeleteDesign : undefined}
+                            />
+                        ))}
+                        
+                        {/* Intersection Observer Target */}
+                        {hasMore && (
+                            <div ref={observerTarget} style={{ padding: '20px', gridColumn: '1 / -1', textAlign: 'center', color: '#64748b' }}>
+                                {loadingMore ? 'Loading more designs...' : ''}
                             </div>
                         )}
-
-                        <div
-                            style={{
-                                display: 'flex',
-                                gap: 'var(--spacing-3)',
-                                marginTop: 'var(--spacing-6)',
-                                justifyContent: 'flex-end',
-                            }}
-                        >
-                            <Button variant="ghost" type="button" onClick={() => setShowOrderModal(false)}>
-                                Cancel
-                            </Button>
-                            <Button variant="primary" type="submit" disabled={orderForm.quantityMeters <= 0}>
-                                Place Order
-                            </Button>
-                        </div>
-                    </form>
+                    </>
                 )}
-            </Modal>
+            </div>
+
+            {/* New Design Modal */}
+            <NewDesignModal
+                isOpen={showNewModal}
+                onClose={() => setShowNewModal(false)}
+                onSaved={() => { fetchDesigns(1, true); setShowNewModal(false); }}
+            />
+
+            <DesignDetailModal
+                design={selectedDesign}
+                isOpen={!!selectedDesign}
+                isAdmin={isAdmin}
+                onClose={() => setSelectedDesign(null)}
+                onUpdate={() => { 
+                    if (!selectedDesign) return;
+                    fetch(`/api/catalog/designs/${selectedDesign.id}`)
+                        .then(res => res.json())
+                        .then(data => {
+                            if (data.design) {
+                                setDesigns(prev => prev.map(d => d.id === data.design.id ? data.design : d));
+                                setSelectedDesign(data.design);
+                            }
+                        })
+                        .catch(console.error);
+                }}
+            />
+
+            {/* Manage Categories Modal */}
+            <ManageCategoriesModal
+                isOpen={showManageCategories}
+                onClose={() => setShowManageCategories(false)}
+                onSaved={() => fetchCategories()}
+            />
+
+            {/* Custom Delete Confirmation Modal */}
+            <AnimatePresence>
+                {designToDelete && (
+                    <motion.div 
+                        key="delete-overlay"
+                        className={styles.deleteOverlay} 
+                        onClick={() => !isDeleting && setDesignToDelete(null)}
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        exit={{ opacity: 0 }}
+                        transition={{ duration: 0.15 }}
+                    >
+                        <motion.div 
+                            className={styles.deleteModal}
+                            initial={{ opacity: 0, scale: 0.96, y: 8 }}
+                            animate={{ opacity: 1, scale: 1, y: 0 }}
+                            exit={{ opacity: 0, scale: 0.98, y: 6 }}
+                            transition={{ duration: 0.18, ease: 'easeOut' }}
+                            onClick={e => e.stopPropagation()}
+                        >
+                            <div className={styles.deleteHeader}>
+                                <div className={styles.deleteIconWrap}>
+                                    <Trash2 size={20} className={styles.deleteIcon} />
+                                </div>
+                                <div className={styles.deleteTitleWrap}>
+                                    <h3 className={styles.deleteTitle}>Delete Design</h3>
+                                    <p className={styles.deleteSubtitle}>This action permanently removes this design and its variants.</p>
+                                </div>
+                            </div>
+                            
+                            <div className={styles.deleteBody}>
+                                <p className={styles.deleteText}>You are about to permanently delete:</p>
+                                <ul className={styles.deleteList}>
+                                    <li><strong>{designToDelete.design_name}</strong></li>
+                                    <li>All linked color variants</li>
+                                    <li>Associated stock references</li>
+                                </ul>
+                                
+                                <div className={styles.deleteWarning}>
+                                    <AlertTriangle size={14} />
+                                    <span>This action cannot be undone.</span>
+                                </div>
+                                
+                                <p className={styles.deleteNote}>Orders and invoices already created will remain unaffected.</p>
+                            </div>
+                            
+                            <div className={styles.deleteFooter}>
+                                <button 
+                                    className={styles.btnCancelDelete} 
+                                    onClick={() => setDesignToDelete(null)}
+                                    disabled={isDeleting}
+                                >
+                                    Cancel
+                                </button>
+                                <button 
+                                    className={styles.btnConfirmDelete} 
+                                    onClick={confirmDeleteDesign}
+                                    disabled={isDeleting}
+                                >
+                                    {isDeleting ? <><Loader2 size={14} className={styles.spinner} /> Deleting...</> : 'Delete Design'}
+                                </button>
+                            </div>
+                        </motion.div>
+                    </motion.div>
+                )}
+            </AnimatePresence>
         </div>
     );
 }

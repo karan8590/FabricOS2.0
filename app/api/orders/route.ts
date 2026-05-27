@@ -191,7 +191,9 @@ export async function POST(request: Request) {
         const { 
             designId, quantityMeters, deliveryDate, orderDate, priority, notes, pricePerUnit, fabric_type: fabricType,
             baseAmount, printingCost, embroideryCostCharged, dyeingCostCharged, additionalCharges, discount, gstRate, gstAmount,
-            billingFirmId
+            billingFirmId,
+            // Catalog variant fields (optional)
+            designVariantId, variantColor, variantSku,
         } = body;
 
         // Security: If user is customer, force customerId to their own ID
@@ -278,9 +280,10 @@ export async function POST(request: Request) {
                     .prepare(
                         `INSERT INTO orders (
                             customer_id, design_id, quantity_meters, total_price, status, order_stage, order_number, delivery_date, order_date, priority, notes, price_per_unit, business_id,
-                            base_amount, printing_cost, embroidery_cost_charged, dyeing_cost_charged, additional_charges, discount, gst_rate, gst_amount, fabric_type, billing_firm_id
+                            base_amount, printing_cost, embroidery_cost_charged, dyeing_cost_charged, additional_charges, discount, gst_rate, gst_amount, fabric_type, billing_firm_id,
+                            design_variant_id, variant_color, variant_sku
                         )
-                 VALUES (?, ?, ?, ?, 'created', 'order_added', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                 VALUES (?, ?, ?, ?, 'created', 'order_added', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
                     )
                     .run(
                         customerId, 
@@ -303,8 +306,12 @@ export async function POST(request: Request) {
                         financials.gstRate,
                         financials.gstAmount,
                         fabricType,
-                        billingFirmId
+                        billingFirmId,
+                        designVariantId || null,
+                        variantColor || null,
+                        variantSku || null,
                     ));
+
 
         // Update customer total orders
         (await db.prepare(

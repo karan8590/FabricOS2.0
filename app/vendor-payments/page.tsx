@@ -955,6 +955,46 @@ export default function VendorPaymentsPage() {
         );
     };
 
+    const renderMobileCards = (list: VendorPayment[]) => {
+        return (
+            <div className={`${styles.mobileCardsList} mobile-only`}>
+                {list.map(p => {
+                    const statusColor = p.payment_status === 'paid' ? '#34C759' : p.payment_status === 'partial' ? '#FF9500' : '#FF3B30';
+                    return (
+                        <div key={p.id} className={styles.mobileCard} style={{ borderLeftColor: statusColor }}>
+                            <div className={styles.mobileCardTop}>
+                                <div className={styles.mobileCardTitle}>
+                                    {p.order_id ? `#${p.order_number || p.order_id}` : p.challan_number || p.dispatch_number || 'Dispatch'}
+                                    <span style={{ marginLeft: '6px', fontSize: '10px', color: 'var(--text-secondary)' }}>{p.work_type}</span>
+                                </div>
+                                <div style={{ fontSize: '14px', fontWeight: 700 }}>{formatCurrencySafe(p.total_amount)}</div>
+                            </div>
+                            <div className={styles.mobileCardMiddle}>
+                                <div className={styles.mobileCardDesc}>
+                                    Due: {formatDueDate(p.due_date)} • Qty: {p.quantity_meters}m
+                                </div>
+                                <div className={styles.mobileCardDesc} style={{ color: statusColor }}>
+                                    Balance: {formatCurrencySafe(p.balance)}
+                                </div>
+                            </div>
+                            <div className={styles.mobileCardAction}>
+                                <button 
+                                    className="action-btn-primary" 
+                                    style={{ width: '100%', height: '32px', fontSize: '12px', background: p.balance <= 0 ? 'var(--bg-grouped)' : 'var(--bg-card-alt)', color: p.balance <= 0 ? 'var(--text-tertiary)' : 'var(--text-primary)', border: '1px solid var(--border-primary)' }}
+                                    onClick={(e) => { e.stopPropagation(); handleRecordPayment(p); }}
+                                >
+                                    {p.balance > 0 ? 'Record Payment' : 'View History'}
+                                </button>
+                            </div>
+                        </div>
+                    );
+                })}
+            </div>
+        );
+    };
+
+    if (!isClient) return null;
+
     return (
         <div className={styles.container}>
             {/* Page Header */}
@@ -1123,7 +1163,8 @@ export default function VendorPaymentsPage() {
                 </div>
             ) : viewMode === 'flat' ? (
                 <div className={styles.tableCard}>
-                    {renderTable(sortedPayments)}
+                    <div className="desktop-only">{renderTable(sortedPayments)}</div>
+                    {renderMobileCards(sortedPayments)}
                 </div>
             ) : (
                 <div className={styles.vendorGrid}>
@@ -1219,7 +1260,10 @@ export default function VendorPaymentsPage() {
                                                         <p style={{ margin: '4px 0 0 0', fontSize: '13px' }}>Outstanding balance is zero.</p>
                                                     </div>
                                                 ) : (
-                                                    renderTable(g.payments)
+                                                    <>
+                                                        <div className="desktop-only">{renderTable(g.payments)}</div>
+                                                        {renderMobileCards(g.payments)}
+                                                    </>
                                                 )}
                                             </div>
                                         </div>

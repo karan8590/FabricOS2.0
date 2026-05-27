@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { X, Search, ChevronDown, Calendar, AlertCircle, CheckCircle2, Plus, ShoppingBag, User, Settings2, Package } from 'lucide-react';
 import styles from './CreateOrderPanel.module.css';
 import DesignPickerModal from './DesignPickerModal';
+import type { SelectedDesignPayload } from './DesignPickerModal';
 import { celebrateSmall, celebrateMilestone } from '@/lib/confetti';
 
 interface Customer {
@@ -38,7 +39,7 @@ export default function CreateOrderPanel({ isOpen, onClose, onSuccess, initialCu
 
     // Form State
     const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
-    const [selectedDesign, setSelectedDesign] = useState<Design | null>(null);
+    const [selectedDesign, setSelectedDesign] = useState<SelectedDesignPayload | null>(null);
     const [quantity, setQuantity] = useState<string>('');
     const [pricePerUnit, setPricePerUnit] = useState<string>('');
     const [orderDate, setOrderDate] = useState<string>(new Date().toISOString().split('T')[0]);
@@ -57,6 +58,11 @@ export default function CreateOrderPanel({ isOpen, onClose, onSuccess, initialCu
     const customerDropdownRef = useRef<HTMLDivElement>(null);
 
     const [isDesignPickerOpen, setIsDesignPickerOpen] = useState(false);
+    
+    // Swipe-to-dismiss state
+    const [isDragging, setIsDragging] = useState(false);
+    const [startY, setStartY] = useState(0);
+    const [currentY, setCurrentY] = useState(0);
 
     useEffect(() => {
         setMounted(true);
@@ -91,9 +97,11 @@ export default function CreateOrderPanel({ isOpen, onClose, onSuccess, initialCu
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const handleDesignSelect = (design: any) => {
+    const handleDesignSelect = (design: SelectedDesignPayload) => {
         setSelectedDesign(design);
-        setPricePerUnit(design.price_per_meter.toString());
+        // Auto-populate price: variant rate takes priority over base rate
+        const rate = design.variant_rate || design.price_per_meter || 0;
+        setPricePerUnit(rate.toString());
         setIsDesignPickerOpen(false);
         setErrors(prev => ({...prev, design: ''}));
     };
@@ -185,16 +193,20 @@ export default function CreateOrderPanel({ isOpen, onClose, onSuccess, initialCu
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    customerId: selectedCustomer.id,
-                    designId: selectedDesign.id,
-                    billingFirmId: parseInt(billingFirmId),
-                    quantityMeters: parseFloat(quantity),
-                    pricePerUnit: parseFloat(pricePerUnit),
-                    delivery_date: deliveryDate ? Math.floor(new Date(deliveryDate).getTime() / 1000) : null,
-                    order_date: orderDate ? Math.floor(new Date(orderDate).getTime() / 1000) : null,
-                    sendSampleFirst,
-                    fabric_type: fabricType
-                }),
+                        customerId: selectedCustomer.id,
+                        designId: selectedDesign.id,
+                        billingFirmId: parseInt(billingFirmId),
+                        quantityMeters: parseFloat(quantity),
+                        pricePerUnit: parseFloat(pricePerUnit),
+                        delivery_date: deliveryDate ? Math.floor(new Date(deliveryDate).getTime() / 1000) : null,
+                        order_date: orderDate ? Math.floor(new Date(orderDate).getTime() / 1000) : null,
+                        sendSampleFirst,
+                        fabric_type: fabricType,
+                        // Catalog variant fields (optional)
+                        designVariantId: selectedDesign.design_variant_id || null,
+                        variantColor: selectedDesign.variant_color || null,
+                        variantSku: selectedDesign.variant_sku || null,
+                    }),
             });
 
             if (res.ok) {
@@ -243,11 +255,40 @@ export default function CreateOrderPanel({ isOpen, onClose, onSuccess, initialCu
         setErrors({});
     };
 
+    const handleTouchStart = (e: React.TouchEvent) => {
+        if (window.innerWidth > 768) return;
+        setIsDragging(true);
+        setStartY(e.touches[0].clientY);
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (!isDragging || window.innerWidth > 768) return;
+        const deltaY = e.touches[0].clientY - startY;
+        if (deltaY > 0) setCurrentY(deltaY);
+    };
+
+    const handleTouchEnd = () => {
+        if (!isDragging || window.innerWidth > 768) return;
+        setIsDragging(false);
+        if (currentY > 150) onClose();
+        setCurrentY(0);
+    };
+
     if (!isOpen || !mounted) return null;
 
     const modalContent = (
         <div className={styles.overlay} onClick={onClose}>
-            <div className={styles.panel} onClick={e => e.stopPropagation()}>
+            <div 
+                className={styles.panel} 
+                style={isDragging && window.innerWidth <= 768 ? { transform: `translateY(${currentY}px)`, transition: 'none' } : {}}
+                onClick={e => e.stopPropagation()}
+            >
+                <div 
+                    className={styles.mobileSheetHandle}
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                />
                 <div className={styles.header}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <div style={{ background: 'rgba(37, 99, 235, 0.1)', color: '#2563eb', padding: '8px', borderRadius: '10px' }}>
@@ -359,12 +400,23 @@ export default function CreateOrderPanel({ isOpen, onClose, onSuccess, initialCu
                                                 ) : <div style={{ background: '#222', padding: '6px', borderRadius: '6px' }}><Package size={16} /></div>}
                                                 <div style={{ textAlign: 'left' }}>
                                                     <div style={{ fontWeight: 600, fontSize: '14px' }}>{selectedDesign.name}</div>
-                                                    <div style={{ fontSize: '11px', opacity: 0.5 }}>{selectedDesign.category} • {selectedDesign.code}</div>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '11px', opacity: 0.7 }}>
+                                                        <span>{selectedDesign.category} • {selectedDesign.code}</span>
+                                                        {selectedDesign.variant_color && (
+                                                            <>
+                                                                <span>•</span>
+                                                                <div style={{ width: 10, height: 10, borderRadius: '50%', background: selectedDesign.variant_hex || '#888', boxShadow: '0 0 0 1px rgba(0,0,0,0.15)', flexShrink: 0 }} />
+                                                                <span>{selectedDesign.variant_color}</span>
+                                                                {selectedDesign.variant_sku && <span style={{ fontFamily: 'monospace', background: 'rgba(255,255,255,0.08)', padding: '1px 5px', borderRadius: 4 }}>{selectedDesign.variant_sku}</span>}
+                                                            </>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         ) : (
                                             <span style={{ color: '#666' }}>Choose fabric or design from catalog...</span>
                                         )}
+
                                         <div className={styles.pickerBtn}>Browse Catalog</div>
                                     </div>
                                     {errors.design && <p className="text-red-500 text-xs mt-1 transition-all duration-200">{errors.design}</p>}

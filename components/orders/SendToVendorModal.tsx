@@ -24,6 +24,9 @@ export default function SendToVendorModal({ isOpen, onClose, onSuccess, orders, 
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState('');
     const [mounted, setMounted] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
+    const [startY, setStartY] = useState(0);
+    const [currentY, setCurrentY] = useState(0);
 
     // New Vendor State
     const [isCreatingVendor, setIsCreatingVendor] = useState(false);
@@ -77,6 +80,30 @@ export default function SendToVendorModal({ isOpen, onClose, onSuccess, orders, 
     };
 
     if (!isOpen || !orders || orders.length === 0 || !mounted) return null;
+
+    const handleTouchStart = (e: React.TouchEvent) => {
+        setIsDragging(true);
+        setStartY(e.touches[0].clientY);
+    };
+
+    const handleTouchMove = (e: React.TouchEvent) => {
+        if (!isDragging) return;
+        const deltaY = e.touches[0].clientY - startY;
+        if (deltaY > 0) {
+            setCurrentY(deltaY);
+        }
+    };
+
+    const handleTouchEnd = () => {
+        setIsDragging(false);
+        if (currentY > 150) {
+            onClose();
+        } else {
+            setCurrentY(0);
+        }
+    };
+
+    const sheetStyle = isDragging ? { transform: `translateY(${currentY}px)`, transition: 'none' } : {};
 
     const title = isEmbroidery ? 'Send to Embroidery Vendor' : 'Send to Dyeing Vendor';
     const parsedRate = parseFloat(rate) || 0;
@@ -226,8 +253,13 @@ export default function SendToVendorModal({ isOpen, onClose, onSuccess, orders, 
 
     return createPortal(
         <div className={styles.modalOverlay} onClick={onClose}>
-            <div className={styles.modalContent} onClick={e => e.stopPropagation()}>
-                <div className={styles.mobileSheetHandle} />
+            <div className={styles.modalContent} onClick={e => e.stopPropagation()} style={sheetStyle}>
+                <div 
+                    className={styles.mobileSheetHandle} 
+                    onTouchStart={handleTouchStart}
+                    onTouchMove={handleTouchMove}
+                    onTouchEnd={handleTouchEnd}
+                />
                 <div className={styles.modalHeader}>
                     <div>
                         <h2 className={styles.title}>{isCreatingVendor ? 'Add New Vendor' : title}</h2>

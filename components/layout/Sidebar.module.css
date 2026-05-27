@@ -190,3 +190,9 @@
         box-shadow: 0 0 40px rgba(0, 0, 0, 0.15);
     }
 }
+/* ── Mobile: <= 768px — hide sidebar completely ── */
+@media (max-width: 768px) {
+    .rebuiltSidebar {
+        display: none !important;
+    }
+}

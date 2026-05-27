@@ -502,3 +502,31 @@ body:has(.global-modal-overlay),
 body:has(.global-drawer-overlay) {
   overflow: hidden !important;
 }
+/* ==========================================================================
+   IPHONE SAFARI MOBILE OPTIMIZATION
+   ========================================================================== */
+@media (max-width: 768px) {
+    body {
+        overscroll-behavior: none;
+        -webkit-font-smoothing: antialiased;
+    }
+    
+    * {
+        touch-action: manipulation; /* Prevents double tap zoom */
+        -webkit-tap-highlight-color: transparent; /* Removes tap highlight */
+    }
+
+    .scroll-container, .scrollable {
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .btn, button, .tab-item, .card {
+        user-select: none;
+        -webkit-user-select: none;
+    }
+    
+    /* Input zoom fix for iOS Safari */
+    input, select, textarea {
+        font-size: 16px !important; 
+    }
+}

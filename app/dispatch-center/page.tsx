@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { 
     Truck, User, Phone, MapPin, Calendar, CheckCircle2, Info, Check, Plus, 
-    Trash2, CreditCard, ChevronRight, Loader2, AlertCircle, FileText, X, MoreVertical
+    Trash2, CreditCard, ChevronRight, Loader2, AlertCircle, FileText, X, MoreVertical, Printer, MessageCircle
 } from 'lucide-react';
 import styles from './DispatchCenter.module.css';
 import ChallanViewerDrawer from '@/components/dispatch/ChallanViewerDrawer';
@@ -741,17 +741,41 @@ export default function DispatchCenterPage() {
                                                 </span>
                                             </div>
 
-                                            <div className={styles.batchSubHeader}>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                                                    {batch.challan_number ? (
-                                                        <span className={styles.challanGeneratedBadge}>✓ Challan Generated ({batch.challan_number})</span>
-                                                    ) : (
-                                                        <span className={styles.challanPendingBadge}>Challan Pending</span>
+                                            <div className={styles.batchSubHeader} style={{ flexWrap: 'wrap', gap: '12px' }}>
+                                                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', flex: 1 }}>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                                                        {batch.challan_number ? (
+                                                            <span className={styles.challanGeneratedBadge}>✓ Challan Generated ({batch.challan_number})</span>
+                                                        ) : (
+                                                            <span className={styles.challanPendingBadge}>Challan Pending</span>
+                                                        )}
+                                                        <span style={{ fontSize: '12px', color: 'var(--text-secondary)' }}>
+                                                            {new Date(batch.dispatch_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}
+                                                        </span>
+                                                    </div>
+                                                    
+                                                    {batch.challan_id && (
+                                                        <div style={{ display: 'flex', gap: '8px' }}>
+                                                            <button 
+                                                                style={{ padding: '6px 12px', background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)', borderRadius: '6px', fontSize: '12px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                                                                onClick={() => {
+                                                                    setSelectedBatchForChallan(batch);
+                                                                    setIsChallanDrawerOpen(true);
+                                                                }}
+                                                            >
+                                                                <FileText size={14} /> View Challan
+                                                            </button>
+                                                            <button 
+                                                                style={{ padding: '6px 12px', background: 'var(--bg-secondary)', border: '1px solid var(--border-primary)', borderRadius: '6px', fontSize: '12px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '6px', cursor: 'pointer' }}
+                                                                onClick={() => handleDownloadPdf(batch.challan_id, batch.challan_number)}
+                                                            >
+                                                                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download PDF
+                                                            </button>
+                                                        </div>
                                                     )}
                                                 </div>
-                                                <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                                                    <span>{new Date(batch.dispatch_date).toLocaleDateString('en-IN', { day: 'numeric', month: 'short' })}</span>
-                                                    
+                                                
+                                                <div style={{ display: 'flex', alignItems: 'flex-start' }}>
                                                     <div className={styles.menuContainer}>
                                                         <button 
                                                             className={styles.menuTrigger}
@@ -762,17 +786,11 @@ export default function DispatchCenterPage() {
                                                         
                                                         {activeChallanMenuId === batch.id && (
                                                             <div className={styles.dropdownMenu}>
-                                                                <button onClick={() => {
-                                                                    setSelectedBatchForChallan(batch);
-                                                                    setIsChallanDrawerOpen(true);
-                                                                    setActiveChallanMenuId(null);
-                                                                }}>
-                                                                    <FileText size={14} /> Open Dispatch Details
-                                                                </button>
                                                                 {batch.challan_id && (
                                                                     <>
                                                                         <button onClick={() => {
-                                                                            window.open(`/api/public/challan/${batch.challan_id}/pdf`, '_blank');
+                                                                            setSelectedBatchForChallan(batch);
+                                                                            setIsChallanDrawerOpen(true);
                                                                             setActiveChallanMenuId(null);
                                                                         }}>
                                                                             <Info size={14} /> View Delivery Challan
@@ -783,8 +801,28 @@ export default function DispatchCenterPage() {
                                                                         }}>
                                                                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg> Download Challan PDF
                                                                         </button>
+                                                                        <button onClick={() => {
+                                                                            window.open(`/api/public/challan/${batch.challan_id}/pdf`, '_blank');
+                                                                            setActiveChallanMenuId(null);
+                                                                        }}>
+                                                                            <Printer size={14} /> Reprint Challan
+                                                                        </button>
+                                                                        <button onClick={() => {
+                                                                            const text = encodeURIComponent(`Delivery Challan ${batch.challan_number} for your order has been generated. Driver: ${batch.driver_name} (${batch.vehicle_number}).`);
+                                                                            window.open(`https://wa.me/?text=${text}`, '_blank');
+                                                                            setActiveChallanMenuId(null);
+                                                                        }}>
+                                                                            <MessageCircle size={14} /> Share on WhatsApp
+                                                                        </button>
                                                                     </>
                                                                 )}
+                                                                <button onClick={() => {
+                                                                    setSelectedBatchForChallan(batch);
+                                                                    setIsChallanDrawerOpen(true);
+                                                                    setActiveChallanMenuId(null);
+                                                                }}>
+                                                                    <FileText size={14} /> Open Dispatch Details
+                                                                </button>
                                                             </div>
                                                         )}
                                                     </div>

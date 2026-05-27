@@ -56,7 +56,19 @@ function getStageBadgeCss(order: any, isOverdue: boolean): string {
     if (stage === 'ready' || stage === 'out_for_delivery') {
         return styles.badgeReady;
     }
-    return styles.badgeDelivered;
+    if (stage === 'delivered') return styles.badgeDelivered;
+    return styles.badgeApproval;
+}
+
+function getStageBorderColor(order: any, isOverdue: boolean): string {
+    if (isOverdue) return '#FF3B30';
+    const stage = order.order_stage || 'order_added';
+    if (stage === 'order_added' || stage === 'approved') return '#FF9500';
+    if (stage === 'embroidery' || stage === 'printing') return '#AF52DE';
+    if (stage === 'dyeing') return '#0071E3';
+    if (stage === 'ready' || stage === 'out_for_delivery') return '#34C759';
+    if (stage === 'delivered') return '#8E8E93';
+    return 'transparent';
 }
 
 /* ------------------------------------------------------------------ */
@@ -356,6 +368,7 @@ export default function MobileOrderCard({
     return (
         <div
             className={`${styles.card} ${selectedOrderId === order.id ? styles.cardActive : ''}`}
+            style={{ borderLeftColor: getStageBorderColor(order, isOverdue) }}
             onClick={(e) => {
                 if (onSelectOrder) {
                     e.preventDefault();
@@ -393,7 +406,7 @@ export default function MobileOrderCard({
                 </div>
             </div>
 
-            {/* ── BOTTOM: Specifications & Inline Compact Action Pill ── */}
+            {/* ── BOTTOM: Specifications ── */}
             <div className={styles.bottomRow} onClick={e => e.stopPropagation()}>
                 <div className={styles.bottomLeft}>
                     {eligible && onToggleSelect && (
@@ -415,10 +428,11 @@ export default function MobileOrderCard({
                         </span>
                     )}
                 </div>
+            </div>
 
-                <div className={styles.bottomRight} style={{ opacity: isSelectionModeActive ? 0.3 : 1, pointerEvents: isSelectionModeActive ? 'none' : 'auto' }}>
-                    {renderMobileActionButton()}
-                </div>
+            {/* ── ACTION PILL: Full width at the bottom ── */}
+            <div className={styles.actionRow} style={{ opacity: isSelectionModeActive ? 0.3 : 1, pointerEvents: isSelectionModeActive ? 'none' : 'auto' }} onClick={e => e.stopPropagation()}>
+                {renderMobileActionButton()}
             </div>
         </div>
     );

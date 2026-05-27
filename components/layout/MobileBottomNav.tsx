@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback } from 'react';
 import { usePathname, useRouter } from 'next/navigation';
 import {
-    LayoutDashboard, ShoppingBag, Factory, Landmark, Grid2x2
+    FileText, Truck, CalendarCheck, Receipt, MoreHorizontal
 } from 'lucide-react';
 import styles from './MobileBottomNav.module.css';
 import { useAuth } from '@/contexts/AuthContext';
@@ -14,16 +14,16 @@ export interface MobileBottomNavProps {
 }
 
 const TABS = [
-    { id: 'dashboard',   label: 'Dashboard',   icon: LayoutDashboard, href: '/dashboard' },
-    { id: 'orders',      label: 'Orders',       icon: ShoppingBag,     href: '/orders' },
-    { id: 'production',  label: 'Production',   icon: Factory,         href: '/production' },
-    { id: 'payments',    label: 'Payments',     icon: Landmark,        href: '/vendor-payments' },
-    { id: 'more',        label: 'More',         icon: Grid2x2,         href: null },
+    { id: 'orders',      label: 'Orders',       icon: FileText,        href: '/orders' },
+    { id: 'dispatch',    label: 'Dispatch',     icon: Truck,           href: '/dispatch-center' },
+    { id: 'attendance',  label: 'Attendance',   icon: CalendarCheck,   href: '/employees?tab=attendance' },
+    { id: 'invoices',    label: 'Invoices',     icon: Receipt,         href: '/invoices' },
+    { id: 'more',        label: 'More',         icon: MoreHorizontal,  href: null },
 ] as const;
 
 function isTabActive(tab: typeof TABS[number], pathname: string): boolean {
     if (!tab.href) return false;
-    if (tab.href === '/dashboard') return pathname === '/dashboard';
+    if (tab.href.includes('?')) return pathname === tab.href.split('?')[0];
     return pathname.startsWith(tab.href);
 }
 

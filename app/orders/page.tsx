@@ -18,6 +18,8 @@ import GroupedPeriodSection from '@/components/ui/GroupedPeriodSection';
 import GenerateChallanModal from '@/components/challans/GenerateChallanModal';
 import QRScannerModal from '@/components/ui/QRScannerModal';
 import { ORDER_STATUSES, ORDER_STATUS_LABELS } from '@/lib/constants';
+import PaymentModal from '@/components/invoices/PaymentModal';
+import OrderDetailsModal from '@/components/orders/OrderDetailsModal';
 import CreateDispatchModal from '@/components/orders/CreateDispatchModal';
 import SendToVendorModal from '@/components/orders/SendToVendorModal';
 import MobileFilterSheet from '@/components/orders/MobileFilterSheet';
@@ -931,8 +933,7 @@ export default function OrdersPage() {
                                                 selectedIds={selectedIds}
                                                 onToggleSelect={toggleSelection}
                                                 onClearSelection={clearSelection}
-                                                selectedOrderId={isTablet ? selectedOrderId : undefined}
-                                                onSelectOrder={isTablet ? setSelectedOrderId : (isDesktop ? (id) => router.push(`/orders/${id}`) : undefined)}
+                                                onSelectOrder={setSelectedOrderId}
                                                 hasActiveOverlay={hasActiveOverlay}
                                                 sortOrder={sortOrder}
                                                 onSortToggle={() => setSortOrder(prev => prev === 'desc' ? 'asc' : 'desc')}
@@ -950,20 +951,22 @@ export default function OrdersPage() {
                                         ) : null}
                                     </div>
                                 )}
-                            </div>
-                            {isTablet && (
-                                <div className={styles.rightDetailPane}>
-                                    <OrderDetailPreview
-                                        orderId={selectedOrderId}
-                                        onUpdate={fetchOrders}
-                                        onGenerateInvoice={handleGenerateInvoiceClick}
-                                    />
                                 </div>
-                            )}
-                        </div>
-                    )}
+                            </div>
+                        )}
                 </>
             )}
+
+            <OrderDetailsModal 
+                orderId={selectedOrderId || ''}
+                isOpen={!!selectedOrderId}
+                onClose={() => setSelectedOrderId(undefined)}
+                onUpdate={fetchOrders}
+                onEdit={() => {
+                    const ord = allOrders.find(o => o.id === selectedOrderId);
+                    if (ord) handleEditClick(ord);
+                }}
+            />
 
             {showPaymentModal && (
                 <div className="global-modal-overlay">
