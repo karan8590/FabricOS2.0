@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { query } from '@/lib/db';
+import { pool } from '@/lib/db';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
     try {
@@ -8,7 +8,7 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
             return NextResponse.json({ error: 'Invalid invoice ID' }, { status: 400 });
         }
 
-        const res = await query(
+        const res = await pool.query(
             'SELECT * FROM invoice_history WHERE invoice_id = $1 ORDER BY created_at ASC',
             [id]
         );
