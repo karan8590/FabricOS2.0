@@ -234,7 +234,7 @@ export default function AutoVariantsModal({ design, masterSheets, isOpen, onClos
     };
 
     return createPortal(
-        <AnimatePresence>
+        <AnimatePresence initial={false}>
             {isOpen && (
                 <motion.div 
                     key="auto-variants-overlay"
@@ -247,10 +247,10 @@ export default function AutoVariantsModal({ design, masterSheets, isOpen, onClos
                 >
                     <motion.div 
                         className={styles.modal}
-                        initial={{ opacity: 0, scale: 0.96, y: 8 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.98, y: 6 }}
-                        transition={{ duration: 0.18, ease: 'easeOut' }}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 4 }}
+                        transition={{ duration: 0.15 }}
                         onClick={e => e.stopPropagation()}
                     >
                     <div className={styles.header}>

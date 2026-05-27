@@ -79,29 +79,32 @@ function NewDesignModal({ isOpen, onClose, onSaved }: { isOpen: boolean; onClose
         }
     };
 
-    if (typeof window === 'undefined') return null;
+    const [mounted, setMounted] = useState(false);
+    useEffect(() => setMounted(true), []);
+
+    if (!mounted) return null;
 
     return createPortal(
-        <AnimatePresence>
+        <AnimatePresence initial={false}>
             {isOpen && (
                 <motion.div 
                     key="new-design-overlay"
-                    className={styles.overlay} 
                     onClick={onClose}
+                    style={{ position: 'fixed', inset: 0, backgroundColor: 'rgba(0,0,0,0.4)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 }}
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
                     transition={{ duration: 0.15 }}
                 >
-            <motion.div
-                className={styles.formModal}
-                initial={{ opacity: 0, scale: 0.96, y: 8 }}
-                animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.98, y: 6 }}
-                transition={{ duration: 0.18, ease: 'easeOut' }}
-                onClick={e => e.stopPropagation()}
-            >
-                <div className={styles.formModalHeader}>
+                    <motion.div
+                        className={styles.formModal}
+                        onClick={e => e.stopPropagation()}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 4 }}
+                        transition={{ duration: 0.15 }}
+                    >
+                        <div className={styles.formModalHeader}>
                     <h2>New Design</h2>
                     <button className={styles.closeBtn} onClick={onClose}><X size={16} /></button>
                 </div>
@@ -535,7 +538,7 @@ export default function CatalogPage() {
             />
 
             {/* Custom Delete Confirmation Modal */}
-            <AnimatePresence>
+            <AnimatePresence initial={false}>
                 {designToDelete && (
                     <motion.div 
                         key="delete-overlay"
@@ -548,10 +551,11 @@ export default function CatalogPage() {
                     >
                         <motion.div 
                             className={styles.deleteModal}
-                            initial={{ opacity: 0, scale: 0.96, y: 8 }}
-                            animate={{ opacity: 1, scale: 1, y: 0 }}
-                            exit={{ opacity: 0, scale: 0.98, y: 6 }}
-                            transition={{ duration: 0.18, ease: 'easeOut' }}
+                            initial={{ opacity: 0, y: 6 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: 4 }}
+                            transition={{ duration: 0.16, ease: 'easeOut' }}
+                            style={{ willChange: 'opacity, transform' }}
                             onClick={e => e.stopPropagation()}
                         >
                             <div className={styles.deleteHeader}>

@@ -79,7 +79,7 @@ export default function UploadSheetModal({ designId, isOpen, onClose, onSaved }:
     if (!mounted) return null;
 
     return createPortal(
-        <AnimatePresence>
+        <AnimatePresence initial={false}>
             {isOpen && (
                 <motion.div
                     key="upload-sheet-overlay"
@@ -92,10 +92,10 @@ export default function UploadSheetModal({ designId, isOpen, onClose, onSaved }:
                 >
                     <motion.div
                         className={styles.modal}
-                        initial={{ scale: 0.96, opacity: 0, y: 8 }}
-                        animate={{ scale: 1, opacity: 1, y: 0 }}
-                        exit={{ scale: 0.98, opacity: 0, y: 6 }}
-                        transition={{ duration: 0.18, ease: 'easeOut' }}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 4 }}
+                        transition={{ duration: 0.15 }}
                         onClick={e => e.stopPropagation()}
                     >
                         <div className={styles.header}>

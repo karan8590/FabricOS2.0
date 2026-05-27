@@ -98,7 +98,7 @@ export default function EditVariantModal({ variant, designId, isOpen, onClose, o
     if (!mounted) return null;
 
     return createPortal(
-        <AnimatePresence>
+        <AnimatePresence initial={false}>
             {isOpen && variant && (
                 <motion.div 
                     key="edit-variant-overlay"
@@ -111,10 +111,10 @@ export default function EditVariantModal({ variant, designId, isOpen, onClose, o
                 >
                     <motion.div 
                         className={styles.modal}
-                        initial={{ opacity: 0, scale: 0.96, y: 8 }}
-                        animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.98, y: 6 }}
-                        transition={{ duration: 0.18, ease: 'easeOut' }}
+                        initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 4 }}
+                        transition={{ duration: 0.15 }}
                         onClick={e => e.stopPropagation()}
                     >
                     <div className={styles.header}>

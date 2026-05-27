@@ -117,7 +117,7 @@ export default function DesignDetailModal({
 
     return createPortal(
         <>
-            <AnimatePresence>
+            <AnimatePresence initial={false}>
                 {isOpen && design && (
                     <motion.div
                         key="design-detail-overlay"
@@ -130,10 +130,10 @@ export default function DesignDetailModal({
                     >
                             <motion.div
                                 className={`${styles.modal} ${isFullscreen ? styles.modalFullscreen : ''}`}
-                                initial={{ scale: 0.96, opacity: 0, y: 8 }}
-                                animate={{ scale: 1, opacity: 1, y: 0 }}
-                                exit={{ scale: 0.98, opacity: 0, y: 6 }}
-                                transition={{ duration: 0.18, ease: 'easeOut' }}
+                                initial={{ opacity: 0, y: 6 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: 4 }}
+                        transition={{ duration: 0.15 }}
                                 onClick={e => e.stopPropagation()}
                             >
                             <div className={styles.header}>

@@ -137,7 +137,7 @@
     font-weight: 500;
     cursor: pointer;
     white-space: nowrap;
-    transition: all 0.2s;
+    transition: opacity 0.2s, transform 0.2s, background-color 0.2s, color 0.2s, border-color 0.2s;
 }
 
 .favPill:hover {
@@ -170,7 +170,7 @@
     font-weight: 500;
     cursor: pointer;
     white-space: nowrap;
-    transition: all 0.2s;
+    transition: opacity 0.2s, transform 0.2s, background-color 0.2s, color 0.2s, border-color 0.2s;
 }
 
 .favAddBtn:hover {
@@ -268,8 +268,7 @@
 .overlay {
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.25);
-    backdrop-filter: blur(4px);
+    background: rgba(0, 0, 0, 0.4);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -410,8 +409,7 @@
 .deleteOverlay {
     position: fixed;
     inset: 0;
-    background: rgba(15, 23, 42, 0.25);
-    backdrop-filter: blur(4px);
+    background: rgba(0, 0, 0, 0.4);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -538,7 +536,7 @@
     border: 1px solid #cbd5e1;
     border-radius: 8px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: opacity 0.2s, transform 0.2s, background-color 0.2s, color 0.2s, border-color 0.2s;
 }
 
 .btnCancelDelete:hover:not(:disabled) {
@@ -556,7 +554,7 @@
     border: none;
     border-radius: 8px;
     cursor: pointer;
-    transition: all 0.2s ease;
+    transition: opacity 0.2s, transform 0.2s, background-color 0.2s, color 0.2s, border-color 0.2s;
     display: flex;
     align-items: center;
     gap: 8px;
