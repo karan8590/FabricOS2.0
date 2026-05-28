@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import getDatabase from '@/lib/db';
 import { checkPermission } from '@/lib/auth/permissions';
+import { getActiveBusinessId } from '@/lib/auth/business';
 import { sendTelegramMessage } from '@/lib/telegram';
 import { logAction } from '@/lib/auditLogger';
 
@@ -9,15 +10,18 @@ export async function GET(request: Request) {
         const { searchParams } = new URL(request.url);
         const monthStr = searchParams.get('month'); // Format: YYYY-MM
 
-        if (!monthStr || !/^\\d{4}-\\d{2}$/.test(monthStr)) {
+        if (!monthStr || !/^\d{4}-\d{2}$/.test(monthStr)) {
             return NextResponse.json({ error: 'Valid month (YYYY-MM) is required' }, { status: 400 });
         }
 
-        const { authorized, error, status, user } = await checkPermission('employees.view');
+        const { authorized, error, status } = await checkPermission('employees.view');
         if (!authorized) {
             return NextResponse.json({ error }, { status });
         }
-        const businessId = user?.businessId;
+        const businessId = await getActiveBusinessId();
+        if (!businessId) {
+            return NextResponse.json({ error: 'Unauthorized business access' }, { status: 401 });
+        }
 
         const db = getDatabase();
 
@@ -128,12 +132,15 @@ export async function POST(request: Request) {
         if (!authorized) {
             return NextResponse.json({ error }, { status });
         }
-        const businessId = user?.businessId;
+        const businessId = await getActiveBusinessId();
+        if (!businessId) {
+            return NextResponse.json({ error: 'Unauthorized business access' }, { status: 401 });
+        }
 
         const body = await request.json();
         const { action, month } = body;
 
-        if (!month || !/^\\d{4}-\\d{2}$/.test(month)) {
+        if (!month || !/^\d{4}-\d{2}$/.test(month)) {
             return NextResponse.json({ error: 'Valid month (YYYY-MM) is required' }, { status: 400 });
         }
 

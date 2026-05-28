@@ -1,18 +1,22 @@
 import { NextResponse } from 'next/server';
 import getDatabase from '@/lib/db';
 import { checkPermission } from '@/lib/auth/permissions';
+import { getActiveBusinessId } from '@/lib/auth/business';
 
 export async function GET(request: Request) {
     try {
         const { searchParams } = new URL(request.url);
         const statusFilter = searchParams.get('status') || 'active'; // 'active' | 'completed'
 
-        const { authorized, error, status, user } = await checkPermission('employees.view');
+        const { authorized, error, status } = await checkPermission('employees.view');
         if (!authorized) {
             return NextResponse.json({ error }, { status });
         }
         
-        const businessId = user?.businessId;
+        const businessId = await getActiveBusinessId();
+        if (!businessId) {
+            return NextResponse.json({ error: 'Unauthorized business access' }, { status: 401 });
+        }
 
         const db = getDatabase();
 
@@ -163,7 +167,10 @@ export async function POST(request: Request) {
             return NextResponse.json({ error }, { status });
         }
         
-        const businessId = user?.businessId;
+        const businessId = await getActiveBusinessId();
+        if (!businessId) {
+            return NextResponse.json({ error: 'Unauthorized business access' }, { status: 401 });
+        }
 
         const body = await request.json();
         const { action } = body;

@@ -8,6 +8,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { CatalogDesignCard, type CatalogDesign } from '@/components/catalog/CatalogDesignCard';
 import DesignDetailModal from '@/components/catalog/DesignDetailModal';
 import ManageCategoriesModal from '@/components/catalog/ManageCategoriesModal';
+import VariantSelectionModal from '@/components/catalog/VariantSelectionModal';
 import styles from './Catalog.module.css';
 
 // ─── New Design Form Modal ────────────────────────────────────────────────────
@@ -223,7 +224,13 @@ function CatalogSkeleton() {
 }
 
 // ─── Main Catalog Page ────────────────────────────────────────────────────────
-export default function CatalogPage() {
+export interface CatalogViewProps {
+    isPickerMode?: boolean;
+    onSelectDesign?: (design: CatalogDesign, variant?: CatalogVariant) => void;
+    onClosePicker?: () => void;
+}
+
+export function CatalogView({ isPickerMode, onSelectDesign, onClosePicker }: CatalogViewProps = {}) {
     const { user } = useAuth();
     const isAdmin = user?.role === 'admin';
 
@@ -235,10 +242,15 @@ export default function CatalogPage() {
     const [filterColor, setFilterColor] = useState('');
     const [filterStock, setFilterStock] = useState('');
 
-    const [showNewModal, setShowNewModal] = useState(false);
+    // Modals
     const [selectedDesign, setSelectedDesign] = useState<CatalogDesign | null>(null);
+    const [showNewModal, setShowNewModal] = useState(false);
+    const [showManageCategories, setShowManageCategories] = useState(false);
     const [designToDelete, setDesignToDelete] = useState<CatalogDesign | null>(null);
     const [isDeleting, setIsDeleting] = useState(false);
+    
+    // Variant Picker
+    const [variantPickerDesign, setVariantPickerDesign] = useState<CatalogDesign | null>(null);
     const [mounted, setMounted] = useState(false);
 
     // Stats & Filters
@@ -258,7 +270,6 @@ export default function CatalogPage() {
 
     // Categories & Favorites
     const [managedCategories, setManagedCategories] = useState<{id: string, name: string, is_favorite: boolean}[]>([]);
-    const [showManageCategories, setShowManageCategories] = useState(false);
 
     useEffect(() => {
         if (showNewModal || selectedDesign || designToDelete || showManageCategories) {
@@ -388,6 +399,11 @@ export default function CatalogPage() {
         <div className={styles.page}>
             {/* Toolbar */}
             <div className={styles.toolbar}>
+                {isPickerMode && (
+                    <button className={styles.btnCancel} onClick={onClosePicker} style={{ marginRight: '8px' }}>
+                        <X size={16} /> Close
+                    </button>
+                )}
                 {/* Search */}
                 <div className={styles.searchWrap}>
                     <Search className={styles.searchIcon} size={15} />
@@ -419,7 +435,7 @@ export default function CatalogPage() {
                     </select>
                 </div>
 
-                {isAdmin && (
+                {isAdmin && !isPickerMode && (
                     <button id="btn-new-design" className={styles.btnNewDesign} onClick={() => setShowNewModal(true)}>
                         <Plus size={15} /> New Design
                     </button>
@@ -487,10 +503,18 @@ export default function CatalogPage() {
                             <CatalogDesignCard
                                 key={design.id}
                                 design={design}
-                                isAdmin={isAdmin}
-                                onClick={setSelectedDesign}
-                                onEdit={isAdmin ? setSelectedDesign : undefined}
-                                onDelete={isAdmin ? handleDeleteDesign : undefined}
+                                isAdmin={isAdmin && !isPickerMode}
+                                onClick={(design) => {
+                                    console.log('[DEBUG] Design clicked:', design.design_name, 'isPickerMode:', isPickerMode);
+                                    if (isPickerMode) {
+                                        console.log('[DEBUG] Setting variantPickerDesign:', design.id);
+                                        setVariantPickerDesign(design);
+                                    } else {
+                                        setSelectedDesign(design);
+                                    }
+                                }}
+                                onEdit={isAdmin && !isPickerMode ? setSelectedDesign : undefined}
+                                onDelete={isAdmin && !isPickerMode ? handleDeleteDesign : undefined}
                             />
                         ))}
                         
@@ -604,6 +628,28 @@ export default function CatalogPage() {
                     </motion.div>
                 )}
             </AnimatePresence>
+
+            {/* Variant Picker for order creation flow */}
+            {console.log('[DEBUG] Rendering VariantSelectionModal condition. isPickerMode:', isPickerMode, 'variantPickerDesign:', !!variantPickerDesign)}
+            {isPickerMode && (
+                <VariantSelectionModal 
+                    design={variantPickerDesign}
+                    isOpen={!!variantPickerDesign}
+                    onClose={() => {
+                        console.log('[DEBUG] VariantSelectionModal onClose triggered');
+                        setVariantPickerDesign(null);
+                    }}
+                    onSelect={(design, variant) => {
+                        console.log('[DEBUG] VariantSelectionModal onSelect triggered', { design, variant });
+                        setVariantPickerDesign(null);
+                        if (onSelectDesign) onSelectDesign(design, variant);
+                    }}
+                />
+            )}
         </div>
     );
+}
+
+export default function CatalogPage() {
+    return <CatalogView />;
 }

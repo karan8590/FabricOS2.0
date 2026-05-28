@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import styles from './AttendanceTab.module.css';
 import MonthPicker from '@/components/ui/MonthPicker';
+import EmployeeAttendanceModal from './EmployeeAttendanceModal';
 
 interface Employee {
     id: number;
@@ -16,7 +17,7 @@ interface AttendanceRecord {
     employeeId: number;
     name: string;
     role: string;
-    status: 'present' | 'absent';
+    status: 'present' | 'absent' | 'unselected';
 }
 
 interface AttendanceTabProps {
@@ -70,6 +71,7 @@ export default function AttendanceTab({ employees }: AttendanceTabProps) {
     const [toastMessage, setToastMessage] = useState<string | null>(null);
     const [hasUnsavedChanges, setHasUnsavedChanges] = useState<boolean>(false);
     const [pendingTargetDate, setPendingTargetDate] = useState<string | null>(null);
+    const [selectedSummaryEmployee, setSelectedSummaryEmployee] = useState<any | null>(null);
 
     // Dropdown Month Calendar Picker States
     const [calendarOpen, setCalendarOpen] = useState<boolean>(false);
@@ -126,8 +128,12 @@ export default function AttendanceTab({ employees }: AttendanceTabProps) {
         }
     }, [selectedDate, weekStartDate]);
 
-    // Filter to active employees only
-    const activeEmployees = employees.filter(emp => emp.is_active === 1);
+    // Filter to active employees only and sort them alphabetically
+    const activeEmployees = useMemo(() => {
+        return [...employees]
+            .filter(emp => emp.is_active === 1)
+            .sort((a, b) => a.name.localeCompare(b.name));
+    }, [employees]);
 
     // Fetch daily attendance whenever date changes or active employees load
     useEffect(() => {
@@ -165,7 +171,7 @@ export default function AttendanceTab({ employees }: AttendanceTabProps) {
                 // Merge saved records with current active employees list
                 const records = activeEmployees.map(emp => {
                     const saved = savedMap.get(emp.id);
-                    let rawStatus = saved ? saved.status : 'present';
+                    let rawStatus = saved ? saved.status : 'unselected';
                     if (rawStatus === 'half_day') {
                         rawStatus = 'present';
                     }
@@ -173,7 +179,7 @@ export default function AttendanceTab({ employees }: AttendanceTabProps) {
                         employeeId: emp.id,
                         name: emp.name,
                         role: emp.role,
-                        status: rawStatus as 'present' | 'absent'
+                        status: rawStatus as 'present' | 'absent' | 'unselected'
                     };
                 });
 
@@ -241,7 +247,7 @@ export default function AttendanceTab({ employees }: AttendanceTabProps) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     date: selectedDate,
-                    records: attendanceRecords
+                    records: attendanceRecords.filter(r => r.status !== 'unselected')
                 })
             });
 
@@ -357,7 +363,7 @@ export default function AttendanceTab({ employees }: AttendanceTabProps) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     date: selectedDate,
-                    records: attendanceRecords
+                    records: attendanceRecords.filter(r => r.status !== 'unselected')
                 })
             });
 
@@ -761,10 +767,7 @@ export default function AttendanceTab({ employees }: AttendanceTabProps) {
                                                 <div className={styles.skeletonBadge} />
                                             </div>
                                         </div>
-                                    </div>
-                                    <div className={styles.cardRow}>
-                                        <div className={styles.skeletonText} style={{ width: '80px', marginBottom: '8px' }} />
-                                        <div className={styles.skeletonButtons} style={{ width: '100%' }} />
+                                        <div className={styles.skeletonButtons} style={{ width: '160px', height: '36px' }} />
                                     </div>
                                     <div className={styles.cardRow}>
                                         <div className={styles.skeletonText} style={{ width: '50px', marginBottom: '8px' }} />
@@ -787,11 +790,7 @@ export default function AttendanceTab({ employees }: AttendanceTabProps) {
                                                 </span>
                                             </div>
                                         </div>
-                                    </div>
-
-                                    <div className={styles.cardRow}>
-                                        <span className={styles.cardLabel}>Attendance Status</span>
-                                        <div className={styles.cardValue}>
+                                        <div className={styles.cardValue} style={{ width: 'auto' }}>
                                             <div 
                                                 className={styles.toggleTrack}
                                                 onClick={(e) => {
@@ -852,37 +851,37 @@ export default function AttendanceTab({ employees }: AttendanceTabProps) {
                         <table className={styles.summaryTable}>
                             <thead>
                                 <tr>
-                                    <th>Employee</th>
-                                    <th>Role</th>
-                                    <th>Present Days</th>
-                                    <th>Absent Days</th>
+                                    <th className={styles.employeeCol}>Employee</th>
+                                    <th className={styles.roleCol}>Role</th>
+                                    <th className={styles.centerAlign}>Present Days</th>
+                                    <th className={styles.centerAlign}>Absent Days</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {monthlySummaries.map(summary => {
-                                    const empInfo = employees.find(e => e.id === summary.employeeId);
-                                    if (!empInfo) return null;
+                                {activeEmployees.map(emp => {
+                                    const summary = monthlySummaries.find(s => s.employeeId === emp.id);
+                                    if (!summary) return null;
 
                                     return (
-                                        <tr key={summary.employeeId}>
+                                        <tr key={emp.id} onClick={() => setSelectedSummaryEmployee(emp)} className={styles.summaryRowClickable}>
                                             <td>
                                                 <div className={styles.employeeCell}>
                                                     <div className={styles.avatar}>
-                                                        {empInfo.name.charAt(0).toUpperCase()}
+                                                        {emp.name.charAt(0).toUpperCase()}
                                                     </div>
-                                                    <span className={styles.employeeName}>{empInfo.name}</span>
+                                                    <span className={styles.employeeName}>{emp.name}</span>
                                                 </div>
                                             </td>
                                             <td>
-                                                <span className={`${styles.roleBadge} ${getRoleBadgeStyle(empInfo.role)}`}>
-                                                    {formatRole(empInfo.role)}
+                                                <span className={`${styles.roleBadge} ${getRoleBadgeStyle(emp.role)}`}>
+                                                    {formatRole(emp.role)}
                                                 </span>
                                             </td>
-                                            <td className={`${styles.numCell} ${styles.presentCount}`}>
-                                                {summary.presentDays}
+                                            <td className={styles.centerAlign}>
+                                                <span className={styles.presentPill}>{summary.presentDays} Days</span>
                                             </td>
-                                            <td className={`${styles.numCell} ${styles.absentCount}`}>
-                                                {summary.absentDays}
+                                            <td className={styles.centerAlign}>
+                                                <span className={styles.absentPill}>{summary.absentDays} Days</span>
                                             </td>
                                         </tr>
                                     );
@@ -925,6 +924,15 @@ export default function AttendanceTab({ employees }: AttendanceTabProps) {
                 <div className={styles.toastContainer}>
                     <span>{toastMessage}</span>
                 </div>
+            )}
+
+            {selectedSummaryEmployee && (
+                <EmployeeAttendanceModal
+                    isOpen={!!selectedSummaryEmployee}
+                    onClose={() => setSelectedSummaryEmployee(null)}
+                    employee={selectedSummaryEmployee}
+                    month={selectedMonth}
+                />
             )}
         </div>
     );

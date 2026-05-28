@@ -4,7 +4,8 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Search, ChevronDown, Calendar, AlertCircle, CheckCircle2, Plus, ShoppingBag, User, Settings2, History, Package } from 'lucide-react';
 import styles from './EditOrderModal.module.css';
-import DesignPickerModal from './DesignPickerModal';
+import { CatalogView } from '@/app/catalog/page';
+import type { CatalogDesign, CatalogVariant } from '@/components/catalog/CatalogDesignCard';
 
 interface Customer {
     id: number;
@@ -103,9 +104,35 @@ export default function EditOrderModal({ order, isOpen, onClose, onSuccess }: Ed
         return () => document.removeEventListener('mousedown', handleClickOutside);
     }, []);
 
-    const handleDesignSelect = (design: any) => {
-        setSelectedDesign(design);
-        setPricePerUnit(design.price_per_meter.toString());
+    const handleDesignSelect = (design: CatalogDesign, variant?: CatalogVariant) => {
+        setSelectedDesign({
+            id: Number(design.id),
+            name: design.design_name,
+            price_per_meter: variant?.rate || design.base_rate,
+            image_url: variant?.variant_image_url || design.image_url,
+            category: design.category || design.fabric_type,
+            code: design.design_code,
+            available_stock: variant?.stock_quantity ?? design.total_stock,
+            design_variant_id: variant ? Number(variant.id) : undefined,
+            variant_color: variant?.color_name,
+            variant_sku: variant?.sku,
+            variant_hex: variant?.color_hex,
+            variant_rate: variant?.rate
+        } as any);
+        
+        setPricePerUnit((variant?.rate || design.base_rate).toString());
+
+        // Auto-fill fabric type if available (Polyester or Viscose)
+        const cat = design.fabric_type || design.category || '';
+        if (cat) {
+            const lowerCategory = cat.toLowerCase();
+            if (lowerCategory.includes('viscose')) {
+                setFabricType('Viscose');
+            } else if (lowerCategory.includes('polyester')) {
+                setFabricType('Polyester');
+            }
+        }
+
         setIsDesignPickerOpen(false);
         setErrors(prev => ({...prev, design: ''}));
     };
@@ -318,7 +345,25 @@ export default function EditOrderModal({ order, isOpen, onClose, onSuccess }: Ed
                                                 ) : <div style={{ background: '#222', padding: '6px', borderRadius: '6px' }}><Package size={16} /></div>}
                                                 <div style={{ textAlign: 'left' }}>
                                                     <div style={{ fontWeight: 600, fontSize: '14px' }}>{selectedDesign.name}</div>
-                                                    <div style={{ fontSize: '11px', opacity: 0.5 }}>{selectedDesign.category} • {selectedDesign.code}</div>
+                                                    <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '11px', opacity: 0.7 }}>
+                                                        <span>{selectedDesign.category} • {selectedDesign.code}</span>
+                                                        {(selectedDesign as any).available_stock !== undefined && (
+                                                            <>
+                                                                <span>•</span>
+                                                                <span style={{ color: (selectedDesign as any).available_stock > 0 ? '#10b981' : '#ef4444' }}>
+                                                                    {(selectedDesign as any).available_stock}m in stock
+                                                                </span>
+                                                            </>
+                                                        )}
+                                                        {(selectedDesign as any).variant_color && (
+                                                            <>
+                                                                <span>•</span>
+                                                                <div style={{ width: 10, height: 10, borderRadius: '50%', background: (selectedDesign as any).variant_hex || '#888', boxShadow: '0 0 0 1px rgba(0,0,0,0.15)', flexShrink: 0 }} />
+                                                                <span>{(selectedDesign as any).variant_color}</span>
+                                                                {(selectedDesign as any).variant_sku && <span style={{ fontFamily: 'monospace', background: 'rgba(255,255,255,0.08)', padding: '1px 5px', borderRadius: 4 }}>{(selectedDesign as any).variant_sku}</span>}
+                                                            </>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         ) : (
@@ -427,12 +472,35 @@ export default function EditOrderModal({ order, isOpen, onClose, onSuccess }: Ed
                     </button>
                 </div>
             </div>
-            <DesignPickerModal 
-                isOpen={isDesignPickerOpen}
-                onClose={() => setIsDesignPickerOpen(false)}
-                onSelect={handleDesignSelect}
-                selectedDesignId={selectedDesign?.id}
-            />
+            
+            {/* New Catalog Picker Modal */}
+            {isDesignPickerOpen && (
+                <div 
+                    className={styles.overlay} 
+                    style={{ zIndex: 3000 }} 
+                    onClick={() => setIsDesignPickerOpen(false)}
+                >
+                    <div 
+                        className={styles.panel}
+                        style={{ width: '90vw', maxWidth: '1200px', height: '90vh', maxHeight: '800px', display: 'flex', flexDirection: 'column' }}
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className={styles.header}>
+                            <h2 className={styles.title}>Browse Catalog</h2>
+                            <button className={styles.closeBtn} onClick={() => setIsDesignPickerOpen(false)}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div style={{ flex: 1, overflow: 'auto', padding: '20px', background: '#f8fafc' }}>
+                            <CatalogView 
+                                isPickerMode 
+                                onClosePicker={() => setIsDesignPickerOpen(false)}
+                                onSelectDesign={handleDesignSelect}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 

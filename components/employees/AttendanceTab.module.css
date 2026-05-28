@@ -275,16 +275,16 @@
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 24px;
+    margin-bottom: 16px;
     flex-wrap: wrap;
     gap: 16px;
 }
 
 .sectionTitle {
-    font-size: 22px;
+    font-size: 24px;
     font-weight: 700;
-    color: var(--text-primary);
-    letter-spacing: -0.2px;
+    color: #0f172a;
+    letter-spacing: -0.025em;
 }
 
 .monthPickerWrapper {
@@ -292,11 +292,11 @@
 }
 
 .summaryTableCard {
-    background: var(--bg-card);
-    border-radius: 20px;
-    box-shadow: var(--shadow-card);
+    background: #ffffff;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
     overflow: hidden;
-    border: 1px solid var(--border-subtle);
+    border: 1px solid #e2e8f0;
 }
 
 .summaryTable {
@@ -306,20 +306,87 @@
 }
 
 .summaryTable th {
-    background: var(--bg-hover);
-    color: var(--text-secondary);
-    font-size: 13px;
+    background: #f8fafc;
+    color: #64748b;
+    font-size: 12px;
     font-weight: 600;
     text-transform: uppercase;
-    letter-spacing: 0.6px;
-    padding: 16px 24px;
-    border-bottom: 1px solid var(--border-subtle);
+    letter-spacing: 0.05em;
+    padding: 12px 16px;
+    border-bottom: 1px solid #e2e8f0;
 }
 
 .summaryTable td {
-    padding: 16px 24px;
-    border-bottom: 1px solid var(--separator);
-    font-size: 15px;
+    padding: 12px 16px;
+    border-bottom: 1px solid #f1f5f9;
+    vertical-align: middle;
+    color: #4b5563;
+    font-size: 14px;
+}
+
+.summaryRowClickable {
+    cursor: pointer;
+    transition: background-color 0.15s ease;
+}
+
+.summaryRowClickable:hover {
+    background-color: rgba(248, 250, 252, 0.7);
+}
+
+.summaryTable .avatar {
+    width: 32px;
+    height: 32px;
+    font-size: 13px;
+}
+
+.summaryTable .employeeName {
+    font-size: 14px;
+    font-weight: 500;
+    color: #1e293b;
+}
+
+.summaryTable .roleBadge {
+    padding: 2px 8px;
+    font-size: 11px;
+    opacity: 0.8;
+}
+
+.employeeCol {
+    width: 40%;
+}
+
+.roleCol {
+    width: 20%;
+}
+
+.centerAlign {
+    text-align: center;
+}
+
+.presentPill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 12px;
+    background: #f0fdf4;
+    color: #15803d;
+    border: 1px solid #dcfce7;
+    border-radius: 9999px;
+    font-size: 13px;
+    font-weight: 600;
+}
+
+.absentPill {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 4px 12px;
+    background: #fef2f2;
+    color: #dc2626;
+    border: 1px solid #fee2e2;
+    border-radius: 9999px;
+    font-size: 13px;
+    font-weight: 600;
 }
 
 .summaryTable tr:last-child td {
@@ -397,8 +464,10 @@
 
 .cardRow {
     display: flex;
-    flex-direction: column;
-    gap: 4px;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 12px;
 }
 
 .cardLabel {
@@ -412,7 +481,7 @@
 .cardValue {
     display: flex;
     align-items: center;
-    width: 100%;
+    width: auto;
 }
 
 .cardValue .statusButtonGroup {

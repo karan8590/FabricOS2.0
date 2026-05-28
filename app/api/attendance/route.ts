@@ -17,17 +17,18 @@ export async function GET(request: Request) {
         const { searchParams } = new URL(request.url);
         const date = searchParams.get('date');
         const month = searchParams.get('month');
+        const employeeId = searchParams.get('employeeId');
 
         const db = getDatabase();
 
         if (date) {
             // Fetch daily attendance records
             const records = (await db.prepare(`
-                SELECT a.employee_id as employeeId, 
+                SELECT a.employee_id as "employeeId", 
                        CASE WHEN a.status = 'half_day' THEN 'present' ELSE a.status END as status, 
                        a.remarks
                 FROM attendance a
-                JOIN employees e ON a.employee_id = e.id
+                JOIN users e ON a.employee_id = e.id
                 WHERE a.date = ? AND e.business_id = ?
             `).all(date, businessId));
 
@@ -39,18 +40,30 @@ export async function GET(request: Request) {
                 return NextResponse.json({ error: 'Invalid month format (YYYY-MM)' }, { status: 400 });
             }
 
-            const summaries = (await db.prepare(`
-                SELECT 
-                    a.employee_id as employeeId,
-                    SUM(CASE WHEN a.status IN ('present', 'half_day') THEN 1 ELSE 0 END) as presentDays,
-                    SUM(CASE WHEN a.status = 'absent' THEN 1 ELSE 0 END) as absentDays
-                FROM attendance a
-                JOIN employees e ON a.employee_id = e.id
-                WHERE a.date LIKE ? AND e.business_id = ?
-                GROUP BY a.employee_id
-            `).all(`${month}-%`, businessId));
+            if (employeeId) {
+                const records = (await db.prepare(`
+                    SELECT a.date, a.status, a.remarks
+                    FROM attendance a
+                    JOIN users e ON a.employee_id = e.id
+                    WHERE a.date LIKE ? AND a.employee_id = ? AND e.business_id = ?
+                    ORDER BY a.date ASC
+                `).all(`${month}-%`, employeeId, businessId));
 
-            return NextResponse.json({ summaries });
+                return NextResponse.json({ records });
+            } else {
+                const summaries = (await db.prepare(`
+                    SELECT 
+                        a.employee_id as "employeeId",
+                        SUM(CASE WHEN a.status IN ('present', 'half_day') THEN 1 ELSE 0 END) as "presentDays",
+                        SUM(CASE WHEN a.status = 'absent' THEN 1 ELSE 0 END) as "absentDays"
+                    FROM attendance a
+                    JOIN users e ON a.employee_id = e.id
+                    WHERE a.date LIKE ? AND e.business_id = ?
+                    GROUP BY a.employee_id
+                `).all(`${month}-%`, businessId));
+
+                return NextResponse.json({ summaries });
+            }
         }
 
         return NextResponse.json({ error: 'Either date or month query parameter is required' }, { status: 400 });
@@ -87,7 +100,7 @@ export async function POST(request: Request) {
         const employeeIds = records.map(r => r.employeeId);
         if (employeeIds.length > 0) {
             const placeholders = employeeIds.map(() => '?').join(',');
-            const validEmployees = (await db.prepare(`SELECT id FROM employees WHERE id IN (${placeholders}) AND business_id = ?`).all(...employeeIds, businessId)) as any[];
+            const validEmployees = (await db.prepare(`SELECT id FROM users WHERE id IN (${placeholders}) AND business_id = ?`).all(...employeeIds, businessId)) as any[];
             if (validEmployees.length !== employeeIds.length) {
                 return NextResponse.json({ error: 'One or more employees do not belong to this business' }, { status: 403 });
             }
@@ -97,7 +110,7 @@ export async function POST(request: Request) {
         const deleteStmt = db.prepare(`
             DELETE FROM attendance 
             WHERE date = ? AND employee_id IN (
-                SELECT id FROM employees WHERE business_id = ?
+                SELECT id FROM users WHERE business_id = ?
             )
         `);
         const insertStmt = db.prepare(`

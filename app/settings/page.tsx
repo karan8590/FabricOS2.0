@@ -2,15 +2,21 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Send, Settings2, ShieldCheck, ArrowRight, Building2, MapPin, Percent, Hash, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { 
+    Building2, MapPin, Hash, CheckCircle2, AlertTriangle, 
+    User, Lock, LogOut, Send, Clock, Upload, ArrowRight 
+} from 'lucide-react';
+import { useAuth } from '@/contexts/AuthContext';
 
 export default function SettingsPage() {
+    const { user, logout } = useAuth();
+    const router = useRouter();
+
     const [gstin, setGstin] = useState('');
     const [legalName, setLegalName] = useState('');
     const [address, setAddress] = useState('');
-    const [defaultRate, setDefaultRate] = useState(5);
-    const [hsnCode, setHsnCode] = useState('5407');
-    const [filingFrequency, setFilingFrequency] = useState('Monthly');
+    
     const [loading, setLoading] = useState(false);
     const [fetching, setFetching] = useState(true);
     const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
@@ -25,9 +31,6 @@ export default function SettingsPage() {
                         setGstin(data.settings.gstin || '');
                         setLegalName(data.settings.legal_name || '');
                         setAddress(data.settings.address || '');
-                        setDefaultRate(data.settings.default_rate ?? 5);
-                        setHsnCode(data.settings.hsn_code || '5407');
-                        setFilingFrequency(data.settings.filing_frequency || 'Monthly');
                     }
                 }
             } catch (err) {
@@ -44,7 +47,6 @@ export default function SettingsPage() {
         setLoading(true);
         setMessage(null);
 
-        // Client-side validations
         const cleanGstin = gstin.trim().toUpperCase();
         if (cleanGstin) {
             if (cleanGstin.length !== 15) {
@@ -74,25 +76,19 @@ export default function SettingsPage() {
                     legal_name: legalName,
                     address,
                     state: 'Gujarat',
-                    state_code: '24',
-                    default_rate: defaultRate,
-                    hsn_code: hsnCode,
-                    filing_frequency: filingFrequency
+                    state_code: '24'
                 })
             });
 
             if (res.ok) {
                 const data = await res.json();
-                setMessage({ type: 'success', text: 'GST Configuration saved successfully!' });
+                setMessage({ type: 'success', text: 'Business profile updated successfully' });
                 setGstin(data.settings.gstin);
                 setLegalName(data.settings.legal_name);
                 setAddress(data.settings.address);
-                setDefaultRate(data.settings.default_rate);
-                setHsnCode(data.settings.hsn_code);
-                setFilingFrequency(data.settings.filing_frequency);
             } else {
                 const errData = await res.json();
-                setMessage({ type: 'error', text: errData.error || 'Failed to save GST Configuration.' });
+                setMessage({ type: 'error', text: errData.error || 'Failed to update profile' });
             }
         } catch (err) {
             setMessage({ type: 'error', text: 'An unexpected connection error occurred.' });
@@ -101,52 +97,28 @@ export default function SettingsPage() {
         }
     };
 
+    const handleLogout = async () => {
+        try {
+            await logout();
+            router.push('/login');
+        } catch (err) {
+            console.error('Logout failed:', err);
+        }
+    };
+
     return (
-        <div className="max-w-[800px] mx-auto px-6 py-10 space-y-8 animate-fade-in">
+        <div className="max-w-[900px] mx-auto px-6 py-10 space-y-8 animate-fade-in">
             {/* Page Header */}
             <div className="space-y-2 border-b border-slate-100 pb-6">
-                <h1 className="text-3xl font-semibold tracking-tight text-slate-900">System Settings</h1>
-                <p className="text-sm text-slate-500">Configure global configurations, system parameters, and integrations.</p>
+                <h1 className="text-3xl font-semibold tracking-tight text-slate-900">Settings</h1>
+                <p className="text-sm text-slate-500">Manage your business profile, account preferences, and integrations.</p>
             </div>
 
-            {/* Telegram Center Promotion/Redirect Card */}
-            <div className="bg-bg-surface border border-slate-200/80 rounded-2xl p-6 shadow-sm hover:shadow-md transition-all duration-300 flex flex-col md:flex-row md:items-center justify-between gap-6">
-                <div className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-indigo-50 flex items-center justify-center shrink-0">
-                        <Send className="text-accent w-6 h-6" />
-                    </div>
-                    <div className="space-y-1">
-                        <h2 className="text-lg font-semibold text-slate-900">Telegram Notification Center</h2>
-                        <p className="text-sm text-slate-500 max-w-lg leading-relaxed">
-                            Configure recipients, individual team member roles, and granular notification schedules in the standalone Telegram Center.
-                        </p>
-                    </div>
-                </div>
-                
-                <Link 
-                    href="/telegram-center" 
-                    className="h-11 px-5 bg-accent hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 shrink-0 active:scale-95 shadow-sm hover:shadow"
-                >
-                    Open Telegram Center
-                    <ArrowRight size={14} />
-                </Link>
-            </div>
-
-            {/* GST Configuration Card */}
-            <div className="bg-bg-surface border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-6">
-                <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-                    <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-indigo-50 flex items-center justify-center">
-                            <Building2 className="text-accent w-5 h-5" />
-                        </div>
-                        <div>
-                            <h3 className="text-base font-semibold text-slate-950">GST Configuration</h3>
-                            <p className="text-xs text-slate-500">Configure business identity, GSTIN, and default tax rates for automated billing.</p>
-                        </div>
-                    </div>
-                    <span className="text-xs font-mono font-bold text-slate-500 bg-slate-50 px-2 py-1 rounded border border-slate-100">
-                        State: Gujarat (24)
-                    </span>
+            {/* 1. Business Profile Section */}
+            <div className="bg-bg-surface border border-slate-200/80 rounded-2xl p-6 shadow-sm">
+                <div className="flex items-center gap-3 border-b border-slate-100 pb-4 mb-6">
+                    <Building2 className="text-slate-700 w-5 h-5" />
+                    <h3 className="text-lg font-semibold text-slate-900">Business Profile</h3>
                 </div>
 
                 {fetching ? (
@@ -154,7 +126,7 @@ export default function SettingsPage() {
                         <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600"></div>
                     </div>
                 ) : (
-                    <form onSubmit={handleSave} className="space-y-5">
+                    <form onSubmit={handleSave} className="space-y-6">
                         {message && (
                             <div className={`p-4 rounded-xl flex items-start gap-3 border ${
                                 message.type === 'success' 
@@ -170,158 +142,159 @@ export default function SettingsPage() {
                             </div>
                         )}
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
-                                    Business Legal Name
-                                </label>
+                                <label className="text-sm font-semibold text-slate-700">Business Name</label>
                                 <div className="relative">
                                     <Building2 className="absolute left-3.5 top-3.5 text-slate-400 w-4 h-4" />
                                     <input
                                         type="text"
-                                        placeholder="e.g. Acme Textiles Ltd"
+                                        placeholder="Enter legal business name"
                                         value={legalName}
                                         onChange={(e) => setLegalName(e.target.value)}
-                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50/50 border border-slate-200 focus:border-indigo-500 focus:bg-bg-surface focus:ring-4 focus:ring-indigo-100 rounded-xl text-sm transition-all outline-none text-slate-800 font-medium"
+                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-50 rounded-xl text-sm transition-all outline-none text-slate-800 font-medium"
                                     />
                                 </div>
                             </div>
 
                             <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
-                                    Your GSTIN
-                                </label>
+                                <label className="text-sm font-semibold text-slate-700">GSTIN</label>
                                 <div className="relative">
                                     <Hash className="absolute left-3.5 top-3.5 text-slate-400 w-4 h-4" />
                                     <input
                                         type="text"
-                                        placeholder="15-character ID (starts with 24)"
+                                        placeholder="15-character GSTIN"
                                         value={gstin}
                                         onChange={(e) => setGstin(e.target.value.toUpperCase())}
                                         maxLength={15}
-                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50/50 border border-slate-200 focus:border-indigo-500 focus:bg-bg-surface focus:ring-4 focus:ring-indigo-100 rounded-xl text-sm font-mono transition-all outline-none text-slate-800"
+                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-50 rounded-xl text-sm font-mono transition-all outline-none text-slate-800"
                                     />
                                 </div>
                             </div>
                         </div>
 
                         <div className="space-y-2">
-                            <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
-                                Business Address
-                            </label>
+                            <label className="text-sm font-semibold text-slate-700">Business Address</label>
                             <div className="relative">
                                 <MapPin className="absolute left-3.5 top-3 text-slate-400 w-4 h-4" />
                                 <textarea
                                     rows={2}
-                                    placeholder="Enter your registered business address"
+                                    placeholder="Enter registered address"
                                     value={address}
                                     onChange={(e) => setAddress(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50/50 border border-slate-200 focus:border-indigo-500 focus:bg-bg-surface focus:ring-4 focus:ring-indigo-100 rounded-xl text-sm transition-all outline-none text-slate-800"
+                                    className="w-full pl-10 pr-4 py-2.5 bg-slate-50 border border-slate-200 focus:border-indigo-500 focus:bg-white focus:ring-4 focus:ring-indigo-50 rounded-xl text-sm transition-all outline-none text-slate-800"
                                 />
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
-                                    Default GST Rate (%)
-                                </label>
-                                <div className="relative">
-                                    <Percent className="absolute left-3.5 top-3.5 text-slate-400 w-4 h-4" />
-                                    <input
-                                        type="number"
-                                        step="0.1"
-                                        value={defaultRate}
-                                        onChange={(e) => setDefaultRate(parseFloat(e.target.value) || 0)}
-                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50/50 border border-slate-200 focus:border-indigo-500 focus:bg-bg-surface focus:ring-4 focus:ring-indigo-100 rounded-xl text-sm transition-all outline-none text-slate-800 font-medium"
-                                    />
+                        <div className="space-y-2">
+                            <label className="text-sm font-semibold text-slate-700">Logo (Optional)</label>
+                            <div className="w-full border-2 border-dashed border-slate-200 rounded-xl p-6 flex flex-col items-center justify-center bg-slate-50 hover:bg-slate-100 transition-colors cursor-pointer group">
+                                <div className="w-10 h-10 rounded-full bg-white border border-slate-200 flex items-center justify-center mb-2 group-hover:scale-110 transition-transform">
+                                    <Upload className="w-4 h-4 text-slate-500" />
                                 </div>
-                            </div>
-
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
-                                    Fabric HSN Code
-                                </label>
-                                <div className="relative">
-                                    <Hash className="absolute left-3.5 top-3.5 text-slate-400 w-4 h-4" />
-                                    <input
-                                        type="text"
-                                        placeholder="e.g. 5407"
-                                        value={hsnCode}
-                                        onChange={(e) => setHsnCode(e.target.value)}
-                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50/50 border border-slate-200 focus:border-indigo-500 focus:bg-bg-surface focus:ring-4 focus:ring-indigo-100 rounded-xl text-sm transition-all outline-none text-slate-800 font-medium"
-                                    />
-                                </div>
+                                <span className="text-sm font-medium text-slate-600">Click to upload business logo</span>
+                                <span className="text-xs text-slate-400 mt-1">PNG, JPG up to 2MB</span>
                             </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="space-y-2">
-                                <label className="text-xs font-bold text-slate-700 uppercase tracking-wider block">
-                                    Filing Frequency
-                                </label>
-                                <div className="relative">
-                                    <Settings2 className="absolute left-3.5 top-3.5 text-slate-400 w-4 h-4" />
-                                    <select
-                                        value={filingFrequency}
-                                        onChange={(e) => setFilingFrequency(e.target.value)}
-                                        className="w-full pl-10 pr-4 py-2.5 bg-slate-50/50 border border-slate-200 focus:border-indigo-500 focus:bg-bg-surface focus:ring-4 focus:ring-indigo-100 rounded-xl text-sm transition-all outline-none text-slate-800 font-medium appearance-none"
-                                    >
-                                        <option value="Monthly">Monthly</option>
-                                        <option value="Quarterly">Quarterly</option>
-                                    </select>
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="flex justify-end pt-2">
+                        <div className="flex justify-end pt-4">
                             <button
                                 type="submit"
                                 disabled={loading}
-                                className="h-11 px-6 bg-accent hover:bg-indigo-700 text-white rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-2 active:scale-95 shadow-sm hover:shadow disabled:opacity-50 disabled:pointer-events-none"
+                                className="h-10 px-6 bg-slate-900 hover:bg-black text-white rounded-xl text-sm font-medium transition-all active:scale-95 disabled:opacity-50"
                             >
-                                {loading ? 'Saving Settings...' : 'Save GST Settings'}
+                                {loading ? 'Saving...' : 'Save Profile'}
                             </button>
                         </div>
                     </form>
                 )}
             </div>
 
-            {/* General System Configurations (Mock values for visual display) */}
-            <div className="bg-bg-surface border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-6">
-                <div className="flex items-center gap-3 border-b border-slate-100 pb-4">
-                    <Settings2 className="text-accent w-5 h-5" />
-                    <div>
-                        <h3 className="text-base font-semibold text-slate-950">General System Settings</h3>
-                        <p className="text-xs text-slate-500">Global parameters for FabricOS operations.</p>
-                    </div>
+            {/* 2. Account Section */}
+            <div className="bg-bg-surface border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-2">
+                <div className="flex items-center gap-3 border-b border-slate-100 pb-4 mb-4">
+                    <User className="text-slate-700 w-5 h-5" />
+                    <h3 className="text-lg font-semibold text-slate-900">Account</h3>
                 </div>
 
-                <div className="space-y-4">
-                    <div className="flex items-center justify-between py-3 border-b border-slate-50">
-                        <div>
-                            <span className="text-sm font-semibold text-slate-800 block">System Mode</span>
-                            <span className="text-xs text-slate-500">Runs operations in production.</span>
+                <div className="divide-y divide-slate-100">
+                    <div className="py-4 flex items-center justify-between hover:bg-slate-50 px-2 -mx-2 rounded-lg transition-colors cursor-pointer">
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
+                                <User className="w-4 h-4 text-slate-600" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-slate-900">Profile Information</p>
+                                <p className="text-xs text-slate-500">{user?.name || 'Loading...'} ({user?.role})</p>
+                            </div>
                         </div>
-                        <span className="text-xs font-bold px-2.5 py-1 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-100 uppercase tracking-wide">Production</span>
+                        <ArrowRight className="w-4 h-4 text-slate-400" />
                     </div>
 
-                    <div className="flex items-center justify-between py-3 border-b border-slate-50">
-                        <div>
-                            <span className="text-sm font-semibold text-slate-800 block">Currency Formatter</span>
-                            <span className="text-xs text-slate-500">Default symbol for invoices and reports.</span>
+                    <div className="py-4 flex items-center justify-between hover:bg-slate-50 px-2 -mx-2 rounded-lg transition-colors cursor-pointer">
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center">
+                                <Lock className="w-4 h-4 text-slate-600" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-slate-900">Change Password</p>
+                                <p className="text-xs text-slate-500">Update your security credentials</p>
+                            </div>
                         </div>
-                        <span className="text-xs font-mono font-bold text-slate-700 bg-slate-50 px-2 py-0.5 rounded border border-slate-100">INR (₹)</span>
+                        <ArrowRight className="w-4 h-4 text-slate-400" />
                     </div>
 
-                    <div className="flex items-center justify-between py-3">
-                        <div>
-                            <span className="text-sm font-semibold text-slate-800 block">Security Auditing</span>
-                            <span className="text-xs text-slate-500">Automated safety verification enabled.</span>
+                    <div 
+                        onClick={handleLogout}
+                        className="py-4 flex items-center justify-between hover:bg-rose-50 px-2 -mx-2 rounded-lg transition-colors cursor-pointer group"
+                    >
+                        <div className="flex items-center gap-3">
+                            <div className="w-8 h-8 rounded-full bg-rose-100 group-hover:bg-rose-200 flex items-center justify-center transition-colors">
+                                <LogOut className="w-4 h-4 text-rose-600" />
+                            </div>
+                            <div>
+                                <p className="text-sm font-medium text-rose-600">Sign Out</p>
+                                <p className="text-xs text-rose-500/80">Log out of your FabricOS account</p>
+                            </div>
                         </div>
-                        <span className="font-semibold text-emerald-600 text-xs flex items-center gap-1">
-                            <ShieldCheck size={14} /> Active
-                        </span>
+                    </div>
+                </div>
+            </div>
+
+            {/* 3. Integrations Section */}
+            <div className="bg-bg-surface border border-slate-200/80 rounded-2xl p-6 shadow-sm space-y-2">
+                <div className="flex items-center gap-3 border-b border-slate-100 pb-4 mb-4">
+                    <Send className="text-slate-700 w-5 h-5" />
+                    <h3 className="text-lg font-semibold text-slate-900">Integrations</h3>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <Link href="/telegram-center" className="block p-4 rounded-xl border border-slate-200 hover:border-indigo-300 hover:bg-indigo-50/30 transition-all group cursor-pointer">
+                        <div className="flex items-start gap-4">
+                            <div className="w-10 h-10 rounded-lg bg-indigo-100 flex items-center justify-center shrink-0 group-hover:scale-105 transition-transform">
+                                <Send className="text-indigo-600 w-5 h-5" />
+                            </div>
+                            <div>
+                                <h4 className="text-sm font-semibold text-slate-900 mb-1">Telegram Center</h4>
+                                <p className="text-xs text-slate-500 leading-relaxed">Manage automated notifications and alerts for your team via Telegram.</p>
+                            </div>
+                        </div>
+                    </Link>
+
+                    <div className="block p-4 rounded-xl border border-slate-200 bg-slate-50/50 opacity-80 cursor-not-allowed">
+                        <div className="flex items-start gap-4">
+                            <div className="w-10 h-10 rounded-lg bg-slate-200 flex items-center justify-center shrink-0">
+                                <Clock className="text-slate-500 w-5 h-5" />
+                            </div>
+                            <div>
+                                <div className="flex items-center gap-2 mb-1">
+                                    <h4 className="text-sm font-semibold text-slate-900">Attendance Machine</h4>
+                                    <span className="text-[10px] font-bold bg-slate-200 text-slate-600 px-1.5 py-0.5 rounded">COMING SOON</span>
+                                </div>
+                                <p className="text-xs text-slate-500 leading-relaxed">Sync biometric attendance directly into FabricOS employee records.</p>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -329,4 +302,3 @@ export default function SettingsPage() {
         </div>
     );
 }
-

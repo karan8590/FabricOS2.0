@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import styles from './AdvancesTab.module.css';
 import { celebrateMedium } from '@/lib/confetti';
+import { useToast } from '@/contexts/ToastContext';
 
 interface Employee {
     id: number;
@@ -64,6 +65,7 @@ function formatDateString(dateStr: string) {
 }
 
 export default function AdvancesTab({ employees }: AdvancesTabProps) {
+    const { showToast } = useToast();
     const [advances, setAdvances] = useState<Advance[]>([]);
     const [statusFilter, setStatusFilter] = useState<'active' | 'completed'>('active');
     const [loading, setLoading] = useState<boolean>(true);
@@ -127,13 +129,62 @@ export default function AdvancesTab({ employees }: AdvancesTabProps) {
             return;
         }
 
+        const employeeIdInt = parseInt(modalData.employeeId);
+        const amountFloat = parseFloat(modalData.totalAmount);
         const activeAdvance = advances.find(
-            a => a.employeeId === parseInt(modalData.employeeId) && a.status === 'active'
+            a => a.employeeId === employeeIdInt && a.status === 'active'
         );
 
+        // Optimistic UI Update
+        const emp = activeEmployees.find(e => e.id === employeeIdInt);
+        const tempId = Date.now(); // Temporary ID for optimistic UI
+
         if (activeAdvance) {
-            // Silently proceed
+            // Optimistically update existing
+            setAdvances(prev => prev.map(a => {
+                if (a.id === activeAdvance.id) {
+                    return {
+                        ...a,
+                        totalAmount: a.totalAmount + amountFloat,
+                        remainingBalance: a.remainingBalance + amountFloat,
+                        topUps: [
+                            ...(a.topUps || []),
+                            {
+                                date: modalData.date,
+                                amount: amountFloat,
+                                note: modalData.note || ''
+                            }
+                        ]
+                    };
+                }
+                return a;
+            }));
+        } else {
+            // Optimistically add new
+            setAdvances(prev => [{
+                id: tempId,
+                employeeId: employeeIdInt,
+                employeeName: emp?.name || 'Unknown',
+                role: emp?.role || 'staff',
+                totalAmount: amountFloat,
+                amountRepaid: 0,
+                remainingBalance: amountFloat,
+                status: 'active',
+                note: modalData.note || null,
+                createdAt: Math.floor(Date.now() / 1000),
+                topUps: [],
+                instalments: []
+            }, ...prev]);
         }
+
+        setIsModalOpen(false);
+        setModalData({
+            employeeId: '',
+            totalAmount: '',
+            date: new Date().toISOString().split('T')[0],
+            note: ''
+        });
+        setModalErrors({});
 
         try {
             const res = await fetch('/api/advances', {
@@ -141,29 +192,25 @@ export default function AdvancesTab({ employees }: AdvancesTabProps) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     action: 'create',
-                    employeeId: parseInt(modalData.employeeId),
-                    totalAmount: parseFloat(modalData.totalAmount),
+                    employeeId: employeeIdInt,
+                    totalAmount: amountFloat,
                     date: modalData.date,
                     note: modalData.note
                 })
             });
 
             if (res.ok) {
-                setIsModalOpen(false);
-                setModalData({
-                    employeeId: '',
-                    totalAmount: '',
-                    date: new Date().toISOString().split('T')[0],
-                    note: ''
-                });
-                setModalErrors({});
-                fetchAdvances();
+                showToast(activeAdvance ? 'Advance topped up successfully!' : 'New advance created successfully!', 'success');
+                fetchAdvances(); // Re-fetch to get real DB IDs
             } else {
                 const err = await res.json();
-                console.log(err.error || 'Failed to create advance.');
+                showToast(err.error || 'Failed to create advance.', 'error');
+                fetchAdvances(); // Revert optimistic update
             }
         } catch (error) {
             console.error('Create advance error:', error);
+            showToast('Network error occurred.', 'error');
+            fetchAdvances(); // Revert optimistic update
         }
     };
 
@@ -251,7 +298,49 @@ export default function AdvancesTab({ employees }: AdvancesTabProps) {
 
             {/* Main Cards list */}
             {loading ? (
-                <div className={styles.loading}>Loading advance ledgers...</div>
+                <div className={styles.cardsGrid}>
+                    {[1, 2, 3].map(n => (
+                        <div key={n} className={styles.advanceCard} style={{ opacity: 0.6, pointerEvents: 'none' }}>
+                            <div className={styles.cardHeader}>
+                                <div className={styles.employeeCell}>
+                                    <div className={styles.avatar} style={{ background: '#E2E8F0', border: 'none' }}></div>
+                                    <div className={styles.nameSection} style={{ gap: '6px' }}>
+                                        <div style={{ width: '120px', height: '14px', background: '#E2E8F0', borderRadius: '4px' }}></div>
+                                        <div style={{ width: '80px', height: '10px', background: '#E2E8F0', borderRadius: '4px' }}></div>
+                                    </div>
+                                </div>
+                                <div style={{ width: '60px', height: '20px', background: '#E2E8F0', borderRadius: '10px' }}></div>
+                            </div>
+                            <div className={styles.statsRow}>
+                                <div className={styles.statCol} style={{ gap: '8px', alignItems: 'center' }}>
+                                    <div style={{ width: '40px', height: '10px', background: '#E2E8F0', borderRadius: '4px' }}></div>
+                                    <div style={{ width: '60px', height: '16px', background: '#E2E8F0', borderRadius: '4px' }}></div>
+                                </div>
+                                <div className={styles.statDivider} />
+                                <div className={styles.statCol} style={{ gap: '8px', alignItems: 'center' }}>
+                                    <div style={{ width: '40px', height: '10px', background: '#E2E8F0', borderRadius: '4px' }}></div>
+                                    <div style={{ width: '60px', height: '16px', background: '#E2E8F0', borderRadius: '4px' }}></div>
+                                </div>
+                                <div className={styles.statDivider} />
+                                <div className={styles.statCol} style={{ gap: '8px', alignItems: 'center' }}>
+                                    <div style={{ width: '40px', height: '10px', background: '#E2E8F0', borderRadius: '4px' }}></div>
+                                    <div style={{ width: '60px', height: '16px', background: '#E2E8F0', borderRadius: '4px' }}></div>
+                                </div>
+                            </div>
+                            <div className={styles.progressSection}>
+                                <div className={styles.progressBarTrack}></div>
+                                <div className={styles.progressLabelRow}>
+                                    <div style={{ width: '50px', height: '10px', background: '#E2E8F0', borderRadius: '4px' }}></div>
+                                    <div style={{ width: '80px', height: '10px', background: '#E2E8F0', borderRadius: '4px' }}></div>
+                                </div>
+                            </div>
+                            <div className={styles.cardActionsRow}>
+                                <div style={{ flex: 1, height: '36px', background: '#E2E8F0', borderRadius: '8px' }}></div>
+                                <div style={{ flex: 1, height: '36px', background: '#E2E8F0', borderRadius: '8px' }}></div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
             ) : advances.length === 0 ? (
                 <div className={styles.emptyState}>No advance accounts found matching filters.</div>
             ) : (

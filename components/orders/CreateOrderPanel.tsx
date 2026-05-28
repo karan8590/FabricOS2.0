@@ -4,9 +4,24 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Search, ChevronDown, Calendar, AlertCircle, CheckCircle2, Plus, ShoppingBag, User, Settings2, Package } from 'lucide-react';
 import styles from './CreateOrderPanel.module.css';
-import DesignPickerModal from './DesignPickerModal';
-import type { SelectedDesignPayload } from './DesignPickerModal';
 import { celebrateSmall, celebrateMilestone } from '@/lib/confetti';
+import { CatalogView } from '@/app/catalog/page';
+import type { CatalogDesign, CatalogVariant } from '@/components/catalog/CatalogDesignCard';
+
+export interface SelectedDesignPayload {
+    id: number;
+    name: string;
+    price_per_meter: number;
+    image_url?: string;
+    category?: string;
+    code?: string;
+    design_variant_id?: number;
+    variant_color?: string;
+    variant_sku?: string;
+    variant_rate?: number;
+    variant_hex?: string;
+    available_stock?: number;
+}
 
 interface Customer {
     id: number;
@@ -102,6 +117,17 @@ export default function CreateOrderPanel({ isOpen, onClose, onSuccess, initialCu
         // Auto-populate price: variant rate takes priority over base rate
         const rate = design.variant_rate || design.price_per_meter || 0;
         setPricePerUnit(rate.toString());
+
+        // Auto-fill fabric type if available (Polyester or Viscose)
+        if (design.category) {
+            const lowerCategory = design.category.toLowerCase();
+            if (lowerCategory.includes('viscose')) {
+                setFabricType('Viscose');
+            } else if (lowerCategory.includes('polyester')) {
+                setFabricType('Polyester');
+            }
+        }
+
         setIsDesignPickerOpen(false);
         setErrors(prev => ({...prev, design: ''}));
     };
@@ -402,6 +428,14 @@ export default function CreateOrderPanel({ isOpen, onClose, onSuccess, initialCu
                                                     <div style={{ fontWeight: 600, fontSize: '14px' }}>{selectedDesign.name}</div>
                                                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '11px', opacity: 0.7 }}>
                                                         <span>{selectedDesign.category} • {selectedDesign.code}</span>
+                                                        {selectedDesign.available_stock !== undefined && (
+                                                            <>
+                                                                <span>•</span>
+                                                                <span style={{ color: selectedDesign.available_stock > 0 ? '#10b981' : '#ef4444' }}>
+                                                                    {selectedDesign.available_stock}m in stock
+                                                                </span>
+                                                            </>
+                                                        )}
                                                         {selectedDesign.variant_color && (
                                                             <>
                                                                 <span>•</span>
@@ -530,12 +564,50 @@ export default function CreateOrderPanel({ isOpen, onClose, onSuccess, initialCu
                     </button>
                 </div>
             </div>
-            <DesignPickerModal 
-                isOpen={isDesignPickerOpen}
-                onClose={() => setIsDesignPickerOpen(false)}
-                onSelect={handleDesignSelect}
-                selectedDesignId={selectedDesign?.id}
-            />
+            
+            {/* New Catalog Picker Modal */}
+            {isDesignPickerOpen && (
+                <div 
+                    className={styles.overlay} 
+                    style={{ zIndex: 3000 }} 
+                    onClick={() => setIsDesignPickerOpen(false)}
+                >
+                    <div 
+                        className={styles.panel}
+                        style={{ width: '90vw', maxWidth: '1200px', height: '90vh', maxHeight: '800px', display: 'flex', flexDirection: 'column' }}
+                        onClick={e => e.stopPropagation()}
+                    >
+                        <div className={styles.header}>
+                            <h2 className={styles.title}>Browse Catalog</h2>
+                            <button className={styles.closeBtn} onClick={() => setIsDesignPickerOpen(false)}>
+                                <X size={20} />
+                            </button>
+                        </div>
+                        <div style={{ flex: 1, overflow: 'auto', padding: '20px', background: '#f8fafc' }}>
+                            <CatalogView 
+                                isPickerMode 
+                                onClosePicker={() => setIsDesignPickerOpen(false)}
+                                onSelectDesign={(design: CatalogDesign, variant?: CatalogVariant) => {
+                                    handleDesignSelect({
+                                        id: Number(design.id),
+                                        name: design.design_name,
+                                        price_per_meter: variant?.rate || design.base_rate,
+                                        image_url: variant?.variant_image_url || design.image_url,
+                                        category: design.fabric_type || design.category,
+                                        code: design.design_code,
+                                        available_stock: variant?.stock_quantity ?? design.total_stock,
+                                        design_variant_id: variant ? Number(variant.id) : undefined,
+                                        variant_color: variant?.color_name,
+                                        variant_sku: variant?.sku,
+                                        variant_hex: variant?.color_hex,
+                                        variant_rate: variant?.rate
+                                    });
+                                }}
+                            />
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 

@@ -98,6 +98,14 @@ export default function ExpensesPage() {
         ]},
         { id: 'category', label: 'Category', type: 'text' },
         { id: 'amount', label: 'Amount', type: 'number' },
+        { id: 'paymentmode', label: 'Payment Mode', type: 'select', multiSelect: true, options: [
+            { value: 'Cash', label: 'Cash' },
+            { value: 'Bank Transfer', label: 'Bank Transfer' },
+            { value: 'UPI', label: 'UPI' },
+            { value: 'Cheque', label: 'Cheque' },
+            { value: 'Card', label: 'Card' },
+            { value: 'Other', label: 'Other' }
+        ]},
         { id: 'search_text', label: 'Search Text', type: 'text' }
     ]);
     
@@ -231,6 +239,12 @@ export default function ExpensesPage() {
                 result = result.filter(t => t.category?.toLowerCase().includes(q));
             } else if (f.fieldId === 'amount' && f.value) {
                 result = result.filter(t => t.amount === parseFloat(f.value));
+            } else if (f.fieldId === 'paymentmode' && f.value && f.value.length > 0) {
+                if (Array.isArray(f.value)) {
+                    result = result.filter(t => f.value.includes(t.paymentMode || 'Cash'));
+                } else {
+                    result = result.filter(t => (t.paymentMode || 'Cash') === f.value);
+                }
             } else if (f.fieldId === 'search_text' && f.value) {
                 const q = f.value.toLowerCase();
                 result = result.filter(t => 

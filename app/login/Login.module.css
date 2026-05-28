@@ -1,20 +1,19 @@
 .loginPage {
     min-height: 100vh;
-    /* Fallback */
     min-height: 100dvh;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: var(--spacing-4);
-    /* Safe Area */
     padding-bottom: calc(var(--spacing-4) + var(--safe-area-bottom));
-    background: var(--color-bg-primary);
+    /* Soft premium gradient background */
+    background: radial-gradient(circle at center top, var(--color-bg-card) 0%, #f0f4f8 100%);
     animation: fadeIn var(--transition-smooth) ease-out;
 }
 
 .loginContainer {
     width: 100%;
-    max-width: 450px;
+    max-width: 480px; /* Slightly wider for premium feel */
     animation: fadeInScale var(--transition-smooth) ease-out;
 }
 
@@ -24,9 +23,10 @@
 }
 
 .logoText {
-    font-size: var(--font-size-4xl);
-    font-weight: var(--font-weight-bold);
-    background: linear-gradient(135deg, var(--color-accent-primary), #0066DD);
+    font-size: 36px;
+    font-weight: 800;
+    letter-spacing: -0.02em;
+    background: linear-gradient(135deg, var(--color-accent-primary), #0044BB);
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
@@ -34,59 +34,110 @@
 }
 
 .logoSubtext {
-    font-size: var(--font-size-sm);
-    color: var(--color-text-tertiary);
+    font-size: 15px;
+    font-weight: 500;
+    color: var(--color-text-secondary);
     margin-top: var(--spacing-2);
 }
 
 .loginCard {
     background: var(--color-bg-card);
-    border: 1px solid var(--color-border-subtle);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-8);
-    box-shadow: var(--shadow-xl);
+    border: 1px solid rgba(0, 0, 0, 0.04);
+    border-radius: 24px;
+    padding: 40px;
+    box-shadow: 0 20px 40px -12px rgba(0, 0, 0, 0.08), 0 0 1px rgba(0,0,0,0.05);
 }
 
 .title {
-    font-size: var(--font-size-2xl);
-    font-weight: var(--font-weight-semibold);
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: -0.01em;
     color: var(--color-text-primary);
-    margin-bottom: var(--spacing-2);
+    margin-bottom: 6px;
     text-align: center;
 }
 
 .subtitle {
-    font-size: var(--font-size-base);
-    color: var(--color-text-secondary);
-    margin-bottom: var(--spacing-8);
+    font-size: 15px;
+    color: var(--color-text-tertiary);
+    margin-bottom: 32px;
     text-align: center;
 }
 
 .form {
     display: flex;
     flex-direction: column;
-    gap: var(--spacing-5);
+    gap: 20px;
+}
+
+/* Input Styles for Phone/Email */
+.inputGroup {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.inputLabel {
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--color-text-secondary);
+}
+
+.phoneInputContainer {
+    display: flex;
+    gap: 8px;
+}
+
+.countrySelect,
+.phoneInput {
+    padding: 12px 14px;
+    border-radius: 10px;
+    border: 1px solid var(--color-border-subtle);
+    background-color: var(--color-bg-card);
+    color: var(--color-text-primary);
+    font-size: 15px;
+    outline: none;
+    transition: all var(--transition-fast) ease;
+}
+
+.countrySelect {
+    cursor: pointer;
+    font-weight: 500;
+    background-color: #f8fafc;
+}
+
+.phoneInput {
+    flex: 1;
+}
+
+.countrySelect:focus,
+.phoneInput:focus,
+.countrySelect:hover,
+.phoneInput:hover {
+    border-color: var(--color-accent-primary);
+    box-shadow: 0 0 0 3px rgba(10, 132, 255, 0.1);
 }
 
 .error {
-    background: rgba(255, 69, 58, 0.1);
-    border: 1px solid rgba(255, 69, 58, 0.3);
-    border-radius: var(--radius-md);
-    padding: var(--spacing-3) var(--spacing-4);
-    color: var(--color-danger);
-    font-size: var(--font-size-sm);
+    background: rgba(255, 69, 58, 0.08);
+    border: 1px solid rgba(255, 69, 58, 0.2);
+    border-radius: 12px;
+    padding: 12px 16px;
+    color: #DC2626;
+    font-size: 14px;
+    font-weight: 500;
     animation: fadeInUp var(--transition-base) ease-out;
 }
 
 .footer {
-    margin-top: var(--spacing-6);
+    margin-top: 32px;
     text-align: center;
-    font-size: var(--font-size-sm);
+    font-size: 13px;
     color: var(--color-text-tertiary);
 }
 
 .divider {
-    margin: var(--spacing-6) 0;
+    margin: 32px 0;
     height: 1px;
     background: var(--color-border-subtle);
     position: relative;
@@ -98,63 +149,35 @@
     left: 50%;
     transform: translate(-50%, -50%);
     background: var(--color-bg-card);
-    padding: 0 var(--spacing-3);
-    font-size: var(--font-size-sm);
+    padding: 0 16px;
+    font-size: 13px;
+    font-weight: 500;
     color: var(--color-text-tertiary);
 }
 
-.demoCredentials {
-    background: rgba(10, 132, 255, 0.05);
-    border: 1px solid rgba(10, 132, 255, 0.2);
-    border-radius: var(--radius-md);
-    padding: var(--spacing-4);
-    margin-top: var(--spacing-4);
+.createAccountBtn {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    color: #334155;
+    transition: all 0.2s ease;
 }
 
-.demoTitle {
-    font-size: var(--font-size-sm);
-    font-weight: var(--font-weight-semibold);
-    color: var(--color-accent-primary);
-    margin-bottom: var(--spacing-2);
-}
-
-.demoList {
-    list-style: none;
-    padding: 0;
-    margin: 0;
-    font-size: var(--font-size-xs);
-    color: var(--color-text-secondary);
-    line-height: 1.6;
-}
-
-.demoList li {
-    margin-bottom: var(--spacing-1);
-}
-
-.demoList code {
-    background: rgba(10, 132, 255, 0.1);
-    padding: 2px 6px;
-    border-radius: 4px;
-    font-family: 'SF Mono', Monaco, monospace;
-    color: var(--color-accent-primary);
+.createAccountBtn:hover {
+    background: #f1f5f9;
+    border-color: #cbd5e1;
+    color: #0f172a;
 }
 
 @keyframes fadeIn {
-    from {
-        opacity: 0;
-    }
-
-    to {
-        opacity: 1;
-    }
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 
 @keyframes fadeInScale {
     from {
         opacity: 0;
-        transform: scale(0.95);
+        transform: scale(0.96);
     }
-
     to {
         opacity: 1;
         transform: scale(1);
@@ -164,9 +187,8 @@
 @keyframes fadeInUp {
     from {
         opacity: 0;
-        transform: translateY(10px);
+        transform: translateY(8px);
     }
-
     to {
         opacity: 1;
         transform: translateY(0);
@@ -176,7 +198,8 @@
 /* Mobile Optimizations */
 @media (max-width: 640px) {
     .loginCard {
-        padding: var(--spacing-6);
+        padding: 32px 24px;
+        border-radius: 20px;
     }
 
     .logoText {

@@ -109,11 +109,32 @@ export default function SalaryTab({ employees }: SalaryTabProps) {
                 const res = await fetch(`/api/salaries?month=${mStr}`);
                 if (res.ok) {
                     const data = await res.json();
-                    const tagged = (data.records || []).map((r: any) => ({
-                        ...r,
-                        monthVal: parseInt(selectedMonthState),
-                        yearVal: parseInt(selectedYear)
-                    }));
+                    const activeEmployees = employees.filter(e => e.is_active === 1);
+                    const backendMap = new Map((data.records || []).map((r: any) => [r.employeeId, r]));
+
+                    const tagged = activeEmployees.map(emp => {
+                        const r = backendMap.get(emp.id) || {
+                            id: null,
+                            employeeId: emp.id,
+                            name: emp.name,
+                            role: emp.role,
+                            monthlySalary: emp.monthlySalary || 0,
+                            workingDays: data.totalDays || 30,
+                            presentDays: 0,
+                            absentDays: 0,
+                            halfDays: 0,
+                            basicEarned: 0,
+                            deductions: 0,
+                            advanceRecovery: 0,
+                            netPayable: 0,
+                            status: 'unpaid'
+                        };
+                        return {
+                            ...r,
+                            monthVal: parseInt(selectedMonthState),
+                            yearVal: parseInt(selectedYear)
+                        };
+                    });
                     setRecords(tagged);
                 }
             } else {
@@ -140,9 +161,27 @@ export default function SalaryTab({ employees }: SalaryTabProps) {
                 });
 
                 const results = await Promise.all(fetchPromises);
+                const activeEmployees = employees.filter(e => e.is_active === 1);
                 const allRecords: SalaryRecord[] = [];
                 results.forEach(res => {
-                    res.records.forEach((r: any) => {
+                    const backendMap = new Map((res.records || []).map((r: any) => [r.employeeId, r]));
+                    activeEmployees.forEach(emp => {
+                        const r = backendMap.get(emp.id) || {
+                            id: null,
+                            employeeId: emp.id,
+                            name: emp.name,
+                            role: emp.role,
+                            monthlySalary: emp.monthlySalary || 0,
+                            workingDays: 30, // Fallback, real totalDays should come from backend ideally
+                            presentDays: 0,
+                            absentDays: 0,
+                            halfDays: 0,
+                            basicEarned: 0,
+                            deductions: 0,
+                            advanceRecovery: 0,
+                            netPayable: 0,
+                            status: 'unpaid'
+                        };
                         allRecords.push({
                             ...r,
                             monthVal: res.monthVal,
@@ -563,7 +602,7 @@ export default function SalaryTab({ employees }: SalaryTabProps) {
                 <div className={styles.loadingState}>
                     Generating salary sheets...
                 </div>
-            ) : records.length === 0 ? (
+            ) : employees.filter(e => e.is_active === 1).length === 0 ? (
                 <div className={styles.emptyStateCard}>
                     <h3 className={styles.emptyStateTitle}>No Employees Found</h3>
                     <p className={styles.emptyStateText}>

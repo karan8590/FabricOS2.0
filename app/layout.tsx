@@ -3,6 +3,7 @@ import './globals.css';
 import { AuthProvider } from '@/contexts/AuthContext';
 import { BusinessProvider } from '@/contexts/BusinessContext';
 import { ToastProvider } from '@/contexts/ToastContext';
+import MobileWarning from '@/components/ui/MobileWarning';
 
 export const metadata: Metadata = {
     title: 'FabricOS - Textile Manufacturing ERP',
@@ -38,6 +39,7 @@ export default function RootLayout({
                 />
             </head>
             <body>
+                <MobileWarning />
                 <ToastProvider>
                     <AuthProvider>
                         <BusinessProvider>

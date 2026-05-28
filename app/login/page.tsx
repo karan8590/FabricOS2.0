@@ -54,14 +54,14 @@ export default function LoginPage() {
                     {error && <div className={styles.error}>{error}</div>}
 
                     <form onSubmit={handleSubmit} className={styles.form}>
-                        <div style={{ marginBottom: '16px' }}>
-                            <label style={{ display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: 500, color: '#334155' }}>Phone Number or Email</label>
-                            <div style={{ display: 'flex', gap: '8px' }}>
+                        <div className={styles.inputGroup}>
+                            <label className={styles.inputLabel}>Phone Number or Email</label>
+                            <div className={styles.phoneInputContainer}>
                                 {!phone.includes('@') && (
                                     <select 
                                         value={countryCode} 
                                         onChange={(e) => setCountryCode(e.target.value)}
-                                        style={{ padding: '8px', borderRadius: '8px', border: '1px solid #e2e8f0', backgroundColor: '#f8fafc', color: '#1e293b', fontSize: '14px', outline: 'none', cursor: 'pointer' }}
+                                        className={styles.countrySelect}
                                     >
                                         <option value="+91">+91 (IN)</option>
                                         <option value="+1">+1 (US)</option>
@@ -86,7 +86,7 @@ export default function LoginPage() {
                                             setPhone(digitsOnly.slice(0, 10)); // Force 10 chars max
                                         }
                                     }}
-                                    style={{ flex: 1, padding: '8px 12px', borderRadius: '8px', border: '1px solid #e2e8f0', fontSize: '14px', outline: 'none' }}
+                                    className={styles.phoneInput}
                                 />
                             </div>
                         </div>
@@ -111,29 +111,14 @@ export default function LoginPage() {
                     </form>
 
                     <div className={styles.divider}>
-                        <span>New customer?</span>
+                        <span className={styles.dividerText}>New to FabricOS?</span>
                     </div>
 
                     <Link href="/signup" style={{ textDecoration: 'none' }}>
-                        <Button variant="ghost" fullWidth>
-                            Create Account
+                        <Button variant="ghost" fullWidth className={styles.createAccountBtn}>
+                            Create an Account
                         </Button>
                     </Link>
-
-                    <div className={styles.demoCredentials}>
-                        <p className={styles.demoTitle}>Demo Credentials</p>
-                        <ul className={styles.demoList}>
-                            <li>
-                                Admin: <code>+919999999999</code> / <code>admin123</code>
-                            </li>
-                            <li>
-                                Staff: <code>+919999999998</code> / <code>staff123</code>
-                            </li>
-                            <li>
-                                Customer: <code>+919999999991</code> / <code>customer123</code>
-                            </li>
-                        </ul>
-                    </div>
                 </div>
 
                 <p className={styles.footer}>
